@@ -16,6 +16,40 @@ ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
 client = Anthropic(api_key=ANTHROPIC_API_KEY)
 
 
+def build_fallback_interpretation(
+    *,
+    query: str,
+    source_types: list[str] | None,
+    source_names: list[str] | None,
+    date_from: str | None,
+    date_to: str | None,
+) -> InterpretedQuery:
+    normalized_query = " ".join(query.strip().split())
+    return InterpretedQuery(
+        normalized_query=normalized_query,
+        date_from=date_from,
+        date_to=date_to,
+        source_types=source_types,
+        source_names=source_names,
+        question_type="retrieval",
+        analysis_depth="normal",
+    )
+
+
+def strip_json_fence(raw: str) -> str:
+    text = raw.strip()
+
+    if text.startswith("```json"):
+        text = text[len("```json"):].strip()
+    elif text.startswith("```"):
+        text = text[len("```"):].strip()
+
+    if text.endswith("```"):
+        text = text[:-3].strip()
+
+    return text
+
+
 def interpret_query(
     query: str,
     source_types: list[str] | None = None,
@@ -69,18 +103,28 @@ Przykłady:
         },
     }
 
-    response = client.messages.create(
-        model=ANTHROPIC_MODEL,
-        max_tokens=500,
-        temperature=0,
-        system=system_prompt,
-        messages=[
-            {
-                "role": "user",
-                "content": json.dumps(payload, ensure_ascii=False),
-            }
-        ],
-    )
+    try:
+        response = client.messages.create(
+            model=ANTHROPIC_MODEL,
+            max_tokens=500,
+            temperature=0,
+            system=system_prompt,
+            messages=[
+                {
+                    "role": "user",
+                    "content": json.dumps(payload, ensure_ascii=False),
+                }
+            ],
+        )
+    except Exception as exc:
+        print(f"[query_interpreter] WARNING: Anthropic call failed: {exc}")
+        return build_fallback_interpretation(
+            query=query,
+            source_types=source_types,
+            source_names=source_names,
+            date_from=date_from,
+            date_to=date_to,
+        )
 
     parts = []
     for block in response.content:
@@ -88,14 +132,58 @@ Przykłady:
             parts.append(block.text)
 
     raw = "\n".join(parts).strip()
-    data = json.loads(raw)
 
-    return InterpretedQuery(
-        normalized_query=data.get("normalized_query") or query,
-        date_from=data.get("date_from"),
-        date_to=data.get("date_to"),
-        source_types=data.get("source_types"),
-        source_names=data.get("source_names"),
-        question_type=data.get("question_type") or "retrieval",
-        analysis_depth=data.get("analysis_depth") or "normal",
-    )
+    if not raw:
+        print("[query_interpreter] WARNING: empty model response, using fallback")
+        return build_fallback_interpretation(
+            query=query,
+            source_types=source_types,
+            source_names=source_names,
+            date_from=date_from,
+            date_to=date_to,
+        )
+
+    raw = strip_json_fence(raw)
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        print(f"[query_interpreter] WARNING: invalid JSON response, using fallback: {raw[:500]}")
+        return build_fallback_interpretation(
+            query=query,
+            source_types=source_types,
+            source_names=source_names,
+            date_from=date_from,
+            date_to=date_to,
+        )
+
+    if not isinstance(data, dict):
+        print(f"[query_interpreter] WARNING: parsed JSON is not an object, using fallback: {type(data)}")
+        return build_fallback_interpretation(
+            query=query,
+            source_types=source_types,
+            source_names=source_names,
+            date_from=date_from,
+            date_to=date_to,
+        )
+
+    try:
+        return InterpretedQuery(
+            normalized_query=data.get("normalized_query") or query,
+            date_from=data.get("date_from"),
+            date_to=data.get("date_to"),
+            source_types=data.get("source_types") if data.get("source_types") is not None else source_types,
+            source_names=data.get("source_names") if data.get("source_names") is not None else source_names,
+            question_type=data.get("question_type") or "retrieval",
+            analysis_depth=data.get("analysis_depth") or "normal",
+        )
+    except Exception as exc:
+        print(f"[query_interpreter] WARNING: invalid interpreted payload, using fallback: {exc}; payload={data}")
+        return build_fallback_interpretation(
+            query=query,
+            source_types=source_types,
+            source_names=source_names,
+            date_from=date_from,
+            date_to=date_to,
+        )
+    

@@ -48,8 +48,12 @@ class SourceItem(BaseModel):
     created_at: str | None = None
 
 
+from typing import Any
+
+
 class AskResponse(BaseModel):
     answer: str
     sources: list[SourceItem] | None = None
     matches: list[MatchItem] | None = None
-    meta: dict | None = None
+    meta: dict[str, Any] | None = None
+    run_id: int | None = None

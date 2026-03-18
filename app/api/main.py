@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import time
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -8,6 +9,7 @@ from app.api.schemas import AskRequest, AskResponse, MatchItem, SourceItem
 from app.retrieval.query_interpreter import interpret_query
 from app.retrieval.retriever import search_chunks
 from app.retrieval.answering import answer_question
+from app.db.runtime_persistence import persist_ask_run_best_effort
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env")
@@ -81,6 +83,13 @@ def version() -> dict:
 
 @app.post("/ask", response_model=AskResponse)
 def ask(request: AskRequest) -> AskResponse:
+    started_at = time.time()
+
+    try:
+        request_payload = request.model_dump()
+    except AttributeError:
+        request_payload = request.dict()
+
     interpreted = interpret_query(
         query=request.query,
         source_types=request.source_types,
@@ -127,23 +136,50 @@ def ask(request: AskRequest) -> AskResponse:
         )
 
     if not matches:
-        return AskResponse(
-            answer="Nie znalazłem wystarczająco trafnego kontekstu dla tego pytania.",
-            sources=[] if request.debug else None,
-            matches=[] if request.debug else None,
-            meta={
+        latency_ms = int((time.time() - started_at) * 1000)
+
+        response_meta = {
+            "question_type": interpreted.question_type,
+            "analysis_depth": interpreted.analysis_depth,
+            "used_fallback": used_fallback,
+            "match_count": 0,
+            "normalized_query": interpreted.normalized_query,
+            "date_from": interpreted.date_from,
+            "date_to": interpreted.date_to,
+            "answer_style": request.answer_style,
+            "answer_length": request.answer_length,
+            "allow_quotes": request.allow_quotes,
+            "debug": request.debug,
+        }
+
+        response_payload = {
+            "answer": "Nie znalazłem wystarczająco trafnego kontekstu dla tego pytania.",
+            "sources": [] if request.debug else None,
+            "matches": [] if request.debug else None,
+            "meta": response_meta,
+        }
+
+        run_id = persist_ask_run_best_effort(
+            session_id=None,
+            request_payload=request_payload,
+            response_payload=response_payload,
+            interpretation={
+                "normalized_query": interpreted.normalized_query,
                 "question_type": interpreted.question_type,
                 "analysis_depth": interpreted.analysis_depth,
-                "used_fallback": used_fallback,
-                "match_count": 0,
-                "normalized_query": interpreted.normalized_query,
-                "date_from": interpreted.date_from,
-                "date_to": interpreted.date_to,
-                "answer_style": request.answer_style,
-                "answer_length": request.answer_length,
-                "allow_quotes": request.allow_quotes,
-                "debug": request.debug,
+                "prefetch_k": prefetch_k,
+                "answer_match_limit": answer_match_limit,
             },
+            matches=[],
+            latency_ms=latency_ms,
+        )
+
+        return AskResponse(
+            answer=response_payload["answer"],
+            sources=response_payload["sources"],
+            matches=response_payload["matches"],
+            meta=response_meta,
+            run_id=run_id,
         )
 
     matches = sort_matches_for_question_type(matches, interpreted.question_type)
@@ -185,23 +221,66 @@ def ask(request: AskRequest) -> AskResponse:
         )
 
     response_sources = sources if request.debug else None
-    response_matches = [MatchItem(**m) for m in matches_for_answer] if request.debug else None
+
+    response_matches = None
+    if request.debug:
+        response_matches = []
+        for m in matches_for_answer:
+            response_matches.append(
+                MatchItem(
+                    chunk_id=m.get("chunk_id"),
+                    document_id=m.get("document_id"),
+                    score=float(m.get("score", 0.0)),
+                    source_type=m.get("source_type"),
+                    source_name=m.get("source_name"),
+                    title=m.get("title"),
+                    created_at=str(m.get("created_at")) if m.get("created_at") is not None else None,
+                    text=str(m.get("text") or m.get("chunk_text") or ""),
+                )
+            )
+
+    response_meta = {
+        "question_type": interpreted.question_type,
+        "analysis_depth": interpreted.analysis_depth,
+        "used_fallback": used_fallback,
+        "match_count": len(matches_for_answer),
+        "normalized_query": interpreted.normalized_query,
+        "date_from": interpreted.date_from,
+        "date_to": interpreted.date_to,
+        "answer_style": request.answer_style,
+        "answer_length": request.answer_length,
+        "allow_quotes": request.allow_quotes,
+        "debug": request.debug,
+    }
+
+    latency_ms = int((time.time() - started_at) * 1000)
+
+    response_payload = {
+        "answer": answer,
+        "sources": [s.dict() for s in response_sources] if response_sources else None,
+        "matches": [m.dict() for m in response_matches] if response_matches else None,
+        "meta": response_meta,
+    }
+
+    run_id = persist_ask_run_best_effort(
+        session_id=None,
+        request_payload=request_payload,
+        response_payload=response_payload,
+        interpretation={
+            "normalized_query": interpreted.normalized_query,
+            "question_type": interpreted.question_type,
+            "analysis_depth": interpreted.analysis_depth,
+            "prefetch_k": prefetch_k,
+            "answer_match_limit": answer_match_limit,
+        },
+        matches=matches_for_answer,
+        latency_ms=latency_ms,
+    )
 
     return AskResponse(
         answer=answer,
         sources=response_sources,
         matches=response_matches,
-        meta={
-            "question_type": interpreted.question_type,
-            "analysis_depth": interpreted.analysis_depth,
-            "used_fallback": used_fallback,
-            "match_count": len(matches_for_answer),
-            "normalized_query": interpreted.normalized_query,
-            "date_from": interpreted.date_from,
-            "date_to": interpreted.date_to,
-            "answer_style": request.answer_style,
-            "answer_length": request.answer_length,
-            "allow_quotes": request.allow_quotes,
-            "debug": request.debug,
-        },
+        meta=response_meta,
+        run_id=run_id,
     )
