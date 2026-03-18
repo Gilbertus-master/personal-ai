@@ -1,0 +1,356 @@
+==> KATALOG PROJEKTU
+/home/sebastian/personal-ai
+==> STATUS KONTENERÓW
+NAME                 IMAGE                  COMMAND                  SERVICE    CREATED      STATUS                  PORTS
+gilbertus-postgres   postgres:16            "docker-entrypoint.s…"   postgres   6 days ago   Up 30 hours (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+gilbertus-qdrant     qdrant/qdrant:latest   "./entrypoint.sh"        qdrant     6 days ago   Up 30 hours             0.0.0.0:6333-6334->6333-6334/tcp, [::]:6333-6334->6333-6334/tcp
+==> BACKUP PRZED IMPORTEM
+==> Tworze backup w: backups/db/2026-03-15_18-55-08
+==> Backup gotowy
+total 50M
+-rw-r--r-- 1 sebastian sebastian 266 Mar 15 18:55 manifest.json
+-rw-r--r-- 1 sebastian sebastian 50M Mar 15 18:55 postgres.dump
+-rw-r--r-- 1 sebastian sebastian 392 Mar 15 18:55 qdrant.tar.zst
+==> IMPORT
+Importing: data/raw/whatsapp/_chat - Moritz Ignat - byly wspolpracownik z Vattenfall gdy mieszkalem w Hamburgu, kolega.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat - Moritz Ignat - byly wspolpracownik z Vattenfall gdy mieszkalem w Hamburgu, kolega.txt
+Participants: ['Moritz Ignat UNIPER', 'Sebastian']
+Messages: 2359
+Chunks: 33
+Importing: data/raw/whatsapp/_chat Adam Bochenko - trener strzelectwa emerytowany operator GROM.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Adam Bochenko - trener strzelectwa emerytowany operator GROM.txt
+Participants: ['Adam Bochenko', 'Sebastian']
+Messages: 4260
+Chunks: 62
+Importing: data/raw/whatsapp/_chat Agata Jablonska - mama.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Agata Jablonska - mama.txt
+Participants: ['Mama', 'Sebastian']
+Messages: 3926
+Chunks: 64
+Importing: data/raw/whatsapp/_chat Arek Blacha - trader, maz mojej siostry stryjecznej.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Arek Blacha - trader, maz mojej siostry stryjecznej.txt
+Participants: ['Arek Blacha', 'Sebastian']
+Messages: 582
+Chunks: 8
+Importing: data/raw/whatsapp/_chat Arkadiusz Dominczak - byly zaufany prawnik czlonek rady nadzorczej.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Arkadiusz Dominczak - byly zaufany prawnik czlonek rady nadzorczej.txt
+Participants: ['Arkadiusz Dominczak', 'Sebastian']
+Messages: 896
+Chunks: 15
+Importing: data/raw/whatsapp/_chat Arkadiusz Dominczak 2 byly zaufany prawnik czlonek rady nadzorczej.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Arkadiusz Dominczak 2 byly zaufany prawnik czlonek rady nadzorczej.txt
+Participants: ['Arkadiusz Dominczak', 'Sebastian']
+Messages: 896
+Chunks: 15
+Importing: data/raw/whatsapp/_chat Bartosz Skwarczek - wlasciciel G2A znajomy.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Bartosz Skwarczek - wlasciciel G2A znajomy.txt
+Participants: ['Bartosz Skwarczek', 'Sebastian']
+Messages: 18
+Chunks: 1
+Importing: data/raw/whatsapp/_chat Boris Kendra - byly wspolnik bardzo bliski kolega.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Boris Kendra - byly wspolnik bardzo bliski kolega.txt
+Participants: ['Boris CZ', 'Sebastian']
+Messages: 3404
+Chunks: 46
+Importing: data/raw/whatsapp/_chat Bozena Ossak - znajoma.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Bozena Ossak - znajoma.txt
+Participants: ['Bozena Ossak Santander', 'Sebastian']
+Messages: 357
+Chunks: 9
+Importing: data/raw/whatsapp/_chat Dariusz Blizniak - byly wspolnik czlonek zarzadu wprowadzil mnie na rynek energii.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Dariusz Blizniak - byly wspolnik czlonek zarzadu wprowadzil mnie na rynek energii.txt
+Participants: ['Dariusz Blizniak 11', 'Sebastian']
+Messages: 19
+Chunks: 1
+Importing: data/raw/whatsapp/_chat Dariusz Blizniak - byly wspolnik, czlonek zarzadu, wprowadzil mnie na rynek energii2.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Dariusz Blizniak - byly wspolnik, czlonek zarzadu, wprowadzil mnie na rynek energii2.txt
+Participants: ['Dariusz Blizniak Nn', 'Sebastian']
+Messages: 1348
+Chunks: 25
+Importing: data/raw/whatsapp/_chat Dariusz Bojsza - znajomy z rynku klient.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Dariusz Bojsza - znajomy z rynku klient.txt
+Participants: ['Dariusz Bojsza', 'Sebastian']
+Messages: 58
+Chunks: 2
+Importing: data/raw/whatsapp/_chat Dariusz Parzelski - psycholog sportowy, couchowal mnie i moich traderow.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Dariusz Parzelski - psycholog sportowy, couchowal mnie i moich traderow.txt
+Participants: ['Sebastian', 'dariusz parzelski']
+Messages: 325
+Chunks: 6
+Importing: data/raw/whatsapp/_chat Dawid Urban - founder Luna sa wspolnik w tej spolce.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Dawid Urban - founder Luna sa wspolnik w tej spolce.txt
+Participants: ['Dawid Urban', 'Sebastian']
+Messages: 2297
+Chunks: 49
+Importing: data/raw/whatsapp/_chat Devraj - dluznik, znajomy, chyba oszust.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Devraj - dluznik, znajomy, chyba oszust.txt
+Participants: ['Devraj ssp', 'Sebastian']
+Messages: 3298
+Chunks: 69
+Importing: data/raw/whatsapp/_chat Diana Skotnicka - CFO REH.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Diana Skotnicka - CFO REH.txt
+Participants: ['Diana Skotnicka', 'Sebastian']
+Messages: 917
+Chunks: 14
+Importing: data/raw/whatsapp/_chat Dominik Cichosz - bardzo bliski kolega od liceum.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Dominik Cichosz - bardzo bliski kolega od liceum.txt
+Participants: ['Cichosz Domi', 'Sebastian']
+Messages: 7706
+Chunks: 113
+Importing: data/raw/whatsapp/_chat Dominik Leszczynski - wlasciciel DL Invest, przedsiebiorca, znajomy.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Dominik Leszczynski - wlasciciel DL Invest, przedsiebiorca, znajomy.txt
+Participants: ['Dominik Leszczynski', 'Sebastian']
+Messages: 370
+Chunks: 7
+Importing: data/raw/whatsapp/_chat Ewa Jablonska - byla zona.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Ewa Jablonska - byla zona.txt
+Participants: ['Ewa', 'Sebastian']
+Messages: 89664
+Chunks: 1126
+Importing: data/raw/whatsapp/_chat Grzegorz Bruski - byly szef sprzedazy REH.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Grzegorz Bruski - byly szef sprzedazy REH.txt
+Participants: ['Grzegorz Bruski', 'Sebastian']
+Messages: 8575
+Chunks: 143
+Importing: data/raw/whatsapp/_chat Hubert Topolinski - byly wspolnik, znajomy.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Hubert Topolinski - byly wspolnik, znajomy.txt
+Participants: ['Hubert Topolinski', 'Sebastian']
+Messages: 11872
+Chunks: 191
+Importing: data/raw/whatsapp/_chat Iwona Buchner-Grzesiak - znajoma, manszard, wlasicielka PolSwissArt.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Iwona Buchner-Grzesiak - znajoma, manszard, wlasicielka PolSwissArt.txt
+Participants: ['Iwona Bucher-Grzesiak', 'Sebastian']
+Messages: 996
+Chunks: 22
+Importing: data/raw/whatsapp/_chat Janusz Gajowiecki - znajomy, prezes PSEW.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Janusz Gajowiecki - znajomy, prezes PSEW.txt
+Participants: ['Janusz Gajowiecki', 'Sebastian']
+Messages: 1049
+Chunks: 18
+Importing: data/raw/whatsapp/_chat Jarek Dybowski - znajomy, byly prezes Vattenfall w Polsce, bardzo dobrze osadzony w energetyce w Polsce.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Jarek Dybowski - znajomy, byly prezes Vattenfall w Polsce, bardzo dobrze osadzony w energetyce w Polsce.txt
+Participants: ['Jarek Dybowski', 'Sebastian']
+Messages: 560
+Chunks: 11
+Importing: data/raw/whatsapp/_chat Jarek Wajer - partner EY, znajomy.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Jarek Wajer - partner EY, znajomy.txt
+Participants: ['Jarek Wajer', 'Sebastian']
+Messages: 437
+Chunks: 11
+Importing: data/raw/whatsapp/_chat Julka Piatkowska - znajoma ze studiow.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Julka Piatkowska - znajoma ze studiow.txt
+Participants: ['Julka', 'Sebastian']
+Messages: 3325
+Chunks: 46
+Importing: data/raw/whatsapp/_chat Karol Gaweda - moj byly asystent.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Karol Gaweda - moj byly asystent.txt
+Participants: ['Karol Gawęda', 'Sebastian']
+Messages: 905
+Chunks: 15
+Importing: data/raw/whatsapp/_chat Kasia Jablonska - siostra.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Kasia Jablonska - siostra.txt
+Participants: ['Kasia Jablońska', 'Sebastian']
+Messages: 18700
+Chunks: 296
+Importing: data/raw/whatsapp/_chat Krystian Juchacz - prezes mojej spolki obrotu gazem Respect Energy Fuels.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Krystian Juchacz - prezes mojej spolki obrotu gazem Respect Energy Fuels.txt
+Participants: ['Krystian Juchacz', 'Sebastian']
+Messages: 26297
+Chunks: 365
+Importing: data/raw/whatsapp/_chat Krzysztof Plachta - kontrahent.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Krzysztof Plachta - kontrahent.txt
+Participants: ['Krzysztof Plachta', 'Sebastian']
+Messages: 23
+Chunks: 1
+Importing: data/raw/whatsapp/_chat Ladislav Brezina - kolega, byly wspolpracownik z okresu gdy mieszkalem w Hamburgu.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Ladislav Brezina - kolega, byly wspolpracownik z okresu gdy mieszkalem w Hamburgu.txt
+Participants: ['Ladislav Brezina', 'Sebastian']
+Messages: 402
+Chunks: 6
+Importing: data/raw/whatsapp/_chat Lukas Choma 1 - byly wspolnik, kolega.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Lukas Choma 1 - byly wspolnik, kolega.txt
+Participants: ['Lukas Choma', 'Sebastian']
+Messages: 603
+Chunks: 9
+Importing: data/raw/whatsapp/_chat Lukas Choma 2 - ta sama osoba co w poprzednim pliku.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Lukas Choma 2 - ta sama osoba co w poprzednim pliku.txt
+Participants: ['Lukas Choma', 'Sebastian']
+Messages: 9914
+Chunks: 156
+Importing: data/raw/whatsapp/_chat Maciej Antczak 1- znajomy, kontrahent, trader environmental commodities.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Maciej Antczak 1- znajomy, kontrahent, trader environmental commodities.txt
+Participants: ['Kryptonim Zuraw PL', 'Sebastian']
+Messages: 7359
+Chunks: 106
+Importing: data/raw/whatsapp/_chat Maciej Antczak 2 - ta sama osoba co w poprzednim pliku.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Maciej Antczak 2 - ta sama osoba co w poprzednim pliku.txt
+Participants: ['Maciek Antczak', 'Sebastian']
+Messages: 14951
+Chunks: 184
+Importing: data/raw/whatsapp/_chat Maciek Treningi - trener personalny.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Maciek Treningi - trener personalny.txt
+Participants: ['Maciek treningi', 'Sebastian']
+Messages: 4543
+Chunks: 60
+Importing: data/raw/whatsapp/_chat Magda Jablonska-Blacha - siostra stryjeczna, zona Arka.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Magda Jablonska-Blacha - siostra stryjeczna, zona Arka.txt
+Participants: ['Magda Jablonska-Blacha', 'Sebastian']
+Messages: 6
+Chunks: 1
+Importing: data/raw/whatsapp/_chat Marcin Kucybala - znajomy.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Marcin Kucybala - znajomy.txt
+Participants: ['Marcin Kucybala', 'Sebastian']
+Messages: 1693
+Chunks: 26
+Importing: data/raw/whatsapp/_chat Marek Piwko - znajomy z tradingu powiazany z Lukas Choma.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Marek Piwko - znajomy z tradingu powiazany z Lukas Choma.txt
+Participants: ['Marek piwko', 'Sebastian']
+Messages: 371
+Chunks: 5
+Importing: data/raw/whatsapp/_chat Mateusz Pawelczuk - kolega z klubu szachowego z dziecinstwa, byly pracownik.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Mateusz Pawelczuk - kolega z klubu szachowego z dziecinstwa, byly pracownik.txt
+Participants: ['Mateusz Pawelczuk', 'Sebastian']
+Messages: 13369
+Chunks: 366
+Importing: data/raw/whatsapp/_chat Michael Landau - prezes Right Power, powiazany z Lukas Choma.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Michael Landau - prezes Right Power, powiazany z Lukas Choma.txt
+Participants: ['Michael Landau Mobile', 'Sebastian']
+Messages: 2758
+Chunks: 43
+Importing: data/raw/whatsapp/_chat Monika Bronikowska - Hola Design architekt wnetrz.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Monika Bronikowska - Hola Design architekt wnetrz.txt
+Participants: ['Hola Design', 'Sebastian']
+Messages: 2261
+Chunks: 60
+Importing: data/raw/whatsapp/_chat Monika Grudzien - byla COO i czlonek zarzadu Respect Energy Holding.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Monika Grudzien - byla COO i czlonek zarzadu Respect Energy Holding.txt
+Participants: ['Monika Grudzien RE', 'Sebastian']
+Messages: 232
+Chunks: 5
+Importing: data/raw/whatsapp/_chat Pawel Jarski - wlasciciel Elemental Holding, kolega.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Pawel Jarski - wlasciciel Elemental Holding, kolega.txt
+Participants: ['Pawel Jarski', 'Sebastian']
+Messages: 2658
+Chunks: 40
+Importing: data/raw/whatsapp/_chat Piotr Beaupre - kontrahent, wspolnik przy projektach OZE.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Piotr Beaupre - kontrahent, wspolnik przy projektach OZE.txt
+Participants: ['Piotr Beaupre', 'Sebastian']
+Messages: 1999
+Chunks: 35
+Importing: data/raw/whatsapp/_chat Piotr Dabrowski - asystent.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Piotr Dabrowski - asystent.txt
+Participants: ['Piotr Dabrowski', 'Sebastian']
+Messages: 2084
+Chunks: 41
+Importing: data/raw/whatsapp/_chat Piotr Hanaka - kolega z klubu szachowego z dziecinstwa.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Piotr Hanaka - kolega z klubu szachowego z dziecinstwa.txt
+Participants: ['Piotr Hanaka', 'Sebastian']
+Messages: 712
+Chunks: 16
+Importing: data/raw/whatsapp/_chat Piotr Ostaszewski - byly czlonek zarzadu Respect Energy, szef sprzedazy.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Piotr Ostaszewski - byly czlonek zarzadu Respect Energy, szef sprzedazy.txt
+Participants: ['Piotr Ostaszewski', 'Sebastian']
+Messages: 19397
+Chunks: 272
+Importing: data/raw/whatsapp/_chat Piotr Piotrowski - byly pracownik.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Piotr Piotrowski - byly pracownik.txt
+Participants: ['Pitero', 'Sebastian']
+Messages: 3895
+Chunks: 66
+Importing: data/raw/whatsapp/_chat Piotr Rutkowski - kolega.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Piotr Rutkowski - kolega.txt
+Participants: ['Piotr Rutkowski', 'Sebastian']
+Messages: 2718
+Chunks: 47
+Importing: data/raw/whatsapp/_chat Rafal Klos - znajomy z rynku energii.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Rafal Klos - znajomy z rynku energii.txt
+Participants: ['Rafal Klos', 'Sebastian']
+Messages: 898
+Chunks: 13
+Importing: data/raw/whatsapp/_chat Rafal Pluciennik - wlasiciel corporate connections.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Rafal Pluciennik - wlasiciel corporate connections.txt
+Participants: ['Rafał Płuciennik', 'Sebastian']
+Messages: 44
+Chunks: 1
+Importing: data/raw/whatsapp/_chat Renata Iwaniec - ciocia, siostra mojej mamy.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Renata Iwaniec - ciocia, siostra mojej mamy.txt
+Participants: ['Renata Iwaniec', 'Sebastian']
+Messages: 308
+Chunks: 7
+Importing: data/raw/whatsapp/_chat Roch Baranowski - prezes Respect Energy Holding.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Roch Baranowski - prezes Respect Energy Holding.txt
+Participants: ['Roch Baranowski', 'Sebastian']
+Messages: 8576
+Chunks: 188
+Importing: data/raw/whatsapp/_chat SP-NOC - logistyka lotow moim odrzutowcem.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat SP-NOC - logistyka lotow moim odrzutowcem.txt
+Participants: ['Anna Raczyńska', 'Bartek Drywa', 'Jan Polczynski', 'Olga Warmińska', 'SP-NOC loty', 'Sebastian']
+Messages: 1460
+Chunks: 31
+Importing: data/raw/whatsapp/_chat Sebastian Golus - znajomy, byly wspolnik, powiazany z Hubertem Topolinskim.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Sebastian Golus - znajomy, byly wspolnik, powiazany z Hubertem Topolinskim.txt
+Participants: ['Sebastian', 'Sebastian Golus']
+Messages: 12727
+Chunks: 211
+Importing: data/raw/whatsapp/_chat Sebastian Kwapulinski - znajomy z rynku energii.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Sebastian Kwapulinski - znajomy z rynku energii.txt
+Participants: ['Sebastian', 'Sebastian Kwapulinski']
+Messages: 117
+Chunks: 3
+Importing: data/raw/whatsapp/_chat Szczepan Jablonski - moj ojciec.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Szczepan Jablonski - moj ojciec.txt
+Participants: ['Sebastian', 'Szczepan Jablonski']
+Messages: 186
+Chunks: 5
+Importing: data/raw/whatsapp/_chat Tkaczow - moj psychoanalityk Lacanowski.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Tkaczow - moj psychoanalityk Lacanowski.txt
+Participants: ['Sebastian', 'Tkaczow']
+Messages: 132
+Chunks: 2
+Importing: data/raw/whatsapp/_chat Tomasz Gackowski - znajomy, pracownik.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Tomasz Gackowski - znajomy, pracownik.txt
+Participants: ['Sebastian', 'Tomasz Gackowski priv']
+Messages: 1187
+Chunks: 42
+Importing: data/raw/whatsapp/_chat Tomasz Zadroga - byly czlonek zarzadu Respect Energy Holding.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Tomasz Zadroga - byly czlonek zarzadu Respect Energy Holding.txt
+Participants: ['Sebastian', 'Tomasz Zadroga']
+Messages: 12931
+Chunks: 218
+Importing: data/raw/whatsapp/_chat Zofia Godula - partnerka od sierpnia 2023.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Zofia Godula - partnerka od sierpnia 2023.txt
+Participants: ['Sebastian', '❤️Zosia❤️']
+Messages: 37760
+Chunks: 538
+Importing: data/raw/whatsapp/_chat Zuza Lemiesz - trener personalny.txt
+Imported WhatsApp chat: data/raw/whatsapp/_chat Zuza Lemiesz - trener personalny.txt
+Participants: ['Sebastian', 'Zuza']
+Messages: 10864
+Chunks: 132
+WhatsApp import finished.
+==> WALIDACJA POST-IMPORT
+ total_sources 
+---------------
+         21652
+(1 row)
+
+ total_documents 
+-----------------
+           21652
+(1 row)
+
+ total_chunks 
+--------------
+        90797
+(1 row)
+
+==> ROZMIAR QDRANT
+20K	data/processed/qdrant
+==> BACKUP PO IMPORCIE
+==> Tworze backup w: backups/db/2026-03-15_19-06-22
+==> Backup gotowy
+total 60M
+-rw-r--r-- 1 sebastian sebastian 266 Mar 15 19:06 manifest.json
+-rw-r--r-- 1 sebastian sebastian 60M Mar 15 19:06 postgres.dump
+-rw-r--r-- 1 sebastian sebastian 392 Mar 15 19:06 qdrant.tar.zst
+==> GOTOWE

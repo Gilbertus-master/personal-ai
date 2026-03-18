@@ -1,0 +1,49 @@
+==> KATALOG PROJEKTU
+/home/sebastian/personal-ai
+==> STATUS KONTENERÓW
+NAME                 IMAGE                  COMMAND                  SERVICE    CREATED      STATUS                  PORTS
+gilbertus-postgres   postgres:16            "docker-entrypoint.s…"   postgres   6 days ago   Up 24 hours (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+gilbertus-qdrant     qdrant/qdrant:latest   "./entrypoint.sh"        qdrant     6 days ago   Up 24 hours             0.0.0.0:6333-6334->6333-6334/tcp, [::]:6333-6334->6333-6334/tcp
+==> BACKUP PRZED IMPORTEM
+==> Tworze backup w: backups/db/2026-03-15_13-23-52
+==> Backup gotowy
+total 7.3M
+-rw-r--r-- 1 sebastian sebastian  266 Mar 15 13:23 manifest.json
+-rw-r--r-- 1 sebastian sebastian 7.3M Mar 15 13:23 postgres.dump
+-rw-r--r-- 1 sebastian sebastian  392 Mar 15 13:23 qdrant.tar.zst
+==> IMPORT
+Importing: data/raw/docs/Jablonska Ewa diagnoza.pdf
+Imported document: data/raw/docs/Jablonska Ewa diagnoza.pdf
+Type: pdf
+Title: Jablonska Ewa diagnoza.pdf
+Chars: 25812
+Chunks: 6
+Importing: data/raw/docs/SJ diagnoza autyzmu.pdf
+No text extracted from file: data/raw/docs/SJ diagnoza autyzmu.pdf
+PDF document import finished.
+==> WALIDACJA POST-IMPORT
+ total_sources 
+---------------
+          1210
+(1 row)
+
+ total_documents 
+-----------------
+            1210
+(1 row)
+
+ total_chunks 
+--------------
+         4781
+(1 row)
+
+==> ROZMIAR QDRANT
+20K	data/processed/qdrant
+==> BACKUP PO IMPORCIE
+==> Tworze backup w: backups/db/2026-03-15_13-23-55
+==> Backup gotowy
+total 7.3M
+-rw-r--r-- 1 sebastian sebastian  266 Mar 15 13:23 manifest.json
+-rw-r--r-- 1 sebastian sebastian 7.3M Mar 15 13:23 postgres.dump
+-rw-r--r-- 1 sebastian sebastian  392 Mar 15 13:23 qdrant.tar.zst
+==> GOTOWE
