@@ -141,3 +141,42 @@ def insert_chunk(
     RETURNING id;
     """
     return int(_run_sql(sql))
+
+def _run_sql_all_lines(sql: str) -> list[str]:
+    import subprocess
+
+    cmd = [
+        "docker",
+        "exec",
+        "-i",
+        "gilbertus-postgres",
+        "psql",
+        "-U",
+        "gilbertus",
+        "-d",
+        "gilbertus",
+        "-At",
+    ]
+
+    result = subprocess.run(
+        cmd,
+        input=sql,
+        text=True,
+        capture_output=True,
+    )
+
+    stdout = result.stdout or ""
+    stderr = result.stderr or ""
+
+    if result.returncode != 0:
+        print("SQL command failed.")
+        print("STDOUT:")
+        print(stdout)
+        print("STDERR:")
+        print(stderr)
+        print("SQL:")
+        print(sql)
+        raise RuntimeError("Database command failed")
+
+    lines = [line.strip() for line in stdout.splitlines() if line.strip()]
+    return lines
