@@ -11,6 +11,7 @@ from app.retrieval.retriever import search_chunks
 from app.retrieval.answering import answer_question
 from app.db.runtime_persistence import persist_ask_run_best_effort
 from app.retrieval.redaction import redact_matches
+from app.retrieval.postprocess import cleanup_matches
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env")
@@ -146,6 +147,11 @@ def ask(request: AskRequest) -> AskResponse:
             "retrieved_count": 0,
             "used_for_answer_count": 0,
             "redacted_count": 0,
+            "cleanup_input_count": 0,
+            "cleanup_output_count": 0,
+            "cleanup_score_filtered_out": 0,
+            "cleanup_dedup_filtered_out": 0,
+            "cleanup_document_capped_out": 0,
             "normalized_query": interpreted.normalized_query,
             "date_from": interpreted.date_from,
             "date_to": interpreted.date_to,
@@ -188,7 +194,16 @@ def ask(request: AskRequest) -> AskResponse:
     matches = sort_matches_for_question_type(matches, interpreted.question_type)
 
     retrieved_count = len(matches)
-    matches_for_answer = matches[:answer_match_limit]
+
+    cleaned_matches, cleanup_stats = cleanup_matches(
+        matches,
+        normalized_query=interpreted.normalized_query,
+        top_k=answer_match_limit,
+        max_per_document=2,
+        min_score=None,
+    )
+
+    matches_for_answer = cleaned_matches
     used_for_answer_count = len(matches_for_answer)
 
     redacted_matches_for_answer, redacted_count = redact_matches(matches_for_answer)
@@ -254,6 +269,11 @@ def ask(request: AskRequest) -> AskResponse:
         "retrieved_count": retrieved_count,
         "used_for_answer_count": used_for_answer_count,
         "redacted_count": redacted_count,
+        "cleanup_input_count": cleanup_stats["input_count"],
+        "cleanup_output_count": cleanup_stats["output_count"],
+        "cleanup_score_filtered_out": cleanup_stats["score_filtered_out"],
+        "cleanup_dedup_filtered_out": cleanup_stats["dedup_filtered_out"],
+        "cleanup_document_capped_out": cleanup_stats["document_capped_out"],
         "normalized_query": interpreted.normalized_query,
         "date_from": interpreted.date_from,
         "date_to": interpreted.date_to,
