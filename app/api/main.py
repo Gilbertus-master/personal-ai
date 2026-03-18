@@ -10,6 +10,7 @@ from app.retrieval.query_interpreter import interpret_query
 from app.retrieval.retriever import search_chunks
 from app.retrieval.answering import answer_question
 from app.db.runtime_persistence import persist_ask_run_best_effort
+from app.retrieval.redaction import redact_matches
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env")
@@ -142,7 +143,9 @@ def ask(request: AskRequest) -> AskResponse:
             "question_type": interpreted.question_type,
             "analysis_depth": interpreted.analysis_depth,
             "used_fallback": used_fallback,
-            "match_count": 0,
+            "retrieved_count": 0,
+            "used_for_answer_count": 0,
+            "redacted_count": 0,
             "normalized_query": interpreted.normalized_query,
             "date_from": interpreted.date_from,
             "date_to": interpreted.date_to,
@@ -183,11 +186,16 @@ def ask(request: AskRequest) -> AskResponse:
         )
 
     matches = sort_matches_for_question_type(matches, interpreted.question_type)
+
+    retrieved_count = len(matches)
     matches_for_answer = matches[:answer_match_limit]
+    used_for_answer_count = len(matches_for_answer)
+
+    redacted_matches_for_answer, redacted_count = redact_matches(matches_for_answer)
 
     answer = answer_question(
         query=request.query,
-        matches=matches_for_answer,
+        matches=redacted_matches_for_answer,
         question_type=interpreted.question_type,
         analysis_depth=interpreted.analysis_depth,
         include_sources=request.include_sources,
@@ -198,7 +206,7 @@ def ask(request: AskRequest) -> AskResponse:
 
     seen = set()
     sources = []
-    for m in matches_for_answer:
+    for m in redacted_matches_for_answer:
         key = (
             m.get("document_id"),
             m.get("title"),
@@ -225,7 +233,7 @@ def ask(request: AskRequest) -> AskResponse:
     response_matches = None
     if request.debug:
         response_matches = []
-        for m in matches_for_answer:
+        for m in redacted_matches_for_answer:
             response_matches.append(
                 MatchItem(
                     chunk_id=m.get("chunk_id"),
@@ -243,7 +251,9 @@ def ask(request: AskRequest) -> AskResponse:
         "question_type": interpreted.question_type,
         "analysis_depth": interpreted.analysis_depth,
         "used_fallback": used_fallback,
-        "match_count": len(matches_for_answer),
+        "retrieved_count": retrieved_count,
+        "used_for_answer_count": used_for_answer_count,
+        "redacted_count": redacted_count,
         "normalized_query": interpreted.normalized_query,
         "date_from": interpreted.date_from,
         "date_to": interpreted.date_to,
