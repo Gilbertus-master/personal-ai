@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from typing import Any
+from app.retrieval.relevance import rerank_matches_by_relevance
 
 
 POLISH_STOPWORDS = {
@@ -102,22 +103,11 @@ def cleanup_matches(
                 pass
         filtered.append(match)
 
-    # 2) lexical re-sort
-    rescored: list[tuple[tuple[float, float], dict[str, Any]]] = []
-    for match in filtered:
-        text = get_match_text(match)
-        lexical = lexical_overlap_score(query_tokens, text)
-
-        try:
-            semantic = float(match.get("score", 0.0))
-        except Exception:
-            semantic = 0.0
-
-        # najpierw lexical overlap, potem score semantyczny
-        rescored.append(((float(lexical), semantic), match))
-
-    rescored.sort(key=lambda item: item[0], reverse=True)
-    sorted_matches = [item[1] for item in rescored]
+    # 2) relevance reranking
+    sorted_matches = rerank_matches_by_relevance(
+        filtered,
+        normalized_query=normalized_query,
+    )
 
     # 3) dedup po podobnym początku tekstu
     deduped: list[dict[str, Any]] = []

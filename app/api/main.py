@@ -111,6 +111,8 @@ def ask(request: AskRequest) -> AskResponse:
         interpreted.analysis_depth,
     )
 
+    final_match_limit = max(request.top_k, min(answer_match_limit, request.top_k * 3))
+
     matches = search_chunks(
         query=interpreted.normalized_query,
         top_k=answer_match_limit,
@@ -152,6 +154,8 @@ def ask(request: AskRequest) -> AskResponse:
             "cleanup_score_filtered_out": 0,
             "cleanup_dedup_filtered_out": 0,
             "cleanup_document_capped_out": 0,
+            "answer_match_limit": answer_match_limit,
+            "final_match_limit": final_match_limit,
             "normalized_query": interpreted.normalized_query,
             "date_from": interpreted.date_from,
             "date_to": interpreted.date_to,
@@ -198,7 +202,7 @@ def ask(request: AskRequest) -> AskResponse:
     cleaned_matches, cleanup_stats = cleanup_matches(
         matches,
         normalized_query=interpreted.normalized_query,
-        top_k=answer_match_limit,
+        top_k=final_match_limit,
         max_per_document=2,
         min_score=None,
     )
@@ -274,6 +278,8 @@ def ask(request: AskRequest) -> AskResponse:
         "cleanup_score_filtered_out": cleanup_stats["score_filtered_out"],
         "cleanup_dedup_filtered_out": cleanup_stats["dedup_filtered_out"],
         "cleanup_document_capped_out": cleanup_stats["document_capped_out"],
+        "answer_match_limit": answer_match_limit,
+        "final_match_limit": final_match_limit,
         "normalized_query": interpreted.normalized_query,
         "date_from": interpreted.date_from,
         "date_to": interpreted.date_to,
