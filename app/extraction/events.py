@@ -77,7 +77,7 @@ def detect_event(text: str) -> dict[str, Any] | None:
         ("support", ["udzielił pomocy", "udzieliła pomocy", "pomógł", "pomogła", "przyjechał", "przyjechała", "zapewnił wsparcie", "zapewniła wsparcie"]),
         ("decision", ["podjąłem decyzję", "podjął decyzję", "zdecydowałem", "zdecydował", "postanowiłem", "postanowił", "rozważam zakończenie"]),
         ("meeting", ["odbyło się spotkanie", "mieliśmy spotkanie", "sesja terapii", "call z", "umówiliśmy spotkanie"]),
-        ("trade", ["trading", "otworzyłem pozycję", "zamknąłem pozycję", "transakcja", "rynek energii"]),
+        ("trade", ["otworzyłem pozycję", "zamknąłem pozycję", "zawarłem transakcję", "zawarła transakcję", "trade został wykonany"]),
         ("health", ["diagnoza", "choroba", "jest chory", "jest chora", "asd", "autyzm"]),
         ("family", ["mój syn", "moje dzieci", "relacja z zosią", "spędzam czas z dziećmi"]),
         ("milestone", ["założyłem", "założył", "powstał", "ukończyłem", "ukończył", "kupiłem dom", "kupił dom"]),
