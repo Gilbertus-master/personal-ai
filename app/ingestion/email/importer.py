@@ -133,6 +133,9 @@ def import_extracted_pst(
     print(f"Starting email import for {source_name}, files={total}")
 
     for idx, eml_path in enumerate(eml_files, start=1):
+        if idx % 25 == 0:
+            print(f"Currently parsing [{idx}/{total}]: {eml_path}")
+
         try:
             parsed = parse_eml_file(eml_path, pst_file, extracted_root)
         except Exception as e:
