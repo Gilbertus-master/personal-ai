@@ -61,6 +61,22 @@ def fetch_document_metadata(document_ids: list[int]) -> dict[int, dict[str, Any]
         }
     return result
 
+def fetch_existing_chunk_ids(chunk_ids: list[int]) -> set[int]:
+    if not chunk_ids:
+        return set()
+
+    query = """
+    SELECT id
+    FROM chunks
+    WHERE id = ANY(%s)
+    """
+
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, (chunk_ids,))
+            rows = cur.fetchall()
+
+    return {row[0] for row in rows}
 
 def _date_in_range(created_at: str | None, date_from: str | None, date_to: str | None) -> bool:
     if not created_at:
@@ -162,6 +178,7 @@ def search_chunks(
 
     raw_matches: list[dict[str, Any]] = []
     document_ids: list[int] = []
+    chunk_ids: list[int] = []
 
     for hit in hits:
         payload = hit.payload or {}
@@ -169,6 +186,10 @@ def search_chunks(
 
         if document_id is not None:
             document_ids.append(document_id)
+
+        chunk_id = payload.get("chunk_id")
+        if chunk_id is not None:
+            chunk_ids.append(chunk_id)
 
         raw_matches.append(
             {
@@ -182,11 +203,16 @@ def search_chunks(
         )
 
     metadata_map = fetch_document_metadata(sorted(set(document_ids)))
+    existing_chunk_ids = fetch_existing_chunk_ids(sorted(set(chunk_ids)))
 
     enriched: list[dict[str, Any]] = []
     for match in raw_matches:
         document_id = match.get("document_id")
         meta = metadata_map.get(document_id, {})
+
+        chunk_id = match.get("chunk_id")
+        if chunk_id is None or chunk_id not in existing_chunk_ids:
+            continue
 
         enriched_match = {
             **match,

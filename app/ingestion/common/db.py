@@ -180,3 +180,90 @@ def _run_sql_all_lines(sql: str) -> list[str]:
 
     lines = [line.strip() for line in stdout.splitlines() if line.strip()]
     return lines
+
+def get_document_row(document_id: int) -> dict[str, str] | None:
+    sql = f"""
+    SELECT concat_ws(
+        E'\t',
+        id::text,
+        source_id::text,
+        COALESCE(title, ''),
+        COALESCE(author, ''),
+        COALESCE(raw_path, ''),
+        COALESCE(created_at::text, '')
+    )
+    FROM documents
+    WHERE id = {document_id}
+    LIMIT 1;
+    """
+    lines = _run_sql_all_lines(sql)
+    if not lines:
+        return None
+
+    parts = lines[0].split("\t")
+    if len(parts) != 6:
+        raise RuntimeError(
+            f"Unexpected document row format for document_id={document_id}: {lines[0]}"
+        )
+
+    return {
+        "id": parts[0],
+        "source_id": parts[1],
+        "title": parts[2],
+        "author": parts[3],
+        "raw_path": parts[4],
+        "created_at": parts[5],
+    }
+
+
+def delete_chunks_for_document(document_id: int) -> None:
+    sql = f"""
+    DELETE FROM chunks
+    WHERE document_id = {document_id};
+    """
+    _run_sql(sql, expect_rows=False)
+
+
+def update_document_metadata(
+    document_id: int,
+    title: str,
+    created_at,
+    author: str | None,
+    participants: list[str],
+) -> None:
+    author_sql = "NULL" if author is None else f"'{_sql_escape(author)}'"
+    created_at_sql = "NULL" if created_at is None else f"'{created_at.isoformat()}'"
+    participants_json = json.dumps(participants, ensure_ascii=False)
+
+    sql = f"""
+    UPDATE documents
+    SET
+        title = '{_sql_escape(title)}',
+        created_at = {created_at_sql},
+        author = {author_sql},
+        participants = '{_sql_escape(participants_json)}'::jsonb
+    WHERE id = {document_id};
+    """
+    _run_sql(sql, expect_rows=False)
+
+
+def get_chunk_stats_for_document(document_id: int) -> dict[str, int]:
+    sql = f"""
+    SELECT
+        COUNT(*)::text,
+        COALESCE(SUM(length(text)), 0)::text
+    FROM chunks
+    WHERE document_id = {document_id};
+    """
+    lines = _run_sql_all_lines(sql)
+    if not lines:
+        return {"chunk_count": 0, "total_chars": 0}
+
+    parts = lines[0].split("|")
+    if len(parts) != 2:
+        raise RuntimeError(f"Unexpected chunk stats format for document_id={document_id}: {lines[0]}")
+
+    return {
+        "chunk_count": int(parts[0]),
+        "total_chars": int(parts[1]),
+    }
