@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import argparse
 import os
 import uuid
 import tiktoken
 from typing import Any
+import httpx
+
+import time
+from openai import RateLimitError
 
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import OpenAI, RateLimitError, APIConnectionError, APITimeoutError
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 import psycopg
@@ -57,7 +62,10 @@ def get_pg_connection():
 def count_tokens(text: str) -> int:
     return len(TOKENIZER.encode(text or ""))
 
-def fetch_unindexed_chunks(limit: int = 100) -> list[dict[str, Any]]:
+def fetch_unindexed_chunks(
+    limit: int = 100,
+    source_type: str | None = None,
+) -> list[dict[str, Any]]:
     query = """
         SELECT
             c.id AS chunk_id,
@@ -77,22 +85,62 @@ def fetch_unindexed_chunks(limit: int = 100) -> list[dict[str, Any]]:
         JOIN documents d ON d.id = c.document_id
         JOIN sources s ON s.id = d.source_id
         WHERE c.embedding_id IS NULL
-	  AND COALESCE(c.embedding_status, 'pending') = 'pending'
+          AND COALESCE(c.embedding_status, 'pending') = 'pending'
+    """
+    params: list[Any] = []
+
+    if source_type:
+        query += " AND s.source_type = %s"
+        params.append(source_type)
+
+    query += """
         ORDER BY c.id
         LIMIT %s
     """
+    params.append(limit)
+
     with get_pg_connection() as conn:
         with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
-            cur.execute(query, (limit,))
+            cur.execute(query, tuple(params))
             return cur.fetchall()
 
 
-def embed_texts(texts: list[str]) -> list[list[float]]:
-    resp = openai_client.embeddings.create(
-        model=EMBEDDING_MODEL,
-        input=texts,
-    )
-    return [item.embedding for item in resp.data]
+def embed_texts(texts: list[str], max_retries: int = 10) -> list[list[float]]:
+    attempt = 0
+
+    while True:
+        try:
+            resp = openai_client.embeddings.create(
+                model=EMBEDDING_MODEL,
+                input=texts,
+            )
+            return [item.embedding for item in resp.data]
+
+        except RateLimitError:
+            attempt += 1
+            if attempt > max_retries:
+                print(f"Rate limit retry limit exceeded after {max_retries} attempts.")
+                raise
+
+            sleep_seconds = min(2 ** attempt, 30)
+            print(
+                f"Rate limit hit while embedding batch of {len(texts)} texts. "
+                f"Retry {attempt}/{max_retries} in {sleep_seconds}s..."
+            )
+            time.sleep(sleep_seconds)
+
+        except (APIConnectionError, APITimeoutError, httpx.ReadError, httpx.ConnectError, httpx.RemoteProtocolError) as e:
+            attempt += 1
+            if attempt > max_retries:
+                print(f"Connection retry limit exceeded after {max_retries} attempts.")
+                raise
+
+            sleep_seconds = min(2 ** attempt, 30)
+            print(
+                f"Connection error while embedding batch of {len(texts)} texts: {type(e).__name__}. "
+                f"Retry {attempt}/{max_retries} in {sleep_seconds}s..."
+            )
+            time.sleep(sleep_seconds)
 
 
 def update_chunk_mapping(mappings: list[tuple[str, str]]) -> None:
@@ -141,8 +189,11 @@ def build_payload(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def index_batch(limit: int = 100) -> int:
-    rows = fetch_unindexed_chunks(limit=limit)
+def index_batch(
+    limit: int = 100,
+    source_type: str | None = None,
+) -> int:
+    rows = fetch_unindexed_chunks(limit=limit, source_type=source_type)
     if not rows:
         print("Brak nowych chunków do zaindeksowania.")
         return 0
@@ -160,7 +211,7 @@ def index_batch(limit: int = 100) -> int:
     for chunk_id, token_count, title in skipped_rows:
         print(f"Pominięto za długi chunk: chunk_id={chunk_id}, tokens={token_count}, title={title}")
     if skipped_rows:
-    	mark_chunks_skipped(skipped_rows)
+        mark_chunks_skipped(skipped_rows)
 
     if not safe_rows:
         print("W tej paczce wszystkie chunki były za długie.")
@@ -181,19 +232,54 @@ def index_batch(limit: int = 100) -> int:
     qdrant.upsert(collection_name=QDRANT_COLLECTION, points=points)
     update_chunk_mapping(mappings)
 
-    print(f"Zaindeksowano {len(points)} chunków.")
+    if source_type:
+        print(f"Zaindeksowano {len(points)} chunków dla source_type={source_type}.")
+    else:
+        print(f"Zaindeksowano {len(points)} chunków.")
+
     return len(points)
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--source-type", dest="source_type", default=None)
+    parser.add_argument("--limit", dest="limit", type=int, default=None)
+    parser.add_argument("--batch-size", dest="batch_size", type=int, default=100)
+    return parser.parse_args()
+
+
 def main() -> None:
+    args = parse_args()
+
     ensure_collection()
     total = 0
+
+    remaining_limit = args.limit
+
     while True:
-        inserted = index_batch(limit=100)
+        batch_limit = args.batch_size
+        if remaining_limit is not None:
+            if remaining_limit <= 0:
+                break
+            batch_limit = min(batch_limit, remaining_limit)
+
+        inserted = index_batch(
+            limit=batch_limit,
+            source_type=args.source_type,
+        )
+
         total += inserted
+
+        if remaining_limit is not None:
+            remaining_limit -= inserted
+
         if inserted == 0:
             break
-    print(f"Gotowe. Łącznie zaindeksowano: {total}")
+
+    if args.source_type:
+        print(f"Gotowe. Łącznie zaindeksowano: {total} chunków dla source_type={args.source_type}")
+    else:
+        print(f"Gotowe. Łącznie zaindeksowano: {total}")
 
 
 if __name__ == "__main__":
