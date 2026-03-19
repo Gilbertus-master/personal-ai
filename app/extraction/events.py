@@ -74,13 +74,13 @@ def detect_event(text: str) -> dict[str, Any] | None:
 
     rules = [
         ("conflict", ["konflikt", "kłótn", "spór", "silent treatment"]),
-        ("support", ["wsparcie", "pomoc", "pomóc", "przyjecha"]),
-        ("decision", ["decyzj", "zdecydowa", "rozważam", "postanowi"]),
-        ("meeting", ["spotkani", "sesja", "call", "rozmow"]),
-        ("trade", ["trading", "pozycj", "rynek", "transakcj"]),
-        ("health", ["chorob", "diagnoz", "asd", "autyzm"]),
-        ("family", ["syn", "dzieci", "mama", "tata", "zosia"]),
-        ("milestone", ["założy", "powsta", "ukończy", "kupiłe", "kupił"]),
+        ("support", ["udzielił pomocy", "udzieliła pomocy", "pomógł", "pomogła", "przyjechał", "przyjechała", "zapewnił wsparcie", "zapewniła wsparcie"]),
+        ("decision", ["podjąłem decyzję", "podjął decyzję", "zdecydowałem", "zdecydował", "postanowiłem", "postanowił", "rozważam zakończenie"]),
+        ("meeting", ["odbyło się spotkanie", "mieliśmy spotkanie", "sesja terapii", "call z", "umówiliśmy spotkanie"]),
+        ("trade", ["trading", "otworzyłem pozycję", "zamknąłem pozycję", "transakcja", "rynek energii"]),
+        ("health", ["diagnoza", "choroba", "jest chory", "jest chora", "asd", "autyzm"]),
+        ("family", ["mój syn", "moje dzieci", "relacja z zosią", "spędzam czas z dziećmi"]),
+        ("milestone", ["założyłem", "założył", "powstał", "ukończyłem", "ukończył", "kupiłem dom", "kupił dom"]),
     ]
 
     for event_type, markers in rules:
