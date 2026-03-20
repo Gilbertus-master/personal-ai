@@ -18,11 +18,12 @@ DEFAULT_LIMIT = 50
 
 
 EVENT_SYSTEM_PROMPT = """
-You extract timeline-worthy events from a chunk of text.
+You extract one timeline-worthy event from a chunk of text.
 
 Rules:
-- Return an event only if the chunk describes a concrete event, decision, conflict, support act, meeting, trade, health state, or family-relevant occurrence.
-- Do NOT return events for generic advice, abstract discussion, educational explanations, definitions, or broad analysis.
+- Return an event only if the chunk describes a concrete real-world occurrence, decision, conflict, support act, meeting, trade, health development, or family-relevant occurrence.
+- Do NOT return events for generic advice, abstract discussion, educational explanations, definitions, broad analysis, or recommendations.
+- Prefer real events affecting the user or closely related people over general informational content.
 - Use only these event_type values:
   conflict, support, decision, meeting, trade, health, family
 - If the chunk is not event-worthy, return event = null.
@@ -199,7 +200,8 @@ def fetch_chunk_entity_ids(chunk_id: int) -> list[int]:
     SELECT entity_id::text
     FROM chunk_entities
     WHERE chunk_id = {chunk_id}
-    ORDER BY entity_id;
+    ORDER BY id
+    LIMIT 3;
     """
     return [int(line) for line in _run_sql_all_lines(sql) if line.strip()]
 
