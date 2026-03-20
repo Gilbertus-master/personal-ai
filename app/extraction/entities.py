@@ -5,6 +5,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 
+from app.extraction.llm_client import LLMExtractionClient
 from app.extraction.taxonomy import ENTITY_TYPES
 from app.ingestion.common.db import _run_sql, _run_sql_all_lines
 
@@ -14,6 +15,49 @@ load_dotenv(BASE_DIR / ".env")
 
 
 DEFAULT_LIMIT = 50
+
+
+ENTITY_SYSTEM_PROMPT = """
+You extract explicit entities from a chunk of text.
+
+Rules:
+- Return only entities explicitly present in the chunk.
+- Do not infer hidden entities.
+- Do not invent canonical names beyond normal cleanup of the visible mention.
+- Use only these entity_type values:
+  person, company, project, topic, location
+- If nothing relevant is present, return an empty list.
+- mention_text must be a short explicit surface form from the chunk.
+- confidence must be between 0 and 1.
+- Be conservative.
+""".strip()
+
+
+ENTITY_TOOL_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "entities": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "canonical_name": {"type": "string"},
+                    "entity_type": {
+                        "type": "string",
+                        "enum": ["person", "company", "project", "topic", "location"],
+                    },
+                    "mention_text": {"type": "string"},
+                    "confidence": {"type": "number"},
+                },
+                "required": ["name", "canonical_name", "entity_type", "mention_text", "confidence"],
+                "additionalProperties": False,
+            },
+        }
+    },
+    "required": ["entities"],
+    "additionalProperties": False,
+}
 
 
 def sql_escape(value: str) -> str:
@@ -41,9 +85,6 @@ def parse_args() -> tuple[int | None, int | None]:
 
 
 def parse_chunk_rows(lines: list[str]) -> list[dict[str, Any]]:
-    if not lines:
-        return []
-
     rows = []
     for line in lines:
         parts = line.split("\t", 3)
@@ -75,8 +116,7 @@ def fetch_candidate_chunks(limit: int) -> list[dict[str, Any]]:
     ORDER BY c.id
     LIMIT {limit};
     """
-    lines = _run_sql_all_lines(sql)
-    return parse_chunk_rows(lines)
+    return parse_chunk_rows(_run_sql_all_lines(sql))
 
 
 def fetch_chunk_by_id(chunk_id: int) -> list[dict[str, Any]]:
@@ -92,50 +132,70 @@ def fetch_chunk_by_id(chunk_id: int) -> list[dict[str, Any]]:
     WHERE c.id = {chunk_id}
     LIMIT 1;
     """
-    lines = _run_sql_all_lines(sql)
-    return parse_chunk_rows(lines)
+    return parse_chunk_rows(_run_sql_all_lines(sql))
 
 
-def call_entity_extractor(text: str) -> list[dict[str, Any]]:
-    entities: list[dict[str, Any]] = []
-    lowered = text.lower()
+def normalize_entity(entity: dict[str, Any]) -> dict[str, Any] | None:
+    if not isinstance(entity, dict):
+        return None
 
-    rules = [
-        ("Sebastian", "Sebastian", "person", ["sebastian"]),
-        ("Zosia", "Zosia", "person", ["zosia"]),
-        ("Ewa", "Ewa", "person", ["ewa"]),
-        ("Wojtek", "Wojtek", "person", ["wojtek"]),
-        ("Adaś", "Adaś", "person", ["adaś", "adais"]),
-        ("Respect Energy", "Respect Energy", "company", ["respect energy"]),
-        ("Jet Story", "Jet Story", "company", ["jet story"]),
-        ("Gilbertus Albans", "Gilbertus Albans", "project", ["gilbertus"]),
-        ("autyzm", "autyzm", "topic", ["autyzm", "asperger", "asd"]),
-        ("konflikt", "konflikt", "topic", ["konflikt", "silent treatment", "kłótn", "spór"]),
-        ("Warszawa", "Warszawa", "location", ["warszawa"]),
-        ("Polanica", "Polanica", "location", ["polanica"]),
-    ]
+    name = str(entity.get("name", "")).strip()
+    canonical_name = str(entity.get("canonical_name", "")).strip()
+    entity_type = str(entity.get("entity_type", "")).strip().lower()
+    mention_text = str(entity.get("mention_text", "")).strip()
 
-    for name, canonical_name, entity_type, markers in rules:
-        for marker in markers:
-            if marker in lowered:
-                entities.append(
-                    {
-                        "name": name,
-                        "canonical_name": canonical_name,
-                        "entity_type": entity_type,
-                        "mention_text": marker,
-                        "confidence": 0.70,
-                    }
-                )
-                break
+    try:
+        confidence = float(entity.get("confidence", 0.0))
+    except (TypeError, ValueError):
+        confidence = 0.0
 
-    dedup: dict[tuple[str, str], dict[str, Any]] = {}
-    for entity in entities:
-        key = (entity["canonical_name"], entity["entity_type"])
-        if key not in dedup:
-            dedup[key] = entity
+    confidence = max(0.0, min(confidence, 1.0))
 
-    return list(dedup.values())
+    if not name or not canonical_name or not mention_text:
+        return None
+    if entity_type not in ENTITY_TYPES:
+        return None
+
+    return {
+        "name": name,
+        "canonical_name": canonical_name,
+        "entity_type": entity_type,
+        "mention_text": mention_text,
+        "confidence": confidence,
+    }
+
+
+def extract_entities_from_text(llm: LLMExtractionClient, text: str) -> list[dict[str, Any]]:
+    payload = f"Chunk text:\n{text[:6000]}"
+
+    parsed = llm.extract_object(
+        system_prompt=ENTITY_SYSTEM_PROMPT,
+        user_payload=payload,
+        tool_name="return_entities",
+        tool_description="Return explicit entities found in the chunk",
+        input_schema=ENTITY_TOOL_SCHEMA,
+    )
+
+    raw_entities = parsed.get("entities", [])
+    if not isinstance(raw_entities, list):
+        return []
+
+    result: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+
+    for item in raw_entities:
+        normalized = normalize_entity(item)
+        if not normalized:
+            continue
+
+        key = (normalized["canonical_name"], normalized["entity_type"])
+        if key in seen:
+            continue
+
+        seen.add(key)
+        result.append(normalized)
+
+    return result
 
 
 def upsert_entity(entity: dict[str, Any]) -> int:
@@ -147,12 +207,10 @@ def upsert_entity(entity: dict[str, Any]) -> int:
     INSERT INTO entities (name, entity_type, canonical_name, created_at)
     VALUES ('{name}', '{entity_type}', '{canonical_name}', NOW())
     ON CONFLICT ((COALESCE(canonical_name, name)), entity_type)
-    DO UPDATE SET
-        name = EXCLUDED.name
+    DO UPDATE SET name = EXCLUDED.name
     RETURNING id;
     """
-    output = _run_sql(sql).strip()
-    return int(output.splitlines()[-1])
+    return int(_run_sql(sql).strip())
 
 
 def insert_chunk_entity(chunk_id: int, entity_id: int, mention_text: str, confidence: float) -> None:
@@ -168,6 +226,7 @@ def insert_chunk_entity(chunk_id: int, entity_id: int, mention_text: str, confid
 
 def main() -> None:
     limit, chunk_id = parse_args()
+    llm = LLMExtractionClient()
 
     if chunk_id is not None:
         rows = fetch_chunk_by_id(chunk_id)
@@ -183,7 +242,7 @@ def main() -> None:
         current_chunk_id = row["chunk_id"]
         text = row["text"] or ""
 
-        entities = call_entity_extractor(text)
+        entities = extract_entities_from_text(llm, text)
 
         print(
             json.dumps(
@@ -197,9 +256,6 @@ def main() -> None:
         )
 
         for entity in entities:
-            if entity["entity_type"] not in ENTITY_TYPES:
-                continue
-
             entity_id = upsert_entity(entity)
             insert_chunk_entity(
                 chunk_id=current_chunk_id,
