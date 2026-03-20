@@ -20,7 +20,14 @@ def sql_escape(value: str) -> str:
     return value.replace("'", "''")
 
 
-def parse_limit() -> int:
+def parse_args() -> tuple[int | None, int | None]:
+    if len(sys.argv) >= 3 and sys.argv[1] == "--chunk-id":
+        try:
+            chunk_id = int(sys.argv[2])
+        except ValueError:
+            raise ValueError(f"Invalid chunk_id: {sys.argv[2]}")
+        return None, chunk_id
+
     if len(sys.argv) >= 2:
         try:
             value = int(sys.argv[1])
@@ -28,8 +35,9 @@ def parse_limit() -> int:
             raise ValueError(f"Invalid limit: {sys.argv[1]}")
         if value <= 0:
             raise ValueError(f"Limit must be > 0, got: {value}")
-        return value
-    return DEFAULT_LIMIT
+        return value, None
+
+    return DEFAULT_LIMIT, None
 
 
 def fetch_candidate_chunks(limit: int) -> list[dict[str, Any]]:
@@ -49,6 +57,28 @@ def fetch_candidate_chunks(limit: int) -> list[dict[str, Any]]:
     LIMIT {limit};
     """
     lines = _run_sql_all_lines(sql)
+    return parse_chunk_rows(lines)
+
+
+def fetch_chunk_by_id(chunk_id: int) -> list[dict[str, Any]]:
+    sql = f"""
+    SELECT concat_ws(
+        E'\t',
+        c.id::text,
+        c.document_id::text,
+        c.chunk_index::text,
+        COALESCE(c.timestamp_start::text, ''),
+        replace(replace(c.text, E'\t', ' '), E'\n', ' ')
+    )
+    FROM chunks c
+    WHERE c.id = {chunk_id}
+    LIMIT 1;
+    """
+    lines = _run_sql_all_lines(sql)
+    return parse_chunk_rows(lines)
+
+
+def parse_chunk_rows(lines: list[str]) -> list[dict[str, Any]]:
     if not lines:
         return []
 
@@ -75,11 +105,11 @@ def detect_event(text: str) -> dict[str, Any] | None:
     rules = [
         ("conflict", ["konflikt", "kłótn", "spór", "silent treatment"]),
         ("support", ["udzielił pomocy", "udzieliła pomocy", "pomógł", "pomogła", "przyjechał", "przyjechała", "zapewnił wsparcie", "zapewniła wsparcie"]),
-        ("decision", ["podjąłem decyzję", "podjął decyzję", "zdecydowałem", "zdecydował", "postanowiłem", "postanowił", "rozważam zakończenie"]),
+        ("decision", ["zdecydowałem", "zdecydował", "postanowiłem", "postanowił", "podjąłem decyzję", "podjął decyzję", "nie będę teraz kupował", "nie będę kupował", "rozważam zakończenie"]),
         ("meeting", ["odbyło się spotkanie", "mieliśmy spotkanie", "sesja terapii", "call z", "umówiliśmy spotkanie"]),
         ("trade", ["otworzyłem pozycję", "zamknąłem pozycję", "zawarłem transakcję", "zawarła transakcję", "trade został wykonany"]),
-        ("health", ["diagnoza", "choroba", "jest chory", "jest chora", "asd", "autyzm"]),
-        ("family", ["mój syn", "moje dzieci", "relacja z zosią", "spędzam czas z dziećmi"]),
+        ("health", ["diagnoza asd", "diagnoza", "asperger", "autyzm", "jest chory", "jest chora", "choroba"]),
+        ("family", ["mój syn", "moje dzieci", "wojtek", "adaś", "relacja z zosią", "spędzam czas z dziećmi"]),
         ("milestone", ["założyłem", "założył", "powstał", "ukończyłem", "ukończył", "kupiłem dom", "kupił dom"]),
     ]
 
@@ -134,10 +164,14 @@ def insert_event_entity(event_id: int, entity_id: int, role: str = "mentioned") 
 
 
 def main() -> None:
-    limit = parse_limit()
-    rows = fetch_candidate_chunks(limit=limit)
+    limit, chunk_id = parse_args()
 
-    print(f"Chunks to process: {len(rows)}")
+    if chunk_id is not None:
+        rows = fetch_chunk_by_id(chunk_id)
+        print(f"Testing single chunk_id={chunk_id}. Found rows: {len(rows)}")
+    else:
+        rows = fetch_candidate_chunks(limit=limit or DEFAULT_LIMIT)
+        print(f"Chunks to process: {len(rows)}")
 
     processed = 0
     events_written = 0
@@ -156,6 +190,7 @@ def main() -> None:
                 {
                     "chunk_id": chunk_id,
                     "event_detected": bool(detected),
+                    "event_type": None if not detected else detected["event_type"],
                 },
                 ensure_ascii=False,
             )
