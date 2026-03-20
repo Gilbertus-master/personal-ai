@@ -59,17 +59,26 @@ def build_query(event_type: str | None, date_from: str | None, date_to: str | No
         where_sql = "WHERE " + " AND ".join(where_clauses)
 
     sql = f"""
-    SELECT concat_ws(
-        E'\t',
+    SELECT
         e.id::text,
         COALESCE(e.event_time::text, ''),
         e.event_type,
         e.document_id::text,
         e.chunk_id::text,
-        replace(replace(e.summary, E'\t', ' '), E'\n', ' ')
-    )
+        replace(replace(e.summary, E'\t', ' '), E'\n', ' ') AS summary,
+        COALESCE(
+            string_agg(
+                DISTINCT replace(replace(en.canonical_name, E'\t', ' '), E'\n', ' '),
+                ' || '
+                ORDER BY replace(replace(en.canonical_name, E'\t', ' '), E'\n', ' ')
+            ),
+            ''
+        ) AS entities
     FROM events e
+    LEFT JOIN event_entities ee ON ee.event_id = e.id
+    LEFT JOIN entities en ON en.id = ee.entity_id
     {where_sql}
+    GROUP BY e.id, e.event_time, e.event_type, e.document_id, e.chunk_id, e.summary
     ORDER BY e.event_time NULLS LAST, e.id
     LIMIT {limit};
     """
@@ -79,9 +88,12 @@ def build_query(event_type: str | None, date_from: str | None, date_to: str | No
 def parse_rows(lines: list[str]) -> list[dict[str, Any]]:
     rows = []
     for line in lines:
-        parts = line.split("\t", 5)
-        if len(parts) != 6:
+        parts = line.split("|", 6)
+        if len(parts) != 7:
             continue
+
+        raw_entities = parts[6].strip()
+        entities = [item.strip() for item in raw_entities.split("||") if item.strip()] if raw_entities else []
 
         rows.append(
             {
@@ -91,6 +103,7 @@ def parse_rows(lines: list[str]) -> list[dict[str, Any]]:
                 "document_id": int(parts[3]),
                 "chunk_id": int(parts[4]),
                 "summary": parts[5],
+                "entities": entities,
             }
         )
     return rows
