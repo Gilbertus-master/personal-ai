@@ -109,7 +109,6 @@ def call_entity_extractor(text: str) -> list[dict[str, Any]]:
         ("Respect Energy", "Respect Energy", "company", ["respect energy"]),
         ("Jet Story", "Jet Story", "company", ["jet story"]),
         ("Gilbertus Albans", "Gilbertus Albans", "project", ["gilbertus"]),
-        ("trading", "trading", "topic", ["trading"]),
         ("autyzm", "autyzm", "topic", ["autyzm", "asperger", "asd"]),
         ("konflikt", "konflikt", "topic", ["konflikt", "silent treatment", "kłótn", "spór"]),
         ("Warszawa", "Warszawa", "location", ["warszawa"]),
