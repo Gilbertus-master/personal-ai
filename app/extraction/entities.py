@@ -20,7 +20,14 @@ def sql_escape(value: str) -> str:
     return value.replace("'", "''")
 
 
-def parse_limit() -> int:
+def parse_args() -> tuple[int | None, int | None]:
+    if len(sys.argv) >= 3 and sys.argv[1] == "--chunk-id":
+        try:
+            chunk_id = int(sys.argv[2])
+        except ValueError:
+            raise ValueError(f"Invalid chunk_id: {sys.argv[2]}")
+        return None, chunk_id
+
     if len(sys.argv) >= 2:
         try:
             value = int(sys.argv[1])
@@ -28,26 +35,12 @@ def parse_limit() -> int:
             raise ValueError(f"Invalid limit: {sys.argv[1]}")
         if value <= 0:
             raise ValueError(f"Limit must be > 0, got: {value}")
-        return value
-    return DEFAULT_LIMIT
+        return value, None
+
+    return DEFAULT_LIMIT, None
 
 
-def fetch_candidate_chunks(limit: int) -> list[dict[str, Any]]:
-    sql = f"""
-    SELECT concat_ws(
-        E'\t',
-        c.id::text,
-        c.document_id::text,
-        c.chunk_index::text,
-        replace(replace(c.text, E'\t', ' '), E'\n', ' ')
-    )
-    FROM chunks c
-    LEFT JOIN chunk_entities ce ON ce.chunk_id = c.id
-    WHERE ce.id IS NULL
-    ORDER BY c.id
-    LIMIT {limit};
-    """
-    lines = _run_sql_all_lines(sql)
+def parse_chunk_rows(lines: list[str]) -> list[dict[str, Any]]:
     if not lines:
         return []
 
@@ -67,74 +60,75 @@ def fetch_candidate_chunks(limit: int) -> list[dict[str, Any]]:
     return rows
 
 
+def fetch_candidate_chunks(limit: int) -> list[dict[str, Any]]:
+    sql = f"""
+    SELECT concat_ws(
+        E'\t',
+        c.id::text,
+        c.document_id::text,
+        c.chunk_index::text,
+        replace(replace(c.text, E'\t', ' '), E'\n', ' ')
+    )
+    FROM chunks c
+    LEFT JOIN chunk_entities ce ON ce.chunk_id = c.id
+    WHERE ce.id IS NULL
+    ORDER BY c.id
+    LIMIT {limit};
+    """
+    lines = _run_sql_all_lines(sql)
+    return parse_chunk_rows(lines)
+
+
+def fetch_chunk_by_id(chunk_id: int) -> list[dict[str, Any]]:
+    sql = f"""
+    SELECT concat_ws(
+        E'\t',
+        c.id::text,
+        c.document_id::text,
+        c.chunk_index::text,
+        replace(replace(c.text, E'\t', ' '), E'\n', ' ')
+    )
+    FROM chunks c
+    WHERE c.id = {chunk_id}
+    LIMIT 1;
+    """
+    lines = _run_sql_all_lines(sql)
+    return parse_chunk_rows(lines)
+
+
 def call_entity_extractor(text: str) -> list[dict[str, Any]]:
     entities: list[dict[str, Any]] = []
-
     lowered = text.lower()
 
-    heuristic_topics = [
-        "trading",
-        "zosia",
-        "asd",
-        "autyzm",
-        "gilbertus",
-        "respect energy",
-        "polanica",
-        "warszawa",
+    rules = [
+        ("Sebastian", "Sebastian", "person", ["sebastian"]),
+        ("Zosia", "Zosia", "person", ["zosia"]),
+        ("Ewa", "Ewa", "person", ["ewa"]),
+        ("Wojtek", "Wojtek", "person", ["wojtek"]),
+        ("Adaś", "Adaś", "person", ["adaś", "adais"]),
+        ("Respect Energy", "Respect Energy", "company", ["respect energy"]),
+        ("Jet Story", "Jet Story", "company", ["jet story"]),
+        ("Gilbertus Albans", "Gilbertus Albans", "project", ["gilbertus"]),
+        ("trading", "trading", "topic", ["trading"]),
+        ("autyzm", "autyzm", "topic", ["autyzm", "asperger", "asd"]),
+        ("konflikt", "konflikt", "topic", ["konflikt", "silent treatment", "kłótn", "spór"]),
+        ("Warszawa", "Warszawa", "location", ["warszawa"]),
+        ("Polanica", "Polanica", "location", ["polanica"]),
     ]
 
-    for item in heuristic_topics:
-        if item in lowered:
-            if item == "zosia":
+    for name, canonical_name, entity_type, markers in rules:
+        for marker in markers:
+            if marker in lowered:
                 entities.append(
                     {
-                        "name": "Zosia",
-                        "canonical_name": "Zosia",
-                        "entity_type": "person",
-                        "mention_text": "Zosia",
+                        "name": name,
+                        "canonical_name": canonical_name,
+                        "entity_type": entity_type,
+                        "mention_text": marker,
                         "confidence": 0.70,
                     }
                 )
-            elif item == "respect energy":
-                entities.append(
-                    {
-                        "name": "Respect Energy",
-                        "canonical_name": "Respect Energy",
-                        "entity_type": "company",
-                        "mention_text": "Respect Energy",
-                        "confidence": 0.70,
-                    }
-                )
-            elif item == "gilbertus":
-                entities.append(
-                    {
-                        "name": "Gilbertus Albans",
-                        "canonical_name": "Gilbertus Albans",
-                        "entity_type": "project",
-                        "mention_text": "Gilbertus",
-                        "confidence": 0.65,
-                    }
-                )
-            elif item in {"polanica", "warszawa"}:
-                entities.append(
-                    {
-                        "name": item.title(),
-                        "canonical_name": item.title(),
-                        "entity_type": "location",
-                        "mention_text": item.title(),
-                        "confidence": 0.65,
-                    }
-                )
-            else:
-                entities.append(
-                    {
-                        "name": item,
-                        "canonical_name": item,
-                        "entity_type": "topic",
-                        "mention_text": item,
-                        "confidence": 0.60,
-                    }
-                )
+                break
 
     dedup: dict[tuple[str, str], dict[str, Any]] = {}
     for entity in entities:
@@ -174,16 +168,20 @@ def insert_chunk_entity(chunk_id: int, entity_id: int, mention_text: str, confid
 
 
 def main() -> None:
-    limit = parse_limit()
-    rows = fetch_candidate_chunks(limit=limit)
+    limit, chunk_id = parse_args()
 
-    print(f"Chunks to process: {len(rows)}")
+    if chunk_id is not None:
+        rows = fetch_chunk_by_id(chunk_id)
+        print(f"Testing single chunk_id={chunk_id}. Found rows: {len(rows)}")
+    else:
+        rows = fetch_candidate_chunks(limit=limit or DEFAULT_LIMIT)
+        print(f"Chunks to process: {len(rows)}")
 
     processed = 0
     mentions_written = 0
 
     for row in rows:
-        chunk_id = row["chunk_id"]
+        current_chunk_id = row["chunk_id"]
         text = row["text"] or ""
 
         entities = call_entity_extractor(text)
@@ -191,8 +189,9 @@ def main() -> None:
         print(
             json.dumps(
                 {
-                    "chunk_id": chunk_id,
+                    "chunk_id": current_chunk_id,
                     "entity_count": len(entities),
+                    "entity_names": [e["canonical_name"] for e in entities],
                 },
                 ensure_ascii=False,
             )
@@ -204,7 +203,7 @@ def main() -> None:
 
             entity_id = upsert_entity(entity)
             insert_chunk_entity(
-                chunk_id=chunk_id,
+                chunk_id=current_chunk_id,
                 entity_id=entity_id,
                 mention_text=entity["mention_text"],
                 confidence=float(entity["confidence"]),
