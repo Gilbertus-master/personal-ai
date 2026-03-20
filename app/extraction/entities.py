@@ -26,10 +26,13 @@ Rules:
 - Do not invent canonical names beyond light normalization of the visible mention.
 - Use only these entity_type values:
   person, company, project, topic, location
-- Prefer entities central to the meaning of the chunk.
-- Exclude boilerplate metadata, email header clutter, recipient lists, signatures, and incidental mentions unless they are clearly central to the chunk’s meaning.
-- For long email threads, focus on the main actors or organizations relevant to the core content, not every person copied on the thread.
-- Return at most 5 entities.
+- Prefer entities central to the main meaning of the chunk.
+- Exclude incidental mentions, side references, generic background context, and weakly related entities.
+- Exclude entities that appear only in quoted context unless they are central to the chunk’s main point.
+- Exclude boilerplate metadata, email header clutter, recipient lists, signatures, and copied thread noise unless clearly central.
+- For medical or psychological chunks, prefer the diagnosis/condition/topic over unrelated organizations or side people.
+- For relational chunks, include only the people central to the actual situation described.
+- Return at most 4 entities.
 - If nothing clearly relevant is present, return an empty list.
 - mention_text must be a short explicit surface form from the chunk.
 - confidence must be between 0 and 1.
