@@ -5,6 +5,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 
+from app.extraction.llm_client import LLMExtractionClient
 from app.extraction.taxonomy import EVENT_TYPES
 from app.ingestion.common.db import _run_sql, _run_sql_all_lines
 
@@ -14,6 +15,48 @@ load_dotenv(BASE_DIR / ".env")
 
 
 DEFAULT_LIMIT = 50
+
+
+EVENT_SYSTEM_PROMPT = """
+You extract timeline-worthy events from a chunk of text.
+
+Rules:
+- Return an event only if the chunk describes a concrete event, decision, conflict, support act, meeting, trade, health state, or family-relevant occurrence.
+- Do NOT return events for generic advice, abstract discussion, educational explanations, definitions, or broad analysis.
+- Use only these event_type values:
+  conflict, support, decision, meeting, trade, health, family
+- If the chunk is not event-worthy, return event = null.
+- confidence must be between 0 and 1.
+- summary must be short, factual, and in the language of the chunk.
+- Be conservative.
+""".strip()
+
+
+EVENT_TOOL_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "event": {
+            "anyOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "event_type": {
+                            "type": "string",
+                            "enum": ["conflict", "support", "decision", "meeting", "trade", "health", "family"],
+                        },
+                        "summary": {"type": "string"},
+                        "confidence": {"type": "number"},
+                    },
+                    "required": ["event_type", "summary", "confidence"],
+                    "additionalProperties": False,
+                },
+                {"type": "null"},
+            ]
+        }
+    },
+    "required": ["event"],
+    "additionalProperties": False,
+}
 
 
 def sql_escape(value: str) -> str:
@@ -40,48 +83,7 @@ def parse_args() -> tuple[int | None, int | None]:
     return DEFAULT_LIMIT, None
 
 
-def fetch_candidate_chunks(limit: int) -> list[dict[str, Any]]:
-    sql = f"""
-    SELECT concat_ws(
-        E'\t',
-        c.id::text,
-        c.document_id::text,
-        c.chunk_index::text,
-        COALESCE(c.timestamp_start::text, ''),
-        replace(replace(c.text, E'\t', ' '), E'\n', ' ')
-    )
-    FROM chunks c
-    LEFT JOIN events e ON e.chunk_id = c.id
-    WHERE e.id IS NULL
-    ORDER BY c.id
-    LIMIT {limit};
-    """
-    lines = _run_sql_all_lines(sql)
-    return parse_chunk_rows(lines)
-
-
-def fetch_chunk_by_id(chunk_id: int) -> list[dict[str, Any]]:
-    sql = f"""
-    SELECT concat_ws(
-        E'\t',
-        c.id::text,
-        c.document_id::text,
-        c.chunk_index::text,
-        COALESCE(c.timestamp_start::text, ''),
-        replace(replace(c.text, E'\t', ' '), E'\n', ' ')
-    )
-    FROM chunks c
-    WHERE c.id = {chunk_id}
-    LIMIT 1;
-    """
-    lines = _run_sql_all_lines(sql)
-    return parse_chunk_rows(lines)
-
-
 def parse_chunk_rows(lines: list[str]) -> list[dict[str, Any]]:
-    if not lines:
-        return []
-
     rows = []
     for line in lines:
         parts = line.split("\t", 4)
@@ -99,33 +101,84 @@ def parse_chunk_rows(lines: list[str]) -> list[dict[str, Any]]:
     return rows
 
 
-def detect_event(text: str) -> dict[str, Any] | None:
-    lowered = text.lower()
+def fetch_candidate_chunks(limit: int) -> list[dict[str, Any]]:
+    sql = f"""
+    SELECT concat_ws(
+        E'\t',
+        c.id::text,
+        c.document_id::text,
+        c.chunk_index::text,
+        COALESCE(c.timestamp_start::text, ''),
+        replace(replace(c.text, E'\t', ' '), E'\n', ' ')
+    )
+    FROM chunks c
+    LEFT JOIN events e ON e.chunk_id = c.id
+    WHERE e.id IS NULL
+    ORDER BY c.id
+    LIMIT {limit};
+    """
+    return parse_chunk_rows(_run_sql_all_lines(sql))
 
-    rules = [
-        ("conflict", ["konflikt", "kłótn", "spór", "silent treatment"]),
-        ("support", ["udzielił pomocy", "udzieliła pomocy", "pomógł", "pomogła", "przyjechał", "przyjechała", "zapewnił wsparcie", "zapewniła wsparcie"]),
-        ("decision", ["zdecydowałem", "zdecydował", "postanowiłem", "postanowił", "podjąłem decyzję", "podjął decyzję", "nie będę teraz kupował", "nie będę kupował", "rozważam zakończenie"]),
-        ("meeting", ["odbyło się spotkanie", "mieliśmy spotkanie", "sesja terapii", "call z", "umówiliśmy spotkanie"]),
-        ("trade", ["otworzyłem pozycję", "zamknąłem pozycję", "zawarłem transakcję", "zawarła transakcję", "trade został wykonany"]),
-        ("health", ["diagnoza asd", "diagnoza", "asperger", "autyzm", "jest chory", "jest chora", "choroba"]),
-        ("family", ["mój syn", "moje dzieci", "wojtek", "adaś", "relacja z zosią", "spędzam czas z dziećmi"]),
-        ("milestone", ["założyłem", "założył", "powstał", "ukończyłem", "ukończył", "kupiłem dom", "kupił dom"]),
-    ]
 
-    for event_type, markers in rules:
-        for marker in markers:
-            if marker in lowered:
-                summary = text[:220].strip()
-                if not summary:
-                    summary = f"Detected {event_type} event"
-                return {
-                    "event_type": event_type,
-                    "summary": summary,
-                    "confidence": 0.60,
-                }
+def fetch_chunk_by_id(chunk_id: int) -> list[dict[str, Any]]:
+    sql = f"""
+    SELECT concat_ws(
+        E'\t',
+        c.id::text,
+        c.document_id::text,
+        c.chunk_index::text,
+        COALESCE(c.timestamp_start::text, ''),
+        replace(replace(c.text, E'\t', ' '), E'\n', ' ')
+    )
+    FROM chunks c
+    WHERE c.id = {chunk_id}
+    LIMIT 1;
+    """
+    return parse_chunk_rows(_run_sql_all_lines(sql))
 
-    return None
+
+def normalize_event(raw_event: dict[str, Any] | None, fallback_text: str) -> dict[str, Any] | None:
+    if raw_event is None or not isinstance(raw_event, dict):
+        return None
+
+    event_type = str(raw_event.get("event_type", "")).strip().lower()
+    summary = str(raw_event.get("summary", "")).strip()
+
+    try:
+        confidence = float(raw_event.get("confidence", 0.0))
+    except (TypeError, ValueError):
+        confidence = 0.0
+
+    confidence = max(0.0, min(confidence, 1.0))
+
+    if event_type not in EVENT_TYPES:
+        return None
+
+    if not summary:
+        summary = fallback_text[:220].strip()
+
+    if not summary:
+        return None
+
+    return {
+        "event_type": event_type,
+        "summary": summary[:500],
+        "confidence": confidence,
+    }
+
+
+def detect_event_with_llm(llm: LLMExtractionClient, text: str) -> dict[str, Any] | None:
+    payload = f"Chunk text:\n{text[:6000]}"
+
+    parsed = llm.extract_object(
+        system_prompt=EVENT_SYSTEM_PROMPT,
+        user_payload=payload,
+        tool_name="return_event",
+        tool_description="Return one timeline-worthy event or null",
+        input_schema=EVENT_TOOL_SCHEMA,
+    )
+
+    return normalize_event(parsed.get("event"), fallback_text=text)
 
 
 def insert_event(document_id: int, chunk_id: int, event_type: str, event_time: str | None, summary: str, confidence: float) -> int:
@@ -148,8 +201,7 @@ def fetch_chunk_entity_ids(chunk_id: int) -> list[int]:
     WHERE chunk_id = {chunk_id}
     ORDER BY entity_id;
     """
-    lines = _run_sql_all_lines(sql)
-    return [int(line) for line in lines if line.strip()]
+    return [int(line) for line in _run_sql_all_lines(sql) if line.strip()]
 
 
 def insert_event_entity(event_id: int, entity_id: int, role: str = "mentioned") -> None:
@@ -165,6 +217,7 @@ def insert_event_entity(event_id: int, entity_id: int, role: str = "mentioned") 
 
 def main() -> None:
     limit, chunk_id = parse_args()
+    llm = LLMExtractionClient()
 
     if chunk_id is not None:
         rows = fetch_chunk_by_id(chunk_id)
@@ -178,17 +231,17 @@ def main() -> None:
     event_entities_written = 0
 
     for row in rows:
-        chunk_id = row["chunk_id"]
+        current_chunk_id = row["chunk_id"]
         document_id = row["document_id"]
         text = row["text"] or ""
         timestamp_start = row["timestamp_start"] or None
 
-        detected = detect_event(text)
+        detected = detect_event_with_llm(llm, text)
 
         print(
             json.dumps(
                 {
-                    "chunk_id": chunk_id,
+                    "chunk_id": current_chunk_id,
                     "event_detected": bool(detected),
                     "event_type": None if not detected else detected["event_type"],
                 },
@@ -197,12 +250,9 @@ def main() -> None:
         )
 
         if detected:
-            if detected["event_type"] not in EVENT_TYPES:
-                raise RuntimeError(f"Unsupported event_type: {detected['event_type']}")
-
             event_id = insert_event(
                 document_id=document_id,
-                chunk_id=chunk_id,
+                chunk_id=current_chunk_id,
                 event_type=detected["event_type"],
                 event_time=timestamp_start,
                 summary=detected["summary"],
@@ -210,7 +260,7 @@ def main() -> None:
             )
             events_written += 1
 
-            entity_ids = fetch_chunk_entity_ids(chunk_id)
+            entity_ids = fetch_chunk_entity_ids(current_chunk_id)
             for entity_id in entity_ids:
                 insert_event_entity(event_id=event_id, entity_id=entity_id, role="mentioned")
                 event_entities_written += 1
