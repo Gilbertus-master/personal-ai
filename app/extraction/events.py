@@ -64,13 +64,19 @@ def sql_escape(value: str) -> str:
     return value.replace("'", "''")
 
 
-def parse_args() -> tuple[int | None, int | None]:
+def parse_args() -> tuple[int | None, int | None, bool]:
+    candidates_only = False
+
+    if "--candidates-only" in sys.argv:
+        candidates_only = True
+        sys.argv.remove("--candidates-only")
+
     if len(sys.argv) >= 3 and sys.argv[1] == "--chunk-id":
         try:
             chunk_id = int(sys.argv[2])
         except ValueError:
             raise ValueError(f"Invalid chunk_id: {sys.argv[2]}")
-        return None, chunk_id
+        return None, chunk_id, candidates_only
 
     if len(sys.argv) >= 2:
         try:
@@ -79,9 +85,9 @@ def parse_args() -> tuple[int | None, int | None]:
             raise ValueError(f"Invalid limit: {sys.argv[1]}")
         if value <= 0:
             raise ValueError(f"Limit must be > 0, got: {value}")
-        return value, None
+        return value, None, candidates_only
 
-    return DEFAULT_LIMIT, None
+    return DEFAULT_LIMIT, None, candidates_only
 
 
 def parse_chunk_rows(lines: list[str]) -> list[dict[str, Any]]:
@@ -102,7 +108,14 @@ def parse_chunk_rows(lines: list[str]) -> list[dict[str, Any]]:
     return rows
 
 
-def fetch_candidate_chunks(limit: int) -> list[dict[str, Any]]:
+def fetch_candidate_chunks(limit: int, candidates_only: bool = False) -> list[dict[str, Any]]:
+    join_sql = ""
+    where_sql = "WHERE e.id IS NULL"
+
+    if candidates_only:
+        join_sql = "JOIN event_candidate_chunks ecc ON ecc.chunk_id = c.id"
+        where_sql = "WHERE e.id IS NULL"
+
     sql = f"""
     SELECT concat_ws(
         E'\t',
@@ -113,8 +126,9 @@ def fetch_candidate_chunks(limit: int) -> list[dict[str, Any]]:
         replace(replace(c.text, E'\t', ' '), E'\n', ' ')
     )
     FROM chunks c
+    {join_sql}
     LEFT JOIN events e ON e.chunk_id = c.id
-    WHERE e.id IS NULL
+    {where_sql}
     ORDER BY c.id
     LIMIT {limit};
     """
@@ -218,14 +232,14 @@ def insert_event_entity(event_id: int, entity_id: int, role: str = "mentioned") 
 
 
 def main() -> None:
-    limit, chunk_id = parse_args()
+    limit, chunk_id, candidates_only = parse_args()
     llm = LLMExtractionClient()
 
     if chunk_id is not None:
         rows = fetch_chunk_by_id(chunk_id)
         print(f"Testing single chunk_id={chunk_id}. Found rows: {len(rows)}")
     else:
-        rows = fetch_candidate_chunks(limit=limit or DEFAULT_LIMIT)
+        rows = fetch_candidate_chunks(limit=limit or DEFAULT_LIMIT, candidates_only=candidates_only)
         print(f"Chunks to process: {len(rows)}")
 
     processed = 0
