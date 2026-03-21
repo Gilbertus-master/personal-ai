@@ -111,10 +111,12 @@ def parse_chunk_rows(lines: list[str]) -> list[dict[str, Any]]:
 def fetch_candidate_chunks(limit: int, candidates_only: bool = False) -> list[dict[str, Any]]:
     join_sql = ""
     where_sql = "WHERE e.id IS NULL"
+    order_sql = "ORDER BY c.id"
 
     if candidates_only:
         join_sql = "JOIN event_candidate_chunks ecc ON ecc.chunk_id = c.id"
         where_sql = "WHERE e.id IS NULL"
+        order_sql = "ORDER BY ecc.priority DESC, c.id"
 
     sql = f"""
     SELECT concat_ws(
@@ -129,7 +131,7 @@ def fetch_candidate_chunks(limit: int, candidates_only: bool = False) -> list[di
     {join_sql}
     LEFT JOIN events e ON e.chunk_id = c.id
     {where_sql}
-    ORDER BY c.id
+    {order_sql}
     LIMIT {limit};
     """
     return parse_chunk_rows(_run_sql_all_lines(sql))
