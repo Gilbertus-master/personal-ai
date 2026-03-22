@@ -1,0 +1,8 @@
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS event_entity_backfill_candidates (
+  chunk_id BIGINT PRIMARY KEY REFERENCES chunks(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+COMMIT;
