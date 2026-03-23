@@ -21,6 +21,7 @@ from app.retrieval.summaries import (
     get_summaries,
     AREAS,
 )
+from app.api.plaud_webhook import router as plaud_router
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env")
@@ -33,6 +34,8 @@ app = FastAPI(
     title=APP_NAME,
     version=APP_VERSION,
 )
+
+app.include_router(plaud_router)
 
 
 # =========================
