@@ -9,8 +9,8 @@ from app.ingestion.common.db import (
     get_document_row,
     insert_chunk,
     update_document_metadata,
-    _run_sql,
 )
+from app.db.postgres import get_pg_connection
 from app.ingestion.email.importer import build_participants, chunk_text
 from app.ingestion.email.parser import build_email_text, parse_eml_file
 
@@ -32,12 +32,13 @@ def get_extracted_root_for_pst(pst_file: Path) -> Path:
 
 
 def cleanup_candidate_status(document_id: int, status: str) -> None:
-    sql = f"""
-    UPDATE email_cleanup_candidates
-    SET cleanup_status = '{status}'
-    WHERE document_id = {document_id};
-    """
-    _run_sql(sql, expect_rows=False)
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE email_cleanup_candidates SET cleanup_status = %s WHERE document_id = %s",
+                (status, document_id),
+            )
+        conn.commit()
 
 
 def rebuild_document(document_id: int) -> None:

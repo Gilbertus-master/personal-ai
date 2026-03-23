@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 from app.extraction.llm_client import LLMExtractionClient
 from app.extraction.taxonomy import EVENT_TYPES
-from app.ingestion.common.db import _run_sql, _run_sql_all_lines
+from app.db.postgres import get_pg_connection
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -60,10 +60,6 @@ EVENT_TOOL_SCHEMA = {
 }
 
 
-def sql_escape(value: str) -> str:
-    return value.replace("'", "''")
-
-
 def parse_args() -> tuple[int | None, int | None, bool]:
     candidates_only = False
 
@@ -90,68 +86,58 @@ def parse_args() -> tuple[int | None, int | None, bool]:
     return DEFAULT_LIMIT, None, candidates_only
 
 
-def parse_chunk_rows(lines: list[str]) -> list[dict[str, Any]]:
-    rows = []
-    for line in lines:
-        parts = line.split("\t", 4)
-        if len(parts) != 5:
-            continue
-        rows.append(
+def _rows_to_chunk_dicts(rows: list[tuple]) -> list[dict[str, Any]]:
+    result = []
+    for row in rows:
+        result.append(
             {
-                "chunk_id": int(parts[0]),
-                "document_id": int(parts[1]),
-                "chunk_index": int(parts[2]),
-                "timestamp_start": parts[3],
-                "text": parts[4],
+                "chunk_id": row[0],
+                "document_id": row[1],
+                "chunk_index": row[2],
+                "timestamp_start": str(row[3]) if row[3] else "",
+                "text": row[4],
             }
         )
-    return rows
+    return result
 
 
 def fetch_candidate_chunks(limit: int, candidates_only: bool = False) -> list[dict[str, Any]]:
-    join_sql = ""
-    where_sql = "WHERE e.id IS NULL"
-    order_sql = "ORDER BY c.id"
-
     if candidates_only:
-        join_sql = "JOIN event_candidate_chunks ecc ON ecc.chunk_id = c.id"
-        where_sql = "WHERE e.id IS NULL"
-        order_sql = "ORDER BY ecc.priority DESC, c.id"
+        sql = """
+        SELECT c.id, c.document_id, c.chunk_index, c.timestamp_start, c.text
+        FROM chunks c
+        JOIN event_candidate_chunks ecc ON ecc.chunk_id = c.id
+        LEFT JOIN events e ON e.chunk_id = c.id
+        WHERE e.id IS NULL
+        ORDER BY ecc.priority DESC, c.id
+        LIMIT %s
+        """
+    else:
+        sql = """
+        SELECT c.id, c.document_id, c.chunk_index, c.timestamp_start, c.text
+        FROM chunks c
+        LEFT JOIN events e ON e.chunk_id = c.id
+        WHERE e.id IS NULL
+        ORDER BY c.id
+        LIMIT %s
+        """
 
-    sql = f"""
-    SELECT concat_ws(
-        E'\t',
-        c.id::text,
-        c.document_id::text,
-        c.chunk_index::text,
-        COALESCE(c.timestamp_start::text, ''),
-        replace(replace(c.text, E'\t', ' '), E'\n', ' ')
-    )
-    FROM chunks c
-    {join_sql}
-    LEFT JOIN events e ON e.chunk_id = c.id
-    {where_sql}
-    {order_sql}
-    LIMIT {limit};
-    """
-    return parse_chunk_rows(_run_sql_all_lines(sql))
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, (limit,))
+            rows = cur.fetchall()
+    return _rows_to_chunk_dicts(rows)
 
 
 def fetch_chunk_by_id(chunk_id: int) -> list[dict[str, Any]]:
-    sql = f"""
-    SELECT concat_ws(
-        E'\t',
-        c.id::text,
-        c.document_id::text,
-        c.chunk_index::text,
-        COALESCE(c.timestamp_start::text, ''),
-        replace(replace(c.text, E'\t', ' '), E'\n', ' ')
-    )
-    FROM chunks c
-    WHERE c.id = {chunk_id}
-    LIMIT 1;
-    """
-    return parse_chunk_rows(_run_sql_all_lines(sql))
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, document_id, chunk_index, timestamp_start, text FROM chunks WHERE id = %s LIMIT 1",
+                (chunk_id,),
+            )
+            rows = cur.fetchall()
+    return _rows_to_chunk_dicts(rows)
 
 
 def normalize_event(raw_event: dict[str, Any] | None, fallback_text: str) -> dict[str, Any] | None:
@@ -199,38 +185,45 @@ def detect_event_with_llm(llm: LLMExtractionClient, text: str) -> dict[str, Any]
 
 
 def insert_event(document_id: int, chunk_id: int, event_type: str, event_time: str | None, summary: str, confidence: float) -> int:
-    event_time_sql = "NULL" if not event_time else f"'{sql_escape(event_time)}'"
-    summary_sql = sql_escape(summary)
-    event_type_sql = sql_escape(event_type)
-
-    sql = f"""
-    INSERT INTO events (document_id, chunk_id, event_type, event_time, summary, confidence, created_at)
-    VALUES ({document_id}, {chunk_id}, '{event_type_sql}', {event_time_sql}, '{summary_sql}', {confidence}, NOW())
-    RETURNING id;
-    """
-    return int(_run_sql(sql).strip())
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO events (document_id, chunk_id, event_type, event_time, summary, confidence, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                RETURNING id
+                """,
+                (document_id, chunk_id, event_type, event_time, summary, confidence),
+            )
+            rows = cur.fetchall()
+        conn.commit()
+    return rows[0][0]
 
 
 def fetch_chunk_entity_ids(chunk_id: int) -> list[int]:
-    sql = f"""
-    SELECT entity_id::text
-    FROM chunk_entities
-    WHERE chunk_id = {chunk_id}
-    ORDER BY id
-    LIMIT 3;
-    """
-    return [int(line) for line in _run_sql_all_lines(sql) if line.strip()]
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT entity_id FROM chunk_entities WHERE chunk_id = %s ORDER BY id LIMIT 3",
+                (chunk_id,),
+            )
+            rows = cur.fetchall()
+    return [row[0] for row in rows]
 
 
 def insert_event_entity(event_id: int, entity_id: int, role: str = "mentioned") -> None:
-    role_sql = sql_escape(role)
-    sql = f"""
-    INSERT INTO event_entities (event_id, entity_id, role, created_at)
-    VALUES ({event_id}, {entity_id}, '{role_sql}', NOW())
-    ON CONFLICT (event_id, entity_id, COALESCE(role, ''))
-    DO NOTHING;
-    """
-    _run_sql(sql, expect_rows=False)
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO event_entities (event_id, entity_id, role, created_at)
+                VALUES (%s, %s, %s, NOW())
+                ON CONFLICT (event_id, entity_id, COALESCE(role, ''))
+                DO NOTHING
+                """,
+                (event_id, entity_id, role),
+            )
+        conn.commit()
 
 
 def main() -> None:

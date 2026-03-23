@@ -2,14 +2,10 @@ import json
 import sys
 from typing import Any
 
-from app.ingestion.common.db import _run_sql_all_lines
+from app.db.postgres import get_pg_connection
 
 
 DEFAULT_LIMIT = 20
-
-
-def sql_escape(value: str) -> str:
-    return value.replace("'", "''")
 
 
 def parse_args() -> dict[str, Any]:
@@ -42,17 +38,26 @@ def parse_args() -> dict[str, Any]:
     return args
 
 
-def build_query(event_type: str | None, date_from: str | None, date_to: str | None, limit: int) -> str:
-    where_clauses = []
+def build_query(
+    event_type: str | None,
+    date_from: str | None,
+    date_to: str | None,
+    limit: int,
+) -> tuple[str, list[Any]]:
+    where_clauses: list[str] = []
+    params: list[Any] = []
 
     if event_type:
-        where_clauses.append(f"e.event_type = '{sql_escape(event_type)}'")
+        where_clauses.append("e.event_type = %s")
+        params.append(event_type)
 
     if date_from:
-        where_clauses.append(f"e.event_time >= '{sql_escape(date_from)}'::timestamptz")
+        where_clauses.append("e.event_time >= %s::timestamptz")
+        params.append(date_from)
 
     if date_to:
-        where_clauses.append(f"e.event_time <= '{sql_escape(date_to)}'::timestamptz")
+        where_clauses.append("e.event_time <= %s::timestamptz")
+        params.append(date_to)
 
     where_sql = ""
     if where_clauses:
@@ -80,44 +85,53 @@ def build_query(event_type: str | None, date_from: str | None, date_to: str | No
     {where_sql}
     GROUP BY e.id, e.event_time, e.event_type, e.document_id, e.chunk_id, e.summary
     ORDER BY e.event_time NULLS LAST, e.id
-    LIMIT {limit};
+    LIMIT %s
     """
-    return sql
+    params.append(limit)
+
+    return sql, params
 
 
-def parse_rows(lines: list[str]) -> list[dict[str, Any]]:
-    rows = []
-    for line in lines:
-        parts = line.split("|", 6)
-        if len(parts) != 7:
-            continue
+def query_timeline(
+    event_type: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    limit: int = DEFAULT_LIMIT,
+) -> list[dict[str, Any]]:
+    sql, params = build_query(event_type, date_from, date_to, limit)
 
-        raw_entities = parts[6].strip()
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, tuple(params))
+            rows = cur.fetchall()
+
+    result = []
+    for row in rows:
+        raw_entities = row[6].strip() if row[6] else ""
         entities = [item.strip() for item in raw_entities.split("||") if item.strip()] if raw_entities else []
 
-        rows.append(
+        result.append(
             {
-                "event_id": int(parts[0]),
-                "event_time": parts[1] or None,
-                "event_type": parts[2],
-                "document_id": int(parts[3]),
-                "chunk_id": int(parts[4]),
-                "summary": parts[5],
+                "event_id": int(row[0]),
+                "event_time": row[1] or None,
+                "event_type": row[2],
+                "document_id": int(row[3]),
+                "chunk_id": int(row[4]),
+                "summary": row[5],
                 "entities": entities,
             }
         )
-    return rows
+    return result
 
 
 def main() -> None:
     args = parse_args()
-    sql = build_query(
+    rows = query_timeline(
         event_type=args["event_type"],
         date_from=args["date_from"],
         date_to=args["date_to"],
         limit=args["limit"],
     )
-    rows = parse_rows(_run_sql_all_lines(sql))
 
     print(
         json.dumps(

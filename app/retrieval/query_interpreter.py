@@ -13,7 +13,7 @@ load_dotenv()
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
 
-client = Anthropic(api_key=ANTHROPIC_API_KEY)
+client = Anthropic(api_key=ANTHROPIC_API_KEY, timeout=30.0)
 
 
 def build_fallback_interpretation(

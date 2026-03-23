@@ -4,12 +4,11 @@ import sys
 from pathlib import Path
 
 from app.ingestion.common.db import (
-    _run_sql_all_lines,
-    get_connection,
     insert_chunk,
     insert_document,
     insert_source,
 )
+from app.db.postgres import get_pg_connection
 
 from app.ingestion.email.parser import (
     ParsedEmail,
@@ -67,29 +66,20 @@ def chunk_text(text: str) -> list[str]:
     return chunks
 
 
-def sql_quote(value: str) -> str:
-    return value.replace("'", "''")
-
-
 def load_existing_raw_paths_for_source(source_type: str, source_name: str) -> set[str]:
-    query = f"""
-    SELECT d.raw_path
-    FROM documents d
-    JOIN sources s ON d.source_id = s.id
-    WHERE s.source_type = '{sql_quote(source_type)}'
-      AND s.source_name = '{sql_quote(source_name)}'
-      AND d.raw_path IS NOT NULL;
-    """
-
-    try:
-        lines = _run_sql_all_lines(query)
-    except RuntimeError as e:
-        message = str(e)
-        if "no rows" in message.lower():
-            return set()
-        raise
-
-    return set(lines)
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT d.raw_path
+                FROM documents d
+                JOIN sources s ON d.source_id = s.id
+                WHERE s.source_type = %s AND s.source_name = %s AND d.raw_path IS NOT NULL
+                """,
+                (source_type, source_name),
+            )
+            rows = cur.fetchall()
+    return {row[0] for row in rows}
 
 
 def import_extracted_pst(
@@ -97,8 +87,6 @@ def import_extracted_pst(
     extracted_root: Path,
     limit: int | None = None,
 ) -> tuple[int, int]:
-    conn = get_connection()
-
     source_type = "email"
     source_name = pst_file.name
 

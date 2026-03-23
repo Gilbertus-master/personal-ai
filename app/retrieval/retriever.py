@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import OpenAI, APIConnectionError, APITimeoutError, RateLimitError
 from qdrant_client import QdrantClient
 
 from app.db.postgres import get_pg_connection
@@ -17,13 +17,20 @@ QDRANT_URL = os.getenv("QDRANT_URL", "http://127.0.0.1:6333")
 QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "gilbertus_chunks")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-large")
 
-client = OpenAI(api_key=OPENAI_API_KEY)
-qdrant = QdrantClient(url=QDRANT_URL)
+client = OpenAI(api_key=OPENAI_API_KEY, timeout=30.0)
+qdrant = QdrantClient(url=QDRANT_URL, timeout=15.0)
 
 
 def embed_query(text: str) -> list[float]:
-    resp = client.embeddings.create(model=EMBEDDING_MODEL, input=text)
-    return resp.data[0].embedding
+    try:
+        resp = client.embeddings.create(model=EMBEDDING_MODEL, input=text)
+        return resp.data[0].embedding
+    except (APIConnectionError, APITimeoutError) as e:
+        raise RuntimeError(f"OpenAI embedding request failed (connection/timeout): {e}") from e
+    except RateLimitError as e:
+        raise RuntimeError(f"OpenAI embedding rate limit hit: {e}") from e
+    except Exception as e:
+        raise RuntimeError(f"OpenAI embedding request failed: {e}") from e
 
 
 def fetch_document_metadata(document_ids: list[int]) -> dict[int, dict[str, Any]]:
@@ -169,12 +176,17 @@ def search_chunks(
 ) -> list[dict[str, Any]]:
     limit = prefetch_k or max(top_k * 3, 20)
 
-    hits = qdrant.query_points(
-        collection_name=QDRANT_COLLECTION,
-        query=embed_query(query),
-        limit=limit,
-        with_payload=True,
-    ).points
+    try:
+        hits = qdrant.query_points(
+            collection_name=QDRANT_COLLECTION,
+            query=embed_query(query),
+            limit=limit,
+            with_payload=True,
+        ).points
+    except RuntimeError:
+        raise
+    except Exception as e:
+        raise RuntimeError(f"Qdrant search failed: {e}") from e
 
     raw_matches: list[dict[str, Any]] = []
     document_ids: list[int] = []

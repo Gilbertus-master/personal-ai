@@ -6,6 +6,8 @@ data/raw/*
 data/processed/*
 backups/*
 *.bak_*
-
-__pycache__/
-*.pyc
+logs/*.log
+project_log_docs/
+Backup
+Running
+Tworze

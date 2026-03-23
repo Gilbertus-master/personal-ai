@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 from app.extraction.llm_client import LLMExtractionClient
 from app.extraction.taxonomy import ENTITY_TYPES
-from app.ingestion.common.db import _run_sql, _run_sql_all_lines
+from app.db.postgres import get_pg_connection
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -28,7 +28,7 @@ Rules:
   person, company, project, topic, location
 - Prefer entities central to the main meaning of the chunk.
 - Exclude incidental mentions, side references, generic background context, and weakly related entities.
-- Exclude entities that appear only in quoted context unless they are central to the chunk’s main point.
+- Exclude entities that appear only in quoted context unless they are central to the chunk's main point.
 - Exclude boilerplate metadata, email header clutter, recipient lists, signatures, and copied thread noise unless clearly central.
 - For medical or psychological chunks, prefer the diagnosis/condition/topic over unrelated organizations or side people.
 - For relational chunks, include only the people central to the actual situation described.
@@ -67,23 +67,24 @@ ENTITY_TOOL_SCHEMA = {
 }
 
 
-def sql_escape(value: str) -> str:
-    return value.replace("'", "''")
-
-
-def parse_args() -> tuple[int | None, int | None, bool]:
+def parse_args() -> tuple[int | None, int | None, bool, bool]:
     candidates_only = False
+    event_backfill_only = False
 
     if "--candidates-only" in sys.argv:
         candidates_only = True
         sys.argv.remove("--candidates-only")
+
+    if "--event-backfill-only" in sys.argv:
+        event_backfill_only = True
+        sys.argv.remove("--event-backfill-only")
 
     if len(sys.argv) >= 3 and sys.argv[1] == "--chunk-id":
         try:
             chunk_id = int(sys.argv[2])
         except ValueError:
             raise ValueError(f"Invalid chunk_id: {sys.argv[2]}")
-        return None, chunk_id, candidates_only
+        return None, chunk_id, candidates_only, event_backfill_only
 
     if len(sys.argv) >= 2:
         try:
@@ -92,71 +93,76 @@ def parse_args() -> tuple[int | None, int | None, bool]:
             raise ValueError(f"Invalid limit: {sys.argv[1]}")
         if value <= 0:
             raise ValueError(f"Limit must be > 0, got: {value}")
-        return value, None, candidates_only
+        return value, None, candidates_only, event_backfill_only
 
-    return DEFAULT_LIMIT, None, candidates_only
+    return DEFAULT_LIMIT, None, candidates_only, event_backfill_only
 
 
-def parse_chunk_rows(lines: list[str]) -> list[dict[str, Any]]:
-    rows = []
-    for line in lines:
-        parts = line.split("\t", 3)
-        if len(parts) != 4:
-            continue
-        rows.append(
+def _rows_to_chunk_dicts(rows: list[tuple]) -> list[dict[str, Any]]:
+    result = []
+    for row in rows:
+        result.append(
             {
-                "chunk_id": int(parts[0]),
-                "document_id": int(parts[1]),
-                "chunk_index": int(parts[2]),
-                "text": parts[3],
+                "chunk_id": row[0],
+                "document_id": row[1],
+                "chunk_index": row[2],
+                "text": row[3],
             }
         )
-    return rows
+    return result
 
 
-def fetch_candidate_chunks(limit: int, candidates_only: bool = False) -> list[dict[str, Any]]:
-    join_sql = ""
-    where_sql = "WHERE e.id IS NULL"
-    order_sql = "ORDER BY c.id"
+def fetch_candidate_chunks(
+    limit: int,
+    candidates_only: bool = False,
+    event_backfill_only: bool = False,
+) -> list[dict[str, Any]]:
+    if event_backfill_only:
+        sql = """
+        SELECT c.id, c.document_id, c.chunk_index, c.text
+        FROM chunks c
+        JOIN event_entity_backfill_candidates ebc ON ebc.chunk_id = c.id
+        LEFT JOIN chunk_entities ce ON ce.chunk_id = c.id
+        WHERE ce.id IS NULL
+        ORDER BY c.id
+        LIMIT %s
+        """
+    elif candidates_only:
+        sql = """
+        SELECT c.id, c.document_id, c.chunk_index, c.text
+        FROM chunks c
+        JOIN event_candidate_chunks ecc ON ecc.chunk_id = c.id
+        LEFT JOIN chunk_entities ce ON ce.chunk_id = c.id
+        WHERE ce.id IS NULL
+        ORDER BY ecc.priority DESC, c.id
+        LIMIT %s
+        """
+    else:
+        sql = """
+        SELECT c.id, c.document_id, c.chunk_index, c.text
+        FROM chunks c
+        LEFT JOIN chunk_entities ce ON ce.chunk_id = c.id
+        WHERE ce.id IS NULL
+        ORDER BY c.id
+        LIMIT %s
+        """
 
-    if candidates_only:
-        join_sql = "JOIN event_candidate_chunks ecc ON ecc.chunk_id = c.id"
-        where_sql = "WHERE e.id IS NULL"
-        order_sql = "ORDER BY ecc.priority DESC, c.id"
-
-    sql = f"""
-    SELECT concat_ws(
-        E'\t',
-        c.id::text,
-        c.document_id::text,
-        c.chunk_index::text,
-        COALESCE(c.timestamp_start::text, ''),
-        replace(replace(c.text, E'\t', ' '), E'\n', ' ')
-    )
-    FROM chunks c
-    {join_sql}
-    LEFT JOIN events e ON e.chunk_id = c.id
-    {where_sql}
-    {order_sql}
-    LIMIT {limit};
-    """
-    return parse_chunk_rows(_run_sql_all_lines(sql))
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, (limit,))
+            rows = cur.fetchall()
+    return _rows_to_chunk_dicts(rows)
 
 
 def fetch_chunk_by_id(chunk_id: int) -> list[dict[str, Any]]:
-    sql = f"""
-    SELECT concat_ws(
-        E'\t',
-        c.id::text,
-        c.document_id::text,
-        c.chunk_index::text,
-        replace(replace(c.text, E'\t', ' '), E'\n', ' ')
-    )
-    FROM chunks c
-    WHERE c.id = {chunk_id}
-    LIMIT 1;
-    """
-    return parse_chunk_rows(_run_sql_all_lines(sql))
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, document_id, chunk_index, text FROM chunks WHERE id = %s LIMIT 1",
+                (chunk_id,),
+            )
+            rows = cur.fetchall()
+    return _rows_to_chunk_dicts(rows)
 
 
 def normalize_entity(entity: dict[str, Any]) -> dict[str, Any] | None:
@@ -223,58 +229,68 @@ def extract_entities_from_text(llm: LLMExtractionClient, text: str) -> list[dict
 
 
 def upsert_entity(entity: dict[str, Any]) -> int:
-    canonical_name = sql_escape(entity["canonical_name"])
-    name = sql_escape(entity["name"])
-    entity_type = sql_escape(entity["entity_type"])
+    canonical_name = entity["canonical_name"]
+    name = entity["name"]
+    entity_type = entity["entity_type"]
 
-    lookup_sql = f"""
-    SELECT id::text
-    FROM entities
-    WHERE entity_type = '{entity_type}'
-      AND (
-        canonical_name = '{canonical_name}'
-        OR name = '{name}'
-        OR name = '{canonical_name}'
-        OR canonical_name = '{name}'
-      )
-    ORDER BY id
-    LIMIT 1;
-    """
-    existing = _run_sql_all_lines(lookup_sql)
-    if existing:
-        return int(existing[0])
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id FROM entities
+                WHERE entity_type = %s
+                  AND (canonical_name = %s OR name = %s OR name = %s OR canonical_name = %s)
+                ORDER BY id LIMIT 1
+                """,
+                (entity_type, canonical_name, name, canonical_name, name),
+            )
+            rows = cur.fetchall()
+            if rows:
+                return rows[0][0]
 
-    insert_sql = f"""
-    INSERT INTO entities (name, entity_type, canonical_name, created_at)
-    VALUES ('{name}', '{entity_type}', '{canonical_name}', NOW())
-    ON CONFLICT (name, entity_type)
-    DO UPDATE SET
-        canonical_name = COALESCE(entities.canonical_name, EXCLUDED.canonical_name)
-    RETURNING id;
-    """
-    return int(_run_sql(insert_sql).strip())
+            cur.execute(
+                """
+                INSERT INTO entities (name, entity_type, canonical_name, created_at)
+                VALUES (%s, %s, %s, NOW())
+                ON CONFLICT (name, entity_type)
+                DO UPDATE SET canonical_name = COALESCE(entities.canonical_name, EXCLUDED.canonical_name)
+                RETURNING id
+                """,
+                (name, entity_type, canonical_name),
+            )
+            rows = cur.fetchall()
+        conn.commit()
+    return rows[0][0]
 
 
 def insert_chunk_entity(chunk_id: int, entity_id: int, mention_text: str, confidence: float) -> None:
-    mention_sql = sql_escape(mention_text)
-    sql = f"""
-    INSERT INTO chunk_entities (chunk_id, entity_id, mention_text, confidence, created_at)
-    VALUES ({chunk_id}, {entity_id}, '{mention_sql}', {confidence}, NOW())
-    ON CONFLICT (chunk_id, entity_id, COALESCE(mention_text, ''))
-    DO NOTHING;
-    """
-    _run_sql(sql, expect_rows=False)
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO chunk_entities (chunk_id, entity_id, mention_text, confidence, created_at)
+                VALUES (%s, %s, %s, %s, NOW())
+                ON CONFLICT (chunk_id, entity_id, COALESCE(mention_text, ''))
+                DO NOTHING
+                """,
+                (chunk_id, entity_id, mention_text, confidence),
+            )
+        conn.commit()
 
 
 def main() -> None:
-    limit, chunk_id, candidates_only = parse_args()
+    limit, chunk_id, candidates_only, event_backfill_only = parse_args()
     llm = LLMExtractionClient()
 
     if chunk_id is not None:
         rows = fetch_chunk_by_id(chunk_id)
         print(f"Testing single chunk_id={chunk_id}. Found rows: {len(rows)}")
     else:
-        rows = fetch_candidate_chunks(limit=limit or DEFAULT_LIMIT, candidates_only=candidates_only)
+        rows = fetch_candidate_chunks(
+            limit=limit or DEFAULT_LIMIT,
+            candidates_only=candidates_only,
+            event_backfill_only=event_backfill_only,
+        )
         print(f"Chunks to process: {len(rows)}")
 
     processed = 0

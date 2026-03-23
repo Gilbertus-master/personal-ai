@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from collections import Counter
 
-from anthropic import Anthropic
+from anthropic import Anthropic, APIConnectionError, APITimeoutError
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -11,7 +11,7 @@ load_dotenv()
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
 
-client = Anthropic(api_key=ANTHROPIC_API_KEY)
+client = Anthropic(api_key=ANTHROPIC_API_KEY, timeout=60.0)
 
 
 def get_answer_profile(
@@ -228,18 +228,25 @@ Materiał źródłowy:
     }
     max_tokens = max_tokens_map.get(answer_length or "long", 2600)
 
-    response = client.messages.create(
-        model=ANTHROPIC_MODEL,
-        max_tokens=max_tokens,
-        temperature=0.2,
-        system=system_prompt,
-        messages=[
-            {
-                "role": "user",
-                "content": user_prompt,
-            }
-        ],
-    )
+    try:
+        response = client.messages.create(
+            model=ANTHROPIC_MODEL,
+            max_tokens=max_tokens,
+            temperature=0.2,
+            system=system_prompt,
+            messages=[
+                {
+                    "role": "user",
+                    "content": user_prompt,
+                }
+            ],
+        )
+    except (APIConnectionError, APITimeoutError) as e:
+        print(f"[answering] ERROR: Claude API connection/timeout error: {e}")
+        return "Błąd połączenia z modelem AI. Spróbuj ponownie za chwilę."
+    except Exception as e:
+        print(f"[answering] ERROR: Claude API call failed: {e}")
+        return "Wystąpił błąd podczas generowania odpowiedzi. Spróbuj ponownie."
 
     parts = []
     for block in response.content:

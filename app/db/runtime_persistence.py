@@ -1,40 +1,9 @@
 from __future__ import annotations
 
 import json
-import time
 from typing import Any, Optional
 
-from app.ingestion.common.db import _run_sql
-
-
-def _sql_quote(value: Any) -> str:
-    """
-    Zamienia wartość Pythona na bezpieczny literał SQL.
-    """
-    if value is None:
-        return "NULL"
-
-    if isinstance(value, bool):
-        return "TRUE" if value else "FALSE"
-
-    if isinstance(value, (int, float)):
-        return str(value)
-
-    text = str(value)
-    text = text.replace("'", "''")
-    return f"'{text}'"
-
-
-def _sql_json(value: Any) -> str:
-    """
-    Zwraca literał SQL typu jsonb.
-    """
-    if value is None:
-        return "NULL"
-
-    json_text = json.dumps(value, ensure_ascii=False)
-    json_text = json_text.replace("'", "''")
-    return f"'{json_text}'::jsonb"
+from app.db.postgres import get_pg_connection
 
 
 def _safe_int(value: Any, default: int = 0) -> int:
@@ -128,13 +97,15 @@ def _extract_excerpt(match: dict[str, Any]) -> Optional[str]:
 
 
 def create_session(title: Optional[str] = None, entrypoint: str = "api") -> int:
-    sql = f"""
-    INSERT INTO sessions (title, entrypoint)
-    VALUES ({_sql_quote(title)}, {_sql_quote(entrypoint)})
-    RETURNING id;
-    """
-    result = _run_sql(sql)
-    return int(result.strip())
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO sessions (title, entrypoint) VALUES (%s, %s) RETURNING id",
+                (title, entrypoint),
+            )
+            row = cur.fetchone()
+        conn.commit()
+    return row[0]
 
 
 def create_ask_run(
@@ -147,99 +118,88 @@ def create_ask_run(
 ) -> int:
     meta = (response_payload or {}).get("meta") or {}
     answer_text = (response_payload or {}).get("answer") or ""
+    interp = interpretation or {}
 
-    sql = f"""
-    INSERT INTO ask_runs (
+    params = (
         session_id,
-        query_text,
-        normalized_query,
-        question_type,
-        analysis_depth,
-        top_k,
-        prefetch_k,
-        answer_match_limit,
-        source_types,
-        source_names,
-        date_from,
-        date_to,
-        used_fallback,
-        match_count,
+        request_payload.get("query"),
+        meta.get("normalized_query") or interp.get("normalized_query"),
+        meta.get("question_type") or interp.get("question_type"),
+        meta.get("analysis_depth") or interp.get("analysis_depth"),
+        request_payload.get("top_k", 5),
+        interp.get("prefetch_k"),
+        interp.get("answer_match_limit"),
+        json.dumps(request_payload.get("source_types"), ensure_ascii=False) if request_payload.get("source_types") is not None else None,
+        json.dumps(request_payload.get("source_names"), ensure_ascii=False) if request_payload.get("source_names") is not None else None,
+        request_payload.get("date_from"),
+        request_payload.get("date_to"),
+        bool(meta.get("used_fallback", False)),
+        _safe_int(meta.get("match_count"), 0),
         answer_text,
-        answer_length,
-        allow_quotes,
-        debug,
+        request_payload.get("answer_length", "auto"),
+        bool(request_payload.get("allow_quotes", False)),
+        bool(request_payload.get("debug", False)),
         latency_ms,
-        raw_request_json,
-        raw_response_json
+        json.dumps(request_payload, ensure_ascii=False),
+        json.dumps(response_payload, ensure_ascii=False),
     )
-    VALUES (
-        {_sql_quote(session_id)},
-        {_sql_quote(request_payload.get("query"))},
-        {_sql_quote(meta.get("normalized_query") or (interpretation or {}).get("normalized_query"))},
-        {_sql_quote(meta.get("question_type") or (interpretation or {}).get("question_type"))},
-        {_sql_quote(meta.get("analysis_depth") or (interpretation or {}).get("analysis_depth"))},
-        {_sql_quote(request_payload.get("top_k", 5))},
-        {_sql_quote((interpretation or {}).get("prefetch_k"))},
-        {_sql_quote((interpretation or {}).get("answer_match_limit"))},
-        {_sql_json(request_payload.get("source_types"))},
-        {_sql_json(request_payload.get("source_names"))},
-        {_sql_quote(request_payload.get("date_from"))},
-        {_sql_quote(request_payload.get("date_to"))},
-        {_sql_quote(bool(meta.get("used_fallback", False)))},
-        {_sql_quote(_safe_int(meta.get("match_count"), 0))},
-        {_sql_quote(answer_text)},
-        {_sql_quote(request_payload.get("answer_length", "auto"))},
-        {_sql_quote(bool(request_payload.get("allow_quotes", False)))},
-        {_sql_quote(bool(request_payload.get("debug", False)))},
-        {_sql_quote(latency_ms)},
-        {_sql_json(request_payload)},
-        {_sql_json(response_payload)}
-    )
-    RETURNING id;
-    """
-    result = _run_sql(sql)
-    return int(result.strip())
+
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO ask_runs (
+                    session_id, query_text, normalized_query, question_type,
+                    analysis_depth, top_k, prefetch_k, answer_match_limit,
+                    source_types, source_names, date_from, date_to,
+                    used_fallback, match_count, answer_text, answer_length,
+                    allow_quotes, debug, latency_ms,
+                    raw_request_json, raw_response_json
+                )
+                VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s,
+                    %s::jsonb, %s::jsonb, %s, %s,
+                    %s, %s, %s, %s, %s, %s, %s,
+                    %s::jsonb, %s::jsonb
+                )
+                RETURNING id
+                """,
+                params,
+            )
+            row = cur.fetchone()
+        conn.commit()
+    return row[0]
 
 
 def insert_ask_run_matches(ask_run_id: int, matches: list[dict[str, Any]]) -> None:
     if not matches:
         return
 
-    values_sql: list[str] = []
-
-    for idx, match in enumerate(matches, start=1):
-        row_sql = f"""(
-            {_sql_quote(ask_run_id)},
-            {_sql_quote(_extract_chunk_id(match))},
-            {_sql_quote(_extract_document_id(match))},
-            {_sql_quote(idx)},
-            {_sql_quote(_extract_score(match))},
-            {_sql_quote(_extract_source_type(match))},
-            {_sql_quote(_extract_source_name(match))},
-            {_sql_quote(_extract_title(match))},
-            {_sql_quote(_extract_created_at(match))},
-            {_sql_quote(_extract_excerpt(match))}
-        )"""
-        values_sql.append(row_sql)
-
-    sql = f"""
-    INSERT INTO ask_run_matches (
-        ask_run_id,
-        chunk_id,
-        document_id,
-        rank_index,
-        score,
-        source_type,
-        source_name,
-        title,
-        created_at,
-        excerpt
-    )
-    VALUES
-    {",\n".join(values_sql)};
-    """
-
-    _run_sql(sql)
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            for idx, match in enumerate(matches, start=1):
+                cur.execute(
+                    """
+                    INSERT INTO ask_run_matches (
+                        ask_run_id, chunk_id, document_id, rank_index,
+                        score, source_type, source_name, title, created_at, excerpt
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        ask_run_id,
+                        _extract_chunk_id(match),
+                        _extract_document_id(match),
+                        idx,
+                        _extract_score(match),
+                        _extract_source_type(match),
+                        _extract_source_name(match),
+                        _extract_title(match),
+                        _extract_created_at(match),
+                        _extract_excerpt(match),
+                    ),
+                )
+        conn.commit()
 
 
 def persist_ask_run_best_effort(
@@ -269,4 +229,3 @@ def persist_ask_run_best_effort(
     except Exception as exc:
         print(f"[runtime_persistence] WARNING: failed to persist ask run: {exc}")
         return None
-    
