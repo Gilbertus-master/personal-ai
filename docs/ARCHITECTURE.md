@@ -172,3 +172,82 @@ For v1 I do not change:
 - embedding model
 - backend framework
 unless there is a hard technical blocker.
+
+## Quick-start
+
+Prerequisites: Docker Desktop with WSL2 backend, Python 3.11+, a working `.env` file (copy `.env.example` and fill in real keys).
+
+```bash
+# 1. Start infrastructure (Postgres + Qdrant)
+./scripts/run_infra.sh
+
+# 2. Run database migrations
+./scripts/run_migrations.sh
+
+# 3. (Optional) Restore from backup if the database is empty
+./scripts/pg_auto_restore.sh
+
+# 4. Start the API server
+./scripts/run_api.sh
+```
+
+The API starts on `http://127.0.0.1:8000` by default.
+
+## API endpoints
+
+FastAPI auto-generates interactive documentation at `/docs` (Swagger UI) and `/redoc` (ReDoc).
+
+### GET /health
+Returns service status and current environment.
+
+### GET /version
+Returns application name and version string.
+
+### POST /ask
+Main retrieval endpoint. Accepts a JSON body with `query` and optional filters (`source_types`, `source_names`, `date_from`, `date_to`, `mode`, `top_k`, `answer_style`, `answer_length`, `allow_quotes`, `debug`).
+Returns an AI-generated answer, optionally with source references and matched chunks (when `debug: true`).
+
+### POST /timeline
+Returns extracted events filtered by `event_type`, `date_from`, `date_to`, and `limit`.
+Used for chronological browsing across the archive.
+
+## Backup and restore
+
+Backups cover both Postgres and Qdrant and are stored under `backups/db/<timestamp>/`.
+
+### Creating a backup
+```bash
+./scripts/backup_db.sh
+```
+Dumps Postgres via `pg_dump -Fc` and creates Qdrant snapshots through the REST API.
+Each backup directory contains:
+- `postgres.dump` — Postgres custom-format dump
+- `qdrant_snapshots/<collection>.snapshot` — one file per Qdrant collection
+- `manifest.json` — metadata (timestamp, table count, document count, dump size)
+
+The script refuses to write a backup if the database is empty or the dump is suspiciously small (< 1 MB).
+
+### Restoring from a backup
+```bash
+./scripts/restore_db.sh backups/db/YYYY-MM-DD_HH-MM-SS
+```
+Drops and recreates the public schema, restores Postgres, then uploads Qdrant snapshots.
+
+### Automatic restore on startup
+```bash
+./scripts/pg_auto_restore.sh
+```
+Safety guard that detects an empty Postgres and automatically restores from the latest valid backup.
+Useful after a fresh `docker compose up` when the database volume was lost.
+
+### Safe import with backup
+```bash
+./scripts/import_with_backup.sh <command> [args...]
+```
+Wraps any import command with a pre-import and post-import backup, plus post-import validation.
+
+### Pruning old backups
+```bash
+./scripts/prune_backups.sh
+```
+Removes backup directories older than 30 days.

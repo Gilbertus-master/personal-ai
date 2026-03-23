@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE event_candidate_chunks
+ADD COLUMN IF NOT EXISTS priority INTEGER NOT NULL DEFAULT 0;
+
+COMMIT;
