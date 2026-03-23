@@ -3,29 +3,100 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+CONTAINER="gilbertus-postgres"
+DB_USER="${POSTGRES_USER:-gilbertus}"
+DB_NAME="${POSTGRES_DB:-gilbertus}"
+QDRANT_CONTAINER="gilbertus-qdrant"
+QDRANT_URL="http://127.0.0.1:6333"
+
 TS="$(date +%F_%H-%M-%S)"
 BACKUP_DIR="backups/db/$TS"
+MIN_PG_DUMP_BYTES=1048576  # 1MB — anything less means empty DB
+
 mkdir -p "$BACKUP_DIR"
 
 echo "==> Tworze backup w: $BACKUP_DIR"
 
-docker exec gilbertus-postgres pg_dump \
-  -U "${POSTGRES_USER:-gilbertus}" \
-  -d "${POSTGRES_DB:-gilbertus}" \
-  -Fc \
-  > "$BACKUP_DIR/postgres.dump"
+# ── Pre-flight: verify DB is not empty ──
+TABLE_COUNT=$(docker exec "$CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -tAc \
+    "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
+TABLE_COUNT=$(echo "$TABLE_COUNT" | tr -d '[:space:]')
 
-tar -I 'zstd -3 -T0' -cf "$BACKUP_DIR/qdrant.tar.zst" data/processed/qdrant
+if [ "$TABLE_COUNT" -eq 0 ]; then
+    echo "==> WARNING: Database has 0 tables — skipping backup to avoid overwriting good backups with empty dump"
+    exit 0
+fi
 
+DOC_COUNT=$(docker exec "$CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -tAc \
+    "SELECT count(*) FROM documents;" 2>/dev/null || echo "0")
+DOC_COUNT=$(echo "$DOC_COUNT" | tr -d '[:space:]')
+echo "==> Pre-flight: $TABLE_COUNT tables, $DOC_COUNT documents"
+
+# ── Postgres dump ──
+docker exec "$CONTAINER" pg_dump \
+    -U "$DB_USER" \
+    -d "$DB_NAME" \
+    -Fc \
+    > "$BACKUP_DIR/postgres.dump"
+
+DUMP_SIZE=$(stat --format=%s "$BACKUP_DIR/postgres.dump" 2>/dev/null || echo "0")
+
+if [ "$DUMP_SIZE" -lt "$MIN_PG_DUMP_BYTES" ]; then
+    echo "==> ERROR: Postgres dump too small (${DUMP_SIZE} bytes). Removing suspect backup."
+    rm -rf "$BACKUP_DIR"
+    exit 1
+fi
+
+DUMP_SIZE_MB=$(( DUMP_SIZE / 1048576 ))
+echo "==> Postgres dump: ${DUMP_SIZE_MB}MB"
+
+# ── Qdrant snapshot via API ──
+QDRANT_SNAP_DIR="$BACKUP_DIR/qdrant_snapshots"
+mkdir -p "$QDRANT_SNAP_DIR"
+
+COLLECTIONS=$(curl -sf "$QDRANT_URL/collections" 2>/dev/null | \
+    python3 -c "import sys,json; [print(c['name']) for c in json.load(sys.stdin).get('result',{}).get('collections',[])]" 2>/dev/null || true)
+
+QDRANT_OK=false
+if [ -n "$COLLECTIONS" ]; then
+    for COLL in $COLLECTIONS; do
+        echo "==> Qdrant snapshot: $COLL"
+        SNAP_RESP=$(curl -sf -X POST "$QDRANT_URL/collections/$COLL/snapshots" 2>/dev/null || echo "")
+        if [ -z "$SNAP_RESP" ]; then
+            echo "==> WARNING: Failed to create Qdrant snapshot for $COLL"
+            continue
+        fi
+        SNAP_NAME=$(echo "$SNAP_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('result',{}).get('name',''))" 2>/dev/null || echo "")
+        if [ -n "$SNAP_NAME" ]; then
+            curl -sf "$QDRANT_URL/collections/$COLL/snapshots/$SNAP_NAME" \
+                -o "$QDRANT_SNAP_DIR/${COLL}.snapshot" 2>/dev/null || true
+            # Cleanup snapshot from Qdrant server
+            curl -sf -X DELETE "$QDRANT_URL/collections/$COLL/snapshots/$SNAP_NAME" >/dev/null 2>&1 || true
+            SNAP_SIZE=$(stat --format=%s "$QDRANT_SNAP_DIR/${COLL}.snapshot" 2>/dev/null || echo "0")
+            echo "==> Qdrant snapshot $COLL: $(( SNAP_SIZE / 1048576 ))MB"
+            QDRANT_OK=true
+        fi
+    done
+fi
+
+if [ "$QDRANT_OK" = false ]; then
+    echo "==> WARNING: No Qdrant collections to backup (empty or unreachable)"
+    rmdir "$QDRANT_SNAP_DIR" 2>/dev/null || true
+fi
+
+# ── Manifest ──
 cat > "$BACKUP_DIR/manifest.json" <<MANIFEST
 {
   "timestamp": "$TS",
   "project": "Gilbertus Albans",
-  "postgres_db": "${POSTGRES_DB:-gilbertus}",
-  "postgres_container": "gilbertus-postgres",
-  "qdrant_container": "gilbertus-qdrant",
+  "postgres_db": "$DB_NAME",
+  "postgres_container": "$CONTAINER",
+  "qdrant_container": "$QDRANT_CONTAINER",
   "postgres_dump": "postgres.dump",
-  "qdrant_archive": "qdrant.tar.zst"
+  "postgres_dump_bytes": $DUMP_SIZE,
+  "postgres_tables": $TABLE_COUNT,
+  "postgres_documents": $DOC_COUNT,
+  "qdrant_snapshot_api": $QDRANT_OK
 }
 MANIFEST
 
