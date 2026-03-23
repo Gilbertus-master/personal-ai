@@ -11,3 +11,6 @@ project_log_docs/
 Backup
 Running
 Tworze
+.ms_graph_token.json
+.ms_graph_email_delta.json
+.ms_graph_teams_delta.json
