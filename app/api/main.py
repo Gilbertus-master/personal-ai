@@ -556,7 +556,7 @@ class MorningBriefResponse(BaseModel):
 @app.get("/brief/today", response_model=MorningBriefResponse)
 def brief_today(
     force: bool = False,
-    days: int = 7,
+    days: int = 14,
     date: str | None = None,
 ) -> MorningBriefResponse:
     """

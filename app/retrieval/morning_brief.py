@@ -32,7 +32,7 @@ ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
 
 client = Anthropic(api_key=ANTHROPIC_API_KEY, timeout=120.0)
 
-DEFAULT_LOOKBACK_DAYS = 7
+DEFAULT_LOOKBACK_DAYS = 14
 
 
 # ============================================================
