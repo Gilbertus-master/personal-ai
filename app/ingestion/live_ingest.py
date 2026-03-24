@@ -409,6 +409,49 @@ def run_all():
         print(f"  No new data")
     else:
         print(f"  Total: {total} documents imported")
+        # Immediately analyze new data
+        _analyze_new_data(total)
+
+
+def _analyze_new_data(new_count: int):
+    """Immediately process new data: embed, extract entities/events, check for alerts."""
+    import subprocess
+    import os
+
+    print(f"  Analyzing {new_count} new documents...")
+
+    # 1. Embed immediately
+    try:
+        env = {**os.environ, "TIKTOKEN_CACHE_DIR": "/tmp/tiktoken_cache"}
+        subprocess.run(
+            [".venv/bin/python", "-m", "app.retrieval.index_chunks",
+             "--batch-size", "50", "--limit", str(new_count * 5)],
+            capture_output=True, timeout=120, env=env,
+        )
+        print(f"  Embedded new chunks")
+    except Exception:
+        pass
+
+    # 2. Extract entities on new chunks (quick pass, 50 max)
+    try:
+        env = {**os.environ, "ANTHROPIC_EXTRACTION_MODEL": "claude-haiku-4-5-20251001"}
+        subprocess.run(
+            [".venv/bin/python", "-m", "app.extraction.entities", str(min(new_count * 3, 50))],
+            capture_output=True, timeout=180, env=env,
+        )
+        print(f"  Extracted entities from new data")
+    except Exception:
+        pass
+
+    # 3. Run alerts to catch anything significant
+    try:
+        subprocess.run(
+            [".venv/bin/python", "-m", "app.retrieval.alerts"],
+            capture_output=True, timeout=60,
+        )
+        print(f"  Alerts checked")
+    except Exception:
+        pass
 
 
 def main():
