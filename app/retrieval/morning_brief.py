@@ -22,6 +22,7 @@ from anthropic import Anthropic, APIConnectionError, APITimeoutError
 from dotenv import load_dotenv
 
 from app.db.postgres import get_pg_connection
+from app.retrieval.alerts import run_alerts_check
 
 load_dotenv()
 
@@ -257,10 +258,22 @@ def build_brief_context(
     entities: list[dict[str, Any]],
     summaries: list[dict[str, Any]],
     max_chars: int = 40000,
+    alerts: list[dict[str, Any]] | None = None,
 ) -> str:
     """Assemble all data into a single context string for Claude."""
     parts: list[str] = []
     total_chars = 0
+
+    # Proactive alerts
+    if alerts:
+        parts.append("=== ALERTY PROAKTYWNE ===")
+        for a in alerts:
+            line = f"[{a['severity'].upper()}] {a['title']}: {a['description']}"
+            parts.append(line)
+            total_chars += len(line)
+            if total_chars > max_chars * 0.15:
+                break
+        parts.append("")
 
     # Events
     if events:
@@ -516,6 +529,18 @@ def generate_morning_brief(
         date, date_from, date_to,
     )
 
+    # Run proactive alerts check
+    try:
+        alerts_result = run_alerts_check(date=date)
+        logger.info(
+            "Alerts check: %d detected, %d new",
+            alerts_result["total_detected"],
+            alerts_result["new_saved"],
+        )
+    except Exception:
+        logger.exception("Alerts check failed — continuing without alerts")
+        alerts_result = None
+
     # Fetch all data
     events = fetch_recent_events(date_from, date_to)
     open_loops = fetch_open_loops(date_from, date_to)
@@ -539,7 +564,10 @@ def generate_morning_brief(
         }
 
     # Build context and generate
-    context = build_brief_context(events, open_loops, entities, summaries)
+    active_alerts = (
+        alerts_result["alerts"] if alerts_result else []
+    )
+    context = build_brief_context(events, open_loops, entities, summaries, alerts=active_alerts)
     date_label = datetime.fromisoformat(date).strftime("%A, %d %B %Y")
     brief_text = generate_brief_text(context, date_label)
 
@@ -561,6 +589,7 @@ def generate_morning_brief(
         "open_loops_count": len(open_loops),
         "entities_count": len(entities),
         "summaries_count": len(summaries),
+        "alerts_count": alerts_result["total_detected"] if alerts_result else 0,
         "text": brief_text,
     }
 

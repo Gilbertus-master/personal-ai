@@ -22,6 +22,7 @@ from app.retrieval.summaries import (
     AREAS,
 )
 from app.retrieval.morning_brief import generate_morning_brief, get_todays_brief
+from app.retrieval.alerts import get_alerts, run_alerts_check
 from app.api.plaud_webhook import router as plaud_router
 from app.api.decisions import router as decisions_router
 from app.api.insights import router as insights_router
@@ -606,4 +607,70 @@ def brief_today(
         summaries_count=result.get("summaries_count"),
         text=result.get("text"),
         meta={"latency_ms": latency_ms},
+    )
+
+
+# =========================
+# Alerts endpoint
+# =========================
+
+class AlertItem(BaseModel):
+    alert_id: int
+    alert_type: str
+    severity: str
+    title: str
+    description: str
+    evidence: str | None = None
+    is_active: bool = True
+    created_at: str | None = None
+
+
+class AlertsResponse(BaseModel):
+    alerts: list[AlertItem]
+    meta: dict[str, Any]
+
+
+@app.get("/alerts", response_model=AlertsResponse)
+def alerts(
+    active_only: bool = True,
+    alert_type: str | None = None,
+    severity: str | None = None,
+    limit: int = 50,
+    refresh: bool = False,
+    date: str | None = None,
+) -> AlertsResponse:
+    """
+    Get proactive alerts for Sebastian.
+
+    Query params:
+        active_only: only return active alerts (default True)
+        alert_type: filter by type (decision_no_followup, conflict_spike,
+                    missing_communication, health_clustering)
+        severity: filter by severity (high, medium, low)
+        limit: max alerts to return (default 50)
+        refresh: run detectors before fetching (default False)
+        date: reference date for refresh (YYYY-MM-DD, default today)
+    """
+    started_at = time.time()
+
+    if refresh:
+        run_alerts_check(date=date)
+
+    results = get_alerts(
+        active_only=active_only,
+        alert_type=alert_type,
+        severity=severity,
+        limit=limit,
+    )
+
+    items = [AlertItem(**a) for a in results]
+    latency_ms = int((time.time() - started_at) * 1000)
+
+    return AlertsResponse(
+        alerts=items,
+        meta={
+            "count": len(items),
+            "active_only": active_only,
+            "latency_ms": latency_ms,
+        },
     )
