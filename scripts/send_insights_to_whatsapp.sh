@@ -70,7 +70,7 @@ with get_pg_connection() as conn:
                 CASE WHEN insight_type = 'recommendation' THEN 0 ELSE 1 END,
                 confidence DESC,
                 created_at DESC
-            LIMIT 3
+            LIMIT 10
         ''')
         rows = cur.fetchall()
 
