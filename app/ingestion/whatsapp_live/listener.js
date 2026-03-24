@@ -25,6 +25,7 @@ import {
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import pino from "pino";
+import qrcode from "qrcode-terminal";
 import fs from "fs";
 import path from "path";
 
@@ -75,10 +76,15 @@ function appendMessage(record) {
   fs.appendFileSync(MESSAGES_FILE, line, "utf8");
 }
 
+// ── Reconnect state (persists across restarts of the socket) ─────────
+
+let qrAttempts = 0;
+const MAX_QR_ATTEMPTS = 3;
+
 // ── Main ────────────────────────────────────────────────────────────────
 
-async function startListener() {
-  if (FORCE_PAIR) {
+async function startListener({ clearAuth = false } = {}) {
+  if (clearAuth) {
     // Remove auth state to force new QR code
     fs.rmSync(AUTH_DIR, { recursive: true, force: true });
     fs.mkdirSync(AUTH_DIR, { recursive: true });
@@ -95,7 +101,9 @@ async function startListener() {
       keys: makeCacheableSignalKeyStore(state.keys, logger),
     },
     logger,
-    printQRInTerminal: true,
+    // QR rendered manually via qrcode-terminal in connection.update handler
+    // Increase QR timeout to 60 seconds (default ~20s)
+    qrTimeout: 60_000,
     // Receive message history on connect (last 30 days)
     syncFullHistory: false,
     // Mark messages as received but don't send read receipts
@@ -109,13 +117,28 @@ async function startListener() {
 
   sock.ev.on("connection.update", ({ connection, lastDisconnect, qr }) => {
     if (qr) {
+      qrAttempts++;
+      if (qrAttempts > MAX_QR_ATTEMPTS) {
+        console.log(
+          `\n[${new Date().toISOString()}] QR code shown ${MAX_QR_ATTEMPTS} times without successful scan.`
+        );
+        console.log("Stopping. Please try again later with: node listener.js --pair");
+        logger.warn({ qrAttempts }, "Max QR attempts reached, giving up");
+        process.exit(1);
+      }
+
       console.log("\n========================================");
       console.log("  SCAN THIS QR CODE WITH WHATSAPP");
       console.log("  (Phone > Settings > Linked Devices)");
+      console.log(`  Attempt ${qrAttempts}/${MAX_QR_ATTEMPTS} — you have 60 seconds`);
       console.log("========================================\n");
+      qrcode.generate(qr, { small: true });
+      console.log("\n========================================\n");
     }
 
     if (connection === "open") {
+      // Reset QR counter on successful connection
+      qrAttempts = 0;
       console.log(`[${new Date().toISOString()}] Connected to WhatsApp Web`);
       logger.info("Connected to WhatsApp Web");
     }
@@ -138,12 +161,26 @@ async function startListener() {
         }`
       );
 
-      if (shouldReconnect) {
-        // Reconnect after brief delay
-        setTimeout(() => startListener(), 3000);
-      } else {
+      if (!shouldReconnect) {
         process.exit(1);
       }
+
+      // Status 408 = QR scan timeout — wait longer before retry
+      if (statusCode === 408) {
+        console.log("QR scan timed out. Retrying in 30 seconds...");
+        setTimeout(() => startListener(), 30_000);
+        return;
+      }
+
+      // Status 515 = server restart — reconnect with EXISTING auth (no clear)
+      if (statusCode === 515) {
+        console.log("Server restart (515). Reconnecting in 5 seconds with existing auth...");
+        setTimeout(() => startListener(), 5_000);
+        return;
+      }
+
+      // All other reconnectable disconnects — brief delay, keep auth
+      setTimeout(() => startListener(), 3_000);
     }
   });
 
@@ -304,7 +341,7 @@ async function startListener() {
 
 // ── Entry point ─────────────────────────────────────────────────────────
 
-startListener().catch((err) => {
+startListener({ clearAuth: FORCE_PAIR }).catch((err) => {
   console.error("Fatal error:", err);
   process.exit(1);
 });

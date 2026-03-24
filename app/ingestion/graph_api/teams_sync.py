@@ -27,6 +27,7 @@ from app.ingestion.common.db import (
 load_dotenv()
 
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
+MS_GRAPH_USER_ID = os.getenv("MS_GRAPH_USER_ID")  # email or object ID; if set, uses /users/{id}/ instead of /me/
 DELTA_STATE_FILE = Path(__file__).resolve().parents[3] / ".ms_graph_teams_delta.json"
 
 CHUNK_TARGET_CHARS = 3000
@@ -63,7 +64,8 @@ def _load_delta_state(chat_id: str) -> str | None:
 
 def list_chats(token: str) -> list[dict[str, Any]]:
     """List all Teams chats the user is part of."""
-    url = f"{GRAPH_BASE}/me/chats"
+    user_path = f"users/{MS_GRAPH_USER_ID}" if MS_GRAPH_USER_ID else "me"
+    url = f"{GRAPH_BASE}/{user_path}/chats"
     params = {"$top": "50", "$select": "id,topic,chatType,lastUpdatedDateTime"}
 
     chats = []
@@ -88,7 +90,8 @@ def sync_chat_messages(
     if delta_link:
         url = delta_link
     else:
-        url = f"{GRAPH_BASE}/me/chats/{chat_id}/messages/delta"
+        user_path = f"users/{MS_GRAPH_USER_ID}" if MS_GRAPH_USER_ID else "me"
+        url = f"{GRAPH_BASE}/{user_path}/chats/{chat_id}/messages/delta"
 
     params = {"$top": "50"}
     imported = 0

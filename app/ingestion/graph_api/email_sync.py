@@ -30,6 +30,7 @@ from app.ingestion.common.db import (
 load_dotenv()
 
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
+MS_GRAPH_USER_ID = os.getenv("MS_GRAPH_USER_ID")  # email or object ID; if set, uses /users/{id}/ instead of /me/
 DELTA_STATE_FILE = Path(__file__).resolve().parents[3] / ".ms_graph_email_delta.json"
 
 CHUNK_TARGET_CHARS = 2500
@@ -189,7 +190,8 @@ def sync_folder(
         url = delta_link
     else:
         print(f"Initial full sync for folder: {folder}")
-        url = f"{GRAPH_BASE}/me/mailFolders/{folder}/messages/delta"
+        user_path = f"users/{MS_GRAPH_USER_ID}" if MS_GRAPH_USER_ID else "me"
+        url = f"{GRAPH_BASE}/{user_path}/mailFolders/{folder}/messages/delta"
 
     params = {
         "$select": "subject,from,toRecipients,ccRecipients,bccRecipients,receivedDateTime,body,conversationId",
