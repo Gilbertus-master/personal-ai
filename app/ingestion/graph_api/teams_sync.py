@@ -91,7 +91,7 @@ def sync_chat_messages(
         url = delta_link
     else:
         user_path = f"users/{MS_GRAPH_USER_ID}" if MS_GRAPH_USER_ID else "me"
-        url = f"{GRAPH_BASE}/{user_path}/chats/{chat_id}/messages/delta"
+        url = f"{GRAPH_BASE}/{user_path}/chats/{chat_id}/messages"
 
     params = {"$top": "50"}
     imported = 0
