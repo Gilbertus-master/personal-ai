@@ -208,9 +208,9 @@ def ensure_source() -> int:
                 "SELECT id FROM sources WHERE source_type = %s AND source_name = %s LIMIT 1",
                 ("whatsapp_live", "whatsapp_all_chats"),
             )
-            row = cur.fetchone()
-            if row:
-                return row[0]
+            rows = cur.fetchall()
+            if rows:
+                return rows[0][0]
 
     return insert_source(
         conn=None,
