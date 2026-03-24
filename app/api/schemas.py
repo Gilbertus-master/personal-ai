@@ -17,6 +17,7 @@ class AskRequest(BaseModel):
     answer_length: str | None = "long"
     allow_quotes: bool = True
     debug: bool = False
+    channel: str | None = None  # "whatsapp", "api", etc. — affects defaults
 
 
 class InterpretedQuery(BaseModel):

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import time
 from datetime import date
 
 from anthropic import Anthropic
@@ -13,8 +15,47 @@ load_dotenv()
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+INTERPRETATION_CACHE_TTL = int(os.getenv("INTERPRETATION_CACHE_TTL", "300"))  # 5 min
 
 client = Anthropic(api_key=ANTHROPIC_API_KEY, timeout=30.0)
+
+# ---- In-memory interpretation cache ----
+_interp_cache: dict[str, tuple[float, InterpretedQuery]] = {}
+_CACHE_MAX_SIZE = 200
+
+
+def _cache_key(
+    query: str,
+    source_types: list[str] | None,
+    source_names: list[str] | None,
+    date_from: str | None,
+    date_to: str | None,
+    mode: str | None,
+) -> str:
+    raw = json.dumps(
+        [query.strip().lower(), source_types, source_names, date_from, date_to, mode],
+        sort_keys=True,
+        ensure_ascii=False,
+    )
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def _cache_get(key: str) -> InterpretedQuery | None:
+    entry = _interp_cache.get(key)
+    if entry is None:
+        return None
+    ts, result = entry
+    if time.time() - ts > INTERPRETATION_CACHE_TTL:
+        _interp_cache.pop(key, None)
+        return None
+    return result
+
+
+def _cache_put(key: str, result: InterpretedQuery) -> None:
+    if len(_interp_cache) >= _CACHE_MAX_SIZE:
+        oldest_key = min(_interp_cache, key=lambda k: _interp_cache[k][0])
+        _interp_cache.pop(oldest_key, None)
+    _interp_cache[key] = (time.time(), result)
 
 
 def build_fallback_interpretation(
@@ -59,6 +100,13 @@ def interpret_query(
     date_to: str | None = None,
     mode: str | None = "auto",
 ) -> InterpretedQuery:
+    # --- cache lookup ---
+    ck = _cache_key(query, source_types, source_names, date_from, date_to, mode)
+    cached = _cache_get(ck)
+    if cached is not None:
+        print(f"[query_interpreter] cache HIT for query: {query[:80]}")
+        return cached
+
     today = date.today().isoformat()
 
     system_prompt = f"""
@@ -189,7 +237,7 @@ Przykłady (zakładając dzisiejszą datę {today}):
         )
 
     try:
-        return InterpretedQuery(
+        result = InterpretedQuery(
             normalized_query=data.get("normalized_query") or query,
             date_from=data.get("date_from"),
             date_to=data.get("date_to"),
@@ -198,6 +246,8 @@ Przykłady (zakładając dzisiejszą datę {today}):
             question_type=data.get("question_type") or "retrieval",
             analysis_depth=data.get("analysis_depth") or "normal",
         )
+        _cache_put(ck, result)
+        return result
     except Exception as exc:
         print(f"[query_interpreter] WARNING: invalid interpreted payload, using fallback: {exc}; payload={data}")
         return build_fallback_interpretation(

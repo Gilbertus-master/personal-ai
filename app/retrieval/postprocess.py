@@ -61,6 +61,28 @@ def lexical_overlap_score(query_tokens: list[str], text: str) -> int:
     return score
 
 
+_JUNK_PATTERNS: list[re.Pattern[str]] = [
+    # Teams meeting invite boilerplate
+    re.compile(r"teams\.microsoft\.com/l/meetup-join", re.IGNORECASE),
+    re.compile(r"Click here to join the meeting", re.IGNORECASE),
+    re.compile(r"Meeting ID:\s*\d", re.IGNORECASE),
+    # Chunks that are only numbers, dates, pipes, commas, whitespace (spreadsheet rows)
+    re.compile(r"^[\d|,.\s/:;-]+$"),
+]
+
+MIN_CHUNK_LENGTH = 50
+
+
+def _is_junk_chunk(text: str) -> bool:
+    """Return True if *text* is low-quality boilerplate or noise."""
+    if len(text.strip()) < MIN_CHUNK_LENGTH:
+        return True
+    for pattern in _JUNK_PATTERNS:
+        if pattern.search(text):
+            return True
+    return False
+
+
 def cleanup_matches(
     matches: list[dict[str, Any]],
     *,
@@ -71,6 +93,7 @@ def cleanup_matches(
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     """
     Lekki cleanup wyników retrieval:
+    - junk chunk filter (short / boilerplate / numeric-only)
     - dedup po podobnym tekście
     - limit wyników z jednego dokumentu
     - opcjonalny score floor
@@ -79,6 +102,7 @@ def cleanup_matches(
 
     stats = {
         "input_count": len(matches),
+        "junk_filtered_out": 0,
         "score_filtered_out": 0,
         "dedup_filtered_out": 0,
         "document_capped_out": 0,
@@ -90,9 +114,18 @@ def cleanup_matches(
 
     query_tokens = tokenize_query(normalized_query)
 
+    # 0) junk chunk filter — remove short / boilerplate / numeric-only chunks
+    non_junk: list[dict[str, Any]] = []
+    for match in matches:
+        text = get_match_text(match)
+        if _is_junk_chunk(text):
+            stats["junk_filtered_out"] += 1
+            continue
+        non_junk.append(match)
+
     # 1) score filter
     filtered: list[dict[str, Any]] = []
-    for match in matches:
+    for match in non_junk:
         score = match.get("score")
         if min_score is not None and score is not None:
             try:

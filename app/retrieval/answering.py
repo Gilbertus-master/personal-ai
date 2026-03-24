@@ -10,8 +10,13 @@ load_dotenv()
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+ANTHROPIC_FAST_MODEL = os.getenv("ANTHROPIC_FAST_MODEL", "claude-haiku-4-5")
 
 client = Anthropic(api_key=ANTHROPIC_API_KEY, timeout=60.0)
+
+# Max characters per chunk text sent to the answer model.
+# Limits context window size without dropping matches entirely.
+CHUNK_TEXT_LIMIT = 1200
 
 
 def get_answer_profile(
