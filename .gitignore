@@ -14,3 +14,4 @@ Tworze
 .ms_graph_token.json
 .ms_graph_email_delta.json
 .ms_graph_teams_delta.json
+.live_ingest_state.json
