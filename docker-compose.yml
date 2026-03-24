@@ -27,8 +27,20 @@ services:
     volumes:
       - gilbertus_qdrant:/qdrant/storage
 
+  whisper:
+    build: ./whisper
+    container_name: gilbertus-whisper
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - gilbertus_whisper_models:/models
+      - /tmp/whisper_audio:/audio
+
 volumes:
   gilbertus_pgdata:
     name: gilbertus_pgdata
   gilbertus_qdrant:
     name: gilbertus_qdrant
+  gilbertus_whisper_models:
+    name: gilbertus_whisper_models
