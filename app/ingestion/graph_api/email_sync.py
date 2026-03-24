@@ -6,15 +6,18 @@ Uses delta tokens for efficient incremental updates.
 """
 from __future__ import annotations
 
+import base64
+import io
 import json
+import logging
 import os
+import re
 import sys
 import time
 from datetime import datetime
 from html import unescape
 from pathlib import Path
 from typing import Any
-import re
 
 import requests
 from dotenv import load_dotenv
@@ -99,6 +102,211 @@ def chunk_text(text: str) -> list[str]:
         start = max(end - CHUNK_OVERLAP_CHARS, start + 1)
 
     return chunks
+
+
+log = logging.getLogger(__name__)
+
+ATTACHMENT_MAX_CHARS = 50_000
+ATTACHMENT_RETRIES = 3
+ATTACHMENT_BACKOFF_SECS = 5
+
+# Exception types to catch for SSL/network resilience
+_NETWORK_ERRORS: tuple = (requests.RequestException, ConnectionError, OSError)
+
+# File extensions we know how to extract text from
+_TEXT_EXTENSIONS = (".txt", ".csv", ".md", ".html", ".htm", ".xml", ".json", ".log")
+_SKIP_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".bmp", ".svg", ".ico",
+                    ".zip", ".rar", ".7z", ".exe", ".dll", ".mp3", ".mp4", ".wav")
+
+
+def _extract_text_from_bytes(content: bytes, name: str) -> str | None:
+    """Extract text from attachment content bytes based on file extension."""
+    lower = name.lower()
+
+    if lower.endswith(".pdf"):
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(content))
+            return "\n\n".join(p.extract_text() or "" for p in reader.pages)
+        except Exception as e:
+            log.warning("PDF extraction failed for %s: %s", name, e)
+            return None
+
+    if lower.endswith(".docx"):
+        try:
+            from docx import Document
+            doc = Document(io.BytesIO(content))
+            return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+        except Exception as e:
+            log.warning("DOCX extraction failed for %s: %s", name, e)
+            return None
+
+    if lower.endswith(_TEXT_EXTENSIONS):
+        try:
+            text = content.decode("utf-8", errors="ignore")
+            if lower.endswith((".html", ".htm")):
+                text = re.sub(r"(?is)<.*?>", " ", text)
+                text = unescape(text)
+            return text
+        except Exception as e:
+            log.warning("Text extraction failed for %s: %s", name, e)
+            return None
+
+    if lower.endswith(_SKIP_EXTENSIONS):
+        return None
+
+    # Generic fallback — try to read as text
+    try:
+        text = content.decode("utf-8", errors="ignore")
+        if len(text.strip()) > 100:
+            return text
+    except Exception:
+        pass
+    return None
+
+
+def _download_and_import_attachments(
+    msg_id: str,
+    msg: dict[str, Any],
+    source_id: int,
+    token: str,
+) -> int:
+    """
+    Download and import attachments for a single email message.
+
+    Returns the number of attachment documents imported.
+    """
+    user_path = f"users/{MS_GRAPH_USER_ID}" if MS_GRAPH_USER_ID else "me"
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
+    base_url = f"{GRAPH_BASE}/{user_path}/messages/{msg_id}/attachments"
+
+    # --- Step 1: List attachments (metadata) ---
+    att_list: list[dict] = []
+    for attempt in range(ATTACHMENT_RETRIES):
+        try:
+            resp = requests.get(
+                base_url,
+                headers=headers,
+                params={"$select": "id,name,size,contentType"},
+                timeout=30,
+            )
+            resp.raise_for_status()
+            att_list = resp.json().get("value", [])
+            break
+        except _NETWORK_ERRORS as e:
+            log.warning("List attachments attempt %d/%d for msg %s failed: %s",
+                        attempt + 1, ATTACHMENT_RETRIES, msg_id[:20], e)
+            if attempt < ATTACHMENT_RETRIES - 1:
+                time.sleep(ATTACHMENT_BACKOFF_SECS * (attempt + 1))
+    else:
+        log.error("Could not list attachments for msg %s — skipping", msg_id[:20])
+        return 0
+
+    if not att_list:
+        return 0
+
+    subject = msg.get("subject") or "(no subject)"
+    sender_addr = msg.get("from", {}).get("emailAddress", {}).get("address", "")
+    received = None
+    if msg.get("receivedDateTime"):
+        try:
+            received = datetime.fromisoformat(msg["receivedDateTime"].replace("Z", "+00:00"))
+        except ValueError:
+            pass
+
+    att_source_id = insert_source(
+        conn=None,
+        source_type="company_email_attachment",
+        source_name="email_attachments",
+    )
+
+    imported = 0
+
+    for att_meta in att_list:
+        att_id = att_meta.get("id", "")
+        att_name = att_meta.get("name", "unknown")
+        raw_path = f"graph://attachment/{msg_id}/{att_name}"
+
+        if document_exists_by_raw_path(raw_path):
+            continue
+
+        # --- Step 2: Download individual attachment with retry ---
+        att_data: dict | None = None
+        for attempt in range(ATTACHMENT_RETRIES):
+            try:
+                resp = requests.get(
+                    f"{base_url}/{att_id}",
+                    headers=headers,
+                    timeout=120,
+                )
+                resp.raise_for_status()
+                att_data = resp.json()
+                break
+            except _NETWORK_ERRORS as e:
+                log.warning("Download attachment %s attempt %d/%d failed: %s",
+                            att_name, attempt + 1, ATTACHMENT_RETRIES, e)
+                if attempt < ATTACHMENT_RETRIES - 1:
+                    time.sleep(ATTACHMENT_BACKOFF_SECS * (attempt + 1))
+        else:
+            log.error("Skipping attachment %s after %d retries", att_name, ATTACHMENT_RETRIES)
+            continue
+
+        content_b64 = (att_data or {}).get("contentBytes", "")
+        if not content_b64:
+            continue
+
+        try:
+            content_bytes = base64.b64decode(content_b64)
+        except Exception as e:
+            log.warning("base64 decode failed for %s: %s", att_name, e)
+            continue
+
+        # --- Step 3: Extract text ---
+        text = _extract_text_from_bytes(content_bytes, att_name)
+        if not text or not text.strip():
+            continue
+
+        # --- Step 4 & 5: Clean null bytes, truncate ---
+        clean = text.replace("\x00", "").strip()
+        if len(clean) > ATTACHMENT_MAX_CHARS:
+            clean = clean[:ATTACHMENT_MAX_CHARS] + "\n[...truncated]"
+
+        received_str = msg.get("receivedDateTime", "")[:16]
+        full_text = (
+            f"Attachment: {att_name}\n"
+            f"From email: {subject}\n"
+            f"Sender: {sender_addr}\n"
+            f"Date: {received_str}\n\n"
+            f"{clean}"
+        )
+
+        # --- Step 6 & 7: Import as document + chunks ---
+        document_id = insert_document(
+            conn=None,
+            source_id=att_source_id,
+            title=f"[ATT] {att_name} — {subject[:40]}",
+            created_at=received,
+            author=sender_addr,
+            participants=[sender_addr] if sender_addr else [],
+            raw_path=raw_path,
+        )
+
+        chunks = chunk_text(full_text)
+        for chunk_index, chunk in enumerate(chunks):
+            insert_chunk(
+                conn=None,
+                document_id=document_id,
+                chunk_index=chunk_index,
+                text=chunk,
+                timestamp_start=received,
+                timestamp_end=received,
+                embedding_id=None,
+            )
+
+        imported += 1
+        log.info("Imported attachment %s (%d chunks)", att_name, len(chunks))
+
+    return imported
 
 
 def build_email_text(msg: dict[str, Any]) -> str:
@@ -194,7 +402,7 @@ def sync_folder(
         url = f"{GRAPH_BASE}/{user_path}/mailFolders/{folder}/messages/delta"
 
     params = {
-        "$select": "subject,from,toRecipients,ccRecipients,bccRecipients,receivedDateTime,body,conversationId",
+        "$select": "subject,from,toRecipients,ccRecipients,bccRecipients,receivedDateTime,body,conversationId,hasAttachments",
         "$top": "50",
     }
 
@@ -271,6 +479,17 @@ def sync_folder(
 
             imported += 1
             chunks_created += len(chunks)
+
+            # Download and import attachments if present
+            if msg.get("hasAttachments"):
+                try:
+                    att_count = _download_and_import_attachments(
+                        msg_id=msg_id, msg=msg, source_id=source_id, token=token,
+                    )
+                    if att_count:
+                        print(f"    + {att_count} attachment(s) imported for: {msg.get('subject', '')[:50]}")
+                except Exception as e:
+                    log.warning("Attachment import failed for msg %s: %s", msg_id[:20], e)
 
         # Handle pagination
         next_link = data.get("@odata.nextLink")

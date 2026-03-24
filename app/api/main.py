@@ -28,6 +28,7 @@ from app.retrieval.alerts import get_alerts, run_alerts_check
 from app.api.plaud_webhook import router as plaud_router
 from app.api.decisions import router as decisions_router
 from app.api.insights import router as insights_router
+from app.api.presentation import router as presentation_router
 from app.db.postgres import get_pg_connection
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -45,6 +46,7 @@ app = FastAPI(
 app.include_router(plaud_router)
 app.include_router(decisions_router)
 app.include_router(insights_router)
+app.include_router(presentation_router)
 
 
 # =========================
