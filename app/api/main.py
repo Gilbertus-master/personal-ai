@@ -82,11 +82,11 @@ def model_to_dict(obj: Any) -> dict[str, Any]:
 
 def get_prefetch_k(question_type: str, analysis_depth: str) -> int:
     base = {
-        "retrieval": 40,
-        "summary": 60,
-        "analysis": 90,
-        "chronology": 120,
-    }.get(question_type, 60)
+        "retrieval": 30,
+        "summary": 50,
+        "analysis": 70,
+        "chronology": 100,
+    }.get(question_type, 50)
 
     if analysis_depth == "high":
         base = int(base * 1.25)
@@ -98,11 +98,11 @@ def get_prefetch_k(question_type: str, analysis_depth: str) -> int:
 
 def get_answer_match_limit(question_type: str, analysis_depth: str) -> int:
     base = {
-        "retrieval": 12,
-        "summary": 18,
-        "analysis": 24,
-        "chronology": 24,
-    }.get(question_type, 18)
+        "retrieval": 8,
+        "summary": 14,
+        "analysis": 18,
+        "chronology": 20,
+    }.get(question_type, 14)
 
     if analysis_depth == "high":
         base = int(base * 1.25)
@@ -208,9 +208,21 @@ def version() -> dict[str, Any]:
 # Ask endpoint
 # =========================
 
+def _apply_channel_defaults(request: AskRequest) -> AskRequest:
+    """Override defaults for specific channels (e.g. WhatsApp needs fast, short answers)."""
+    if request.channel == "whatsapp":
+        # Only override if user didn't explicitly set these
+        if request.answer_length == "long":
+            request.answer_length = "short"
+        if request.top_k == 8:  # still at default
+            request.top_k = 5
+    return request
+
+
 @app.post("/ask", response_model=AskResponse)
 def ask(request: AskRequest) -> AskResponse:
     started_at = time.time()
+    request = _apply_channel_defaults(request)
     request_payload = model_to_dict(request)
 
     interpreted = interpret_query(
@@ -283,6 +295,7 @@ def ask(request: AskRequest) -> AskResponse:
             "answer_style": request.answer_style,
             "answer_length": request.answer_length,
             "allow_quotes": request.allow_quotes,
+            "channel": request.channel,
             "debug": request.debug,
         }
 
@@ -366,6 +379,7 @@ def ask(request: AskRequest) -> AskResponse:
         "answer_style": request.answer_style,
         "answer_length": request.answer_length,
         "allow_quotes": request.allow_quotes,
+        "channel": request.channel,
         "debug": request.debug,
     }
 

@@ -73,9 +73,16 @@ def summarize_match_set(matches: list[dict]) -> str:
     )
 
 
-def build_context(matches: list[dict]) -> str:
+def _truncate_text(text: str, limit: int) -> str:
+    if not text or len(text) <= limit:
+        return text
+    return text[:limit] + "\n[...obcięto]"
+
+
+def build_context(matches: list[dict], *, text_limit: int = CHUNK_TEXT_LIMIT) -> str:
     blocks = []
     for i, m in enumerate(matches, start=1):
+        text = _truncate_text(m.get("text") or "", text_limit)
         blocks.append(
             f"""[MATCH {i}]
 source_type: {m.get("source_type")}
@@ -87,7 +94,7 @@ document_id: {m.get("document_id")}
 score: {m.get("score")}
 
 text:
-{m.get("text")}
+{text}
 """
         )
     return "\n\n".join(blocks)
@@ -137,6 +144,18 @@ Struktura odpowiedzi:
     return structure_map.get(profile, structure_map["analysis"])
 
 
+def _select_model(question_type: str, analysis_depth: str, answer_length: str | None) -> str:
+    """Use fast model for simple retrieval queries with short/medium answers."""
+    if (
+        question_type == "retrieval"
+        and analysis_depth in ("low", "normal")
+        and answer_length in ("short", "medium")
+    ):
+        print(f"[answering] using fast model ({ANTHROPIC_FAST_MODEL}) for simple query")
+        return ANTHROPIC_FAST_MODEL
+    return ANTHROPIC_MODEL
+
+
 def answer_question(
     query: str,
     matches: list[dict],
@@ -147,7 +166,9 @@ def answer_question(
     answer_length: str | None = "long",
     allow_quotes: bool = True,
 ) -> str:
-    context = build_context(matches)
+    # Shorter text limit for short answers to further reduce context
+    text_limit = 800 if answer_length == "short" else CHUNK_TEXT_LIMIT
+    context = build_context(matches, text_limit=text_limit)
     match_summary = summarize_match_set(matches)
     answer_profile = get_answer_profile(
         question_type=question_type,
@@ -227,15 +248,17 @@ Materiał źródłowy:
 """
 
     max_tokens_map = {
-        "short": 900,
-        "medium": 1600,
+        "short": 600,
+        "medium": 1200,
         "long": 2600,
     }
     max_tokens = max_tokens_map.get(answer_length or "long", 2600)
 
+    model = _select_model(question_type, analysis_depth, answer_length)
+
     try:
         response = client.messages.create(
-            model=ANTHROPIC_MODEL,
+            model=model,
             max_tokens=max_tokens,
             temperature=0.2,
             system=system_prompt,
