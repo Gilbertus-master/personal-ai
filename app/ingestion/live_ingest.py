@@ -330,12 +330,71 @@ def ingest_claude_code_sessions() -> tuple[int, int]:
 
 # ── Main ──
 
+def ingest_whatsapp_live_all() -> tuple[int, int]:
+    """Import WhatsApp messages from ALL chats via Baileys listener."""
+    try:
+        from app.ingestion.whatsapp_live.importer import (
+            load_state,
+            save_state,
+            read_new_messages,
+            group_messages_by_chat_day,
+            ensure_source,
+            load_existing_docs,
+            import_group,
+            _read_all_messages_for_key,
+        )
+
+        state = load_state()
+        offset = state.get("last_offset", 0)
+        messages, new_offset = read_new_messages(offset)
+
+        if not messages:
+            return 0, 0
+
+        groups = group_messages_by_chat_day(messages)
+        if not groups:
+            state["last_offset"] = new_offset
+            save_state(state)
+            return 0, 0
+
+        source_id = ensure_source()
+        existing_docs = load_existing_docs()
+        total_docs = 0
+        total_chunks = 0
+
+        for key, msgs in groups.items():
+            raw_path = f"whatsapp_live://{key}"
+            if raw_path in existing_docs:
+                all_msgs = _read_all_messages_for_key(key)
+                seen_ids = {m.get("id") for m in all_msgs if m.get("id")}
+                for m in msgs:
+                    if m.get("id") not in seen_ids:
+                        all_msgs.append(m)
+                msgs = all_msgs
+
+            docs, chunks = import_group(source_id, key, msgs, existing_docs)
+            total_docs += docs
+            total_chunks += chunks
+
+        state["last_offset"] = new_offset
+        save_state(state)
+        return total_docs, total_chunks
+
+    except Exception as e:
+        print(f"  WhatsApp live (all chats) error: {e}")
+        return 0, 0
+
+
 def run_all():
     print(f"[{datetime.now().strftime('%H:%M')}] Live ingest starting...")
 
     wa_docs, wa_chunks = ingest_whatsapp_sessions()
     if wa_docs:
-        print(f"  WhatsApp: {wa_docs} conversations, {wa_chunks} chunks")
+        print(f"  WhatsApp (self): {wa_docs} conversations, {wa_chunks} chunks")
+
+    wa_live_docs, wa_live_chunks = ingest_whatsapp_live_all()
+    if wa_live_docs:
+        print(f"  WhatsApp (all chats): {wa_live_docs} documents, {wa_live_chunks} chunks")
 
     gpt_docs, gpt_chunks = ingest_chatgpt_exports()
     if gpt_docs:
@@ -345,7 +404,7 @@ def run_all():
     if cc_docs:
         print(f"  Claude Code: {cc_docs} sessions, {cc_chunks} chunks")
 
-    total = wa_docs + gpt_docs + cc_docs
+    total = wa_docs + gpt_docs + cc_docs + wa_live_docs
     if total == 0:
         print(f"  No new data")
     else:

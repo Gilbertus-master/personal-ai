@@ -21,7 +21,9 @@ from app.retrieval.summaries import (
     get_summaries,
     AREAS,
 )
+from app.retrieval.morning_brief import generate_morning_brief, get_todays_brief
 from app.api.plaud_webhook import router as plaud_router
+from app.api.decisions import router as decisions_router
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env")
@@ -36,6 +38,7 @@ app = FastAPI(
 )
 
 app.include_router(plaud_router)
+app.include_router(decisions_router)
 
 
 # =========================
@@ -529,4 +532,62 @@ def summary_query(request: SummaryQueryRequest) -> SummaryQueryResponse:
             "count": len(items),
             "latency_ms": latency_ms,
         },
+    )
+
+
+# =========================
+# Morning Brief endpoint
+# =========================
+
+class MorningBriefResponse(BaseModel):
+    status: str
+    date: str | None = None
+    summary_id: int | None = None
+    period_start: str | None = None
+    period_end: str | None = None
+    events_count: int | None = None
+    open_loops_count: int | None = None
+    entities_count: int | None = None
+    summaries_count: int | None = None
+    text: str | None = None
+    meta: dict[str, Any] = Field(default_factory=dict)
+
+
+@app.get("/brief/today", response_model=MorningBriefResponse)
+def brief_today(
+    force: bool = False,
+    days: int = 7,
+    date: str | None = None,
+) -> MorningBriefResponse:
+    """
+    Get today's morning brief.
+    If not yet generated, generates it on-the-fly.
+
+    Query params:
+        force: regenerate even if exists
+        days: lookback window (default 7)
+        date: override target date (YYYY-MM-DD)
+    """
+    started_at = time.time()
+
+    result = generate_morning_brief(
+        date=date,
+        lookback_days=days,
+        force=force,
+    )
+
+    latency_ms = int((time.time() - started_at) * 1000)
+
+    return MorningBriefResponse(
+        status=result.get("status", "unknown"),
+        date=result.get("date"),
+        summary_id=result.get("summary_id"),
+        period_start=result.get("period_start"),
+        period_end=result.get("period_end"),
+        events_count=result.get("events_count"),
+        open_loops_count=result.get("open_loops_count"),
+        entities_count=result.get("entities_count"),
+        summaries_count=result.get("summaries_count"),
+        text=result.get("text"),
+        meta={"latency_ms": latency_ms},
     )
