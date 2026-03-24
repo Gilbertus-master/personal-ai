@@ -15,6 +15,7 @@ load_dotenv()
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+ANTHROPIC_FAST_MODEL = os.getenv("ANTHROPIC_FAST_MODEL", "claude-haiku-4-5")
 INTERPRETATION_CACHE_TTL = int(os.getenv("INTERPRETATION_CACHE_TTL", "300"))  # 5 min
 
 client = Anthropic(api_key=ANTHROPIC_API_KEY, timeout=30.0)
@@ -174,8 +175,8 @@ Przykłady (zakładając dzisiejszą datę {today}):
 
     try:
         response = client.messages.create(
-            model=ANTHROPIC_MODEL,
-            max_tokens=500,
+            model=ANTHROPIC_FAST_MODEL,
+            max_tokens=350,
             temperature=0,
             system=system_prompt,
             messages=[
