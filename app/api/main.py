@@ -1,6 +1,8 @@
 from pathlib import Path
 import os
 import time
+import logging
+from datetime import datetime, timezone
 from typing import Any
 
 from dotenv import load_dotenv
@@ -26,6 +28,7 @@ from app.retrieval.alerts import get_alerts, run_alerts_check
 from app.api.plaud_webhook import router as plaud_router
 from app.api.decisions import router as decisions_router
 from app.api.insights import router as insights_router
+from app.db.postgres import get_pg_connection
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env")
@@ -203,6 +206,196 @@ def version() -> dict[str, Any]:
         "app_name": APP_NAME,
         "version": APP_VERSION,
     }
+
+
+# =========================
+# Status endpoint
+# =========================
+
+logger = logging.getLogger(__name__)
+
+QDRANT_URL = os.getenv("QDRANT_URL", "http://127.0.0.1:6333")
+WHISPER_URL = os.getenv("WHISPER_URL", "http://127.0.0.1:9090")
+
+CRON_JOBS = [
+    {"schedule": "0 3 * * *",           "name": "backup_db",        "description": "Database backup"},
+    {"schedule": "20 3 * * *",          "name": "prune_backups",    "description": "Prune old backups"},
+    {"schedule": "0 7,11,15,19,23 * * *", "name": "backup_db",     "description": "Database backup (daytime)"},
+    {"schedule": "@reboot",             "name": "pg_auto_restore",  "description": "Auto-restore Postgres on boot"},
+    {"schedule": "*/5 * * * *",         "name": "index_chunks",     "description": "Auto-embed new chunks"},
+    {"schedule": "*/15 * * * *",        "name": "plaud_monitor",    "description": "Plaud audio monitor"},
+    {"schedule": "*/5 * * * *",         "name": "live_ingest",      "description": "WhatsApp live ingest"},
+    {"schedule": "0 7 * * *",           "name": "morning_brief",    "description": "Generate morning brief"},
+    {"schedule": "0 * * * *",           "name": "extract_entities", "description": "Entity extraction (hourly)"},
+    {"schedule": "30 * * * *",          "name": "extract_events",   "description": "Event extraction (hourly)"},
+]
+
+
+def _check_service(url: str, timeout: float = 3.0) -> dict[str, Any]:
+    """Check if an HTTP service is responding."""
+    import urllib.request
+    import urllib.error
+    try:
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return {"status": "ok", "http_status": resp.status}
+    except urllib.error.URLError as e:
+        return {"status": "error", "error": str(e.reason)}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+def _get_last_backup_timestamp() -> str | None:
+    """Find the newest backup folder in backups/db/."""
+    backup_dir = BASE_DIR / "backups" / "db"
+    if not backup_dir.is_dir():
+        return None
+    folders = sorted(
+        (d.name for d in backup_dir.iterdir() if d.is_dir()),
+        reverse=True,
+    )
+    if not folders:
+        return None
+    # Folder names look like 2026-03-15_13-24-15
+    raw = folders[0]
+    try:
+        dt = datetime.strptime(raw, "%Y-%m-%d_%H-%M-%S")
+        return dt.replace(tzinfo=timezone.utc).isoformat()
+    except ValueError:
+        return raw
+
+
+@app.get("/status")
+def system_status() -> dict[str, Any]:
+    """
+    System status dashboard — no auth required.
+    Returns DB stats, embedding status, source breakdown,
+    last backup, service health, and cron jobs.
+    """
+    started_at = time.time()
+    result: dict[str, Any] = {}
+
+    # ── 1. Database stats ──────────────────────────────────────────────
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT count(*) FROM documents")
+                document_count = cur.fetchone()[0]
+
+                cur.execute("SELECT count(*) FROM chunks")
+                chunk_count = cur.fetchone()[0]
+
+                cur.execute("SELECT count(*) FROM entities")
+                entity_count = cur.fetchone()[0]
+
+                cur.execute("SELECT count(*) FROM events")
+                event_count = cur.fetchone()[0]
+
+                cur.execute("SELECT count(*) FROM summaries")
+                summary_count = cur.fetchone()[0]
+
+                # insights table may not exist yet
+                try:
+                    cur.execute("SELECT count(*) FROM insights")
+                    insight_count = cur.fetchone()[0]
+                except Exception:
+                    conn.rollback()
+                    insight_count = None
+
+                try:
+                    cur.execute("SELECT count(*) FROM alerts")
+                    alert_count = cur.fetchone()[0]
+                except Exception:
+                    conn.rollback()
+                    alert_count = None
+
+        result["db"] = {
+            "documents": document_count,
+            "chunks": chunk_count,
+            "entities": entity_count,
+            "events": event_count,
+            "insights": insight_count,
+            "summaries": summary_count,
+            "alerts": alert_count,
+        }
+    except Exception as e:
+        logger.warning("Status: DB stats failed: %s", e)
+        result["db"] = {"error": str(e)}
+
+    # ── 2. Embedding status ────────────────────────────────────────────
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT count(*) FROM chunks")
+                total = cur.fetchone()[0]
+
+                cur.execute(
+                    "SELECT count(*) FROM chunks WHERE embedding_id IS NOT NULL"
+                )
+                done = cur.fetchone()[0]
+
+        result["embeddings"] = {
+            "total": total,
+            "done": done,
+            "pending": total - done,
+        }
+    except Exception as e:
+        logger.warning("Status: embedding stats failed: %s", e)
+        result["embeddings"] = {"error": str(e)}
+
+    # ── 3. Source breakdown ────────────────────────────────────────────
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT s.source_type,
+                           count(d.id)                    AS doc_count,
+                           max(d.created_at)::text        AS newest_date
+                    FROM documents d
+                    JOIN sources s ON s.id = d.source_id
+                    GROUP BY s.source_type
+                    ORDER BY doc_count DESC
+                """)
+                rows = cur.fetchall()
+
+        result["sources"] = [
+            {
+                "source_type": row[0],
+                "document_count": row[1],
+                "newest_date": row[2],
+            }
+            for row in rows
+        ]
+    except Exception as e:
+        logger.warning("Status: source breakdown failed: %s", e)
+        result["sources"] = {"error": str(e)}
+
+    # ── 4. Last backup ─────────────────────────────────────────────────
+    result["last_backup"] = _get_last_backup_timestamp()
+
+    # ── 5. Service health ──────────────────────────────────────────────
+    pg_status: dict[str, Any]
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+        pg_status = {"status": "ok"}
+    except Exception as e:
+        pg_status = {"status": "error", "error": str(e)}
+
+    result["services"] = {
+        "postgres": pg_status,
+        "qdrant": _check_service(QDRANT_URL),
+        "whisper": _check_service(WHISPER_URL),
+    }
+
+    # ── 6. Cron jobs ──────────────────────────────────────────────────
+    result["cron_jobs"] = CRON_JOBS
+
+    latency_ms = int((time.time() - started_at) * 1000)
+    result["latency_ms"] = latency_ms
+
+    return result
 
 
 # =========================
