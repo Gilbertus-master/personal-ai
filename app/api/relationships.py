@@ -134,8 +134,9 @@ def create_person(body: PersonCreate) -> dict[str, Any]:
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             # Check slug uniqueness
-            cur.execute("SELECT id FROM people WHERE slug = %s", (body.slug,))
-            if cur.fetchone():
+            cur.execute("SELECT COUNT(*) FROM people WHERE slug = %s", (body.slug,))
+            row = cur.fetchone()
+            if row and row[0] > 0:
                 raise HTTPException(status_code=409, detail=f"Person with slug '{body.slug}' already exists")
 
             aliases = body.aliases or []
