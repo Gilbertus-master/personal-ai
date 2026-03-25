@@ -94,23 +94,40 @@ def get_new_messages(session_file: Path, last_line: int) -> list[dict]:
 
 
 def classify_message(text: str) -> dict:
-    """Use Claude to classify: is this a question or a task?"""
-    response = client.messages.create(
-        model=ANTHROPIC_FAST,
-        max_tokens=300,
-        temperature=0,
-        system="""Klasyfikuj wiadomość od Sebastiana. Odpowiedz TYLKO valid JSON.
+    """Classify message. Tasks require explicit keyword 'Gilbertusie task:'."""
+    text_lower = text.lower().strip()
 
-Typy:
-- "question" — pytanie do archiwum (obsłużone przez Gilbertusa automatycznie)
-- "task" — polecenie/zadanie do wykonania (np. "wyślij email", "przeanalizuj", "wygeneruj raport", "sprawdź", "zrób")
-- "feedback" — ocena/komentarz na insight (👍, 👎, pytanie do insightu)
-- "chat" — small talk, potwierdzenie, pozdrowienie
+    # Explicit task keyword — no AI needed
+    if "gilbertusie task:" in text_lower or "gilbertus task:" in text_lower:
+        # Extract task description after the keyword
+        for keyword in ["Gilbertusie task:", "gilbertusie task:", "Gilbertus task:", "gilbertus task:"]:
+            if keyword.lower() in text_lower:
+                idx = text_lower.index(keyword.lower())
+                task_desc = text[idx + len(keyword):].strip()
+                break
 
-Dla "task" dodaj:
-- "task_description" — co trzeba zrobić (po polsku)
-- "priority" — "high"/"medium"/"low"
-- "area" — "business"/"trading"/"technical"/"general"
+        # Use AI only to classify priority and area
+        response = client.messages.create(
+            model=ANTHROPIC_FAST,
+            max_tokens=100,
+            temperature=0,
+            system='Klasyfikuj zadanie. Odpowiedz JSON: {"priority": "high/medium/low", "area": "business/trading/technical/general"}',
+            messages=[{"role": "user", "content": task_desc[:300]}],
+        )
+        try:
+            meta = json.loads(response.content[0].text.strip())
+        except:
+            meta = {"priority": "medium", "area": "general"}
+
+        return {
+            "type": "task",
+            "task_description": task_desc,
+            "priority": meta.get("priority", "medium"),
+            "area": meta.get("area", "general"),
+        }
+
+    # Everything else — not a task, skip (Gilbertus on WhatsApp handles questions directly)
+    return {"type": "chat"}
 
 Odpowiedz JSON: {"type": "...", "task_description": "...", "priority": "...", "area": "..."}""",
         messages=[{"role": "user", "content": f"Wiadomość: {text[:500]}"}],
@@ -229,6 +246,18 @@ def process_new_messages():
             desc = classification.get("task_description", text)
             priority = classification.get("priority", "medium")
             area = classification.get("area", "general")
+
+            # Dedup: check if identical task was created in last hour
+            with get_pg_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT id FROM wa_tasks WHERE description = %s AND created_at > NOW() - INTERVAL '1 hour'",
+                        (desc,),
+                    )
+                    existing = cur.fetchall()
+            if existing:
+                print(f"  Skipping duplicate task: {desc[:50]}")
+                continue
 
             # Create task
             task_id = create_task_in_db(desc, priority, area, text)
