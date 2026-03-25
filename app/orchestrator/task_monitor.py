@@ -97,12 +97,21 @@ def classify_message(text: str) -> dict:
     """Classify message. Tasks require explicit keyword 'Gilbertusie task:'."""
     text_lower = text.lower().strip()
 
-    # Explicit task keyword — no AI needed
-    if "gilbertusie task:" in text_lower or "gilbertus task:" in text_lower:
-        # Extract task description after the keyword
-        for keyword in ["Gilbertusie task:", "gilbertusie task:", "Gilbertus task:", "gilbertus task:"]:
-            if keyword.lower() in text_lower:
-                idx = text_lower.index(keyword.lower())
+    # Explicit keywords:
+    # "Gilbertusie task:" / "gilbertus task:" — new task to execute
+    # "gtd:" — task discovery / doprecyzowanie / przemyślenie do zapisania
+    TASK_KEYWORDS = ["gilbertusie task:", "gilbertus task:"]
+    GTD_KEYWORDS = ["gtd:"]
+
+    is_task = any(kw in text_lower for kw in TASK_KEYWORDS)
+    is_gtd = any(kw in text_lower for kw in GTD_KEYWORDS)
+
+    if is_task or is_gtd:
+        # Extract description after keyword
+        all_keywords = TASK_KEYWORDS + GTD_KEYWORDS
+        for keyword in all_keywords:
+            if keyword in text_lower:
+                idx = text_lower.index(keyword)
                 task_desc = text[idx + len(keyword):].strip()
                 break
 
@@ -120,7 +129,7 @@ def classify_message(text: str) -> dict:
             meta = {"priority": "medium", "area": "general"}
 
         return {
-            "type": "task",
+            "type": "task" if is_task else "gtd",
             "task_description": task_desc,
             "priority": meta.get("priority", "medium"),
             "area": meta.get("area", "general"),
@@ -274,6 +283,41 @@ def process_new_messages():
             # Report back
             send_whatsapp(f"✅ *Task #{task_id} wykonany*\n\n{result[:800]}")
             print(f"  Task #{task_id} completed")
+
+        elif msg_type == "gtd":
+            desc = classification.get("task_description", text)
+            area = classification.get("area", "general")
+
+            # GTD = save thought/refinement, don't execute yet
+            # Check if there's a recent pending task in same area to append to
+            with get_pg_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """SELECT id, description FROM wa_tasks
+                           WHERE area = %s AND status = 'pending'
+                           AND created_at > NOW() - INTERVAL '24 hours'
+                           ORDER BY created_at DESC LIMIT 1""",
+                        (area,),
+                    )
+                    recent = cur.fetchall()
+
+            if recent:
+                # Append to existing task
+                task_id = recent[0][0]
+                with get_pg_connection() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "UPDATE wa_tasks SET description = description || E'\\n\\n[GTD update]: ' || %s WHERE id = %s",
+                            (desc, task_id),
+                        )
+                    conn.commit()
+                send_whatsapp(f"📝 Doprecyzowanie dopisane do task #{task_id}")
+                print(f"  GTD appended to task #{task_id}")
+            else:
+                # Create new GTD note (pending, not auto-executed)
+                task_id = create_task_in_db(desc, "medium", area, text)
+                send_whatsapp(f"📝 *GTD #{task_id} zapisane*\n{desc[:300]}\n\n_Nie wykonuję automatycznie — czekam na 'Gilbertusie task:' jeśli chcesz uruchomić._")
+                print(f"  GTD #{task_id} saved (not executed)")
 
         elif msg_type == "feedback":
             print(f"  Feedback recorded")
