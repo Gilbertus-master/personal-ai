@@ -16,6 +16,7 @@ from typing import Any
 import requests
 from dotenv import load_dotenv
 
+from app.utils.network import ssl_safe_download, ensure_wsl2_mtu
 from app.ingestion.common.db import (
     document_exists_by_raw_path,
     insert_chunk,
@@ -63,12 +64,10 @@ def get_plaud_audio_url(token: str, file_id: str) -> str | None:
 
 
 def download_audio(url: str, suffix: str = ".opus") -> str:
-    """Download audio file to temp path."""
-    resp = requests.get(url, timeout=120)
-    resp.raise_for_status()
+    """Download audio file to temp path, using SSL-safe download for WSL2 resilience."""
     tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
-    tmp.write(resp.content)
     tmp.close()
+    ssl_safe_download(url, tmp.name, timeout=180)
     return tmp.name
 
 

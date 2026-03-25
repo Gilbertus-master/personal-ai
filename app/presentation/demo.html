@@ -727,7 +727,10 @@
     fetch(BASE + '/presentation/intro')
         .then(r => r.json())
         .then(data => {
-            // Optionally show intro on load — kept subtle
+            if (data.text) {
+                const introP = document.querySelector('.intro p');
+                if (introP) introP.textContent = data.text;
+            }
             console.log('Gilbertus ready:', data.name);
         })
         .catch(() => {});

@@ -22,6 +22,7 @@ from typing import Any
 import requests
 from dotenv import load_dotenv
 
+from app.utils.network import ssl_safe_get, ensure_wsl2_mtu
 from app.ingestion.graph_api.auth import get_access_token
 from app.ingestion.common.db import (
     document_exists_by_raw_path,
@@ -230,25 +231,18 @@ def _download_and_import_attachments(
         if document_exists_by_raw_path(raw_path):
             continue
 
-        # --- Step 2: Download individual attachment with retry ---
+        # --- Step 2: Download individual attachment with SSL-safe retry ---
         att_data: dict | None = None
-        for attempt in range(ATTACHMENT_RETRIES):
-            try:
-                resp = requests.get(
-                    f"{base_url}/{att_id}",
-                    headers=headers,
-                    timeout=120,
-                )
-                resp.raise_for_status()
-                att_data = resp.json()
-                break
-            except _NETWORK_ERRORS as e:
-                log.warning("Download attachment %s attempt %d/%d failed: %s",
-                            att_name, attempt + 1, ATTACHMENT_RETRIES, e)
-                if attempt < ATTACHMENT_RETRIES - 1:
-                    time.sleep(ATTACHMENT_BACKOFF_SECS * (attempt + 1))
-        else:
-            log.error("Skipping attachment %s after %d retries", att_name, ATTACHMENT_RETRIES)
+        try:
+            resp = ssl_safe_get(
+                f"{base_url}/{att_id}",
+                headers=headers,
+                timeout=120,
+                max_retries=ATTACHMENT_RETRIES,
+            )
+            att_data = resp.json()
+        except Exception as e:
+            log.error("Skipping attachment %s after retries: %s", att_name, e)
             continue
 
         content_b64 = (att_data or {}).get("contentBytes", "")
