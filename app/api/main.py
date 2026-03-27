@@ -1307,3 +1307,77 @@ def cron_generate(user: str = "sebastian"):
     from app.orchestrator.cron_registry import generate_crontab
     from fastapi.responses import PlainTextResponse
     return PlainTextResponse(generate_crontab(user))
+
+
+# =========================
+# Action Outcomes endpoint
+# =========================
+
+@app.get("/action-outcomes")
+def action_outcomes(days: int = 30):
+    """Get action effectiveness summary."""
+    from app.analysis.action_outcome_tracker import get_action_effectiveness_summary
+    return get_action_effectiveness_summary(days=days)
+
+@app.post("/action-outcomes/check")
+def check_outcomes():
+    """Run outcome checks on recent actions."""
+    from app.analysis.action_outcome_tracker import run_outcome_checks
+    return run_outcome_checks()
+
+
+# =========================
+# Decision Intelligence endpoint
+# =========================
+
+@app.get("/decision-intelligence")
+def decision_intel(months: int = 6):
+    """Decision patterns, confidence calibration, bias detection."""
+    from app.analysis.decision_intelligence import analyze_decision_patterns
+    return analyze_decision_patterns(months=months)
+
+@app.post("/decision-intelligence/run")
+def run_decision_intel():
+    """Run decision intelligence pipeline."""
+    from app.analysis.decision_intelligence import run_decision_intelligence
+    return run_decision_intelligence()
+
+
+# =========================
+# Rule Reinforcement endpoint
+# =========================
+
+@app.get("/rules/effectiveness")
+def rule_effectiveness():
+    """Get rule effectiveness report."""
+    from app.analysis.rule_reinforcement import get_rule_effectiveness_report
+    return get_rule_effectiveness_report()
+
+@app.post("/rules/reinforce")
+def reinforce_rules():
+    """Run rule reinforcement pipeline."""
+    from app.analysis.rule_reinforcement import run_rule_reinforcement
+    return run_rule_reinforcement()
+
+
+# =========================
+# Authority Framework endpoint
+# =========================
+
+@app.get("/authority")
+def authority_levels():
+    """List all authority levels."""
+    from app.orchestrator.authority import list_authority_levels
+    return {"levels": list_authority_levels()}
+
+@app.get("/authority/stats")
+def authority_stats(days: int = 90):
+    """Get approval pattern analysis and level change suggestions."""
+    from app.orchestrator.authority import get_approval_stats
+    return get_approval_stats(days=days)
+
+@app.post("/authority/{category}/level/{level}")
+def set_authority(category: str, level: int):
+    """Set authority level for an action category."""
+    from app.orchestrator.authority import update_authority_level
+    return update_authority_level(category, level)

@@ -196,6 +196,19 @@ async def list_tools():
                  "job_name": {"type": "string", "description": "Job name (for enable/disable)"},
                  "category": {"type": "string", "description": "Filter by category"},
              }}),
+        Tool(name="gilbertus_authority",
+             description="Authority framework: list levels, check approval stats, change authority for action categories. Levels: 0=inform, 1=execute+report, 2=quick approval, 3=full proposal, 4=never alone.",
+             inputSchema={"type": "object", "properties": {
+                 "action": {"type": "string", "enum": ["list", "stats", "set"], "default": "list"},
+                 "category": {"type": "string", "description": "Action category (for set)"},
+                 "level": {"type": "integer", "description": "New level 0-4 (for set)"},
+                 "days": {"type": "integer", "default": 90},
+             }}),
+        Tool(name="gilbertus_decision_patterns",
+             description="Decision intelligence: confidence calibration, success patterns by area, bias detection. Shows how well Sebastian's decision confidence predicts actual outcomes.",
+             inputSchema={"type": "object", "properties": {
+                 "months": {"type": "integer", "default": 6},
+             }}),
     ]
 
 
@@ -398,6 +411,24 @@ async def call_tool(name: str, arguments: dict):
             return [TextContent(type="text", text=r)]
         else:
             result = {"error": "Specify action: list, summary, enable, disable, generate"}
+        r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+    elif name == "gilbertus_authority":
+        from app.orchestrator.authority import list_authority_levels, get_approval_stats, update_authority_level
+        action = arguments.get("action", "list")
+        if action == "list":
+            result = list_authority_levels()
+        elif action == "stats":
+            result = get_approval_stats(days=arguments.get("days", 90))
+        elif action == "set" and arguments.get("category") and arguments.get("level") is not None:
+            result = update_authority_level(arguments["category"], arguments["level"])
+        else:
+            result = {"error": "Specify action: list, stats, or set with category+level"}
+        r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+    elif name == "gilbertus_decision_patterns":
+        from app.analysis.decision_intelligence import analyze_decision_patterns, analyze_confidence_calibration
+        patterns = analyze_decision_patterns(months=arguments.get("months", 6))
+        calibration = analyze_confidence_calibration(months=arguments.get("months", 6))
+        result = {"patterns": patterns, "calibration": calibration}
         r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
     else:
         r = f"Unknown tool: {name}"

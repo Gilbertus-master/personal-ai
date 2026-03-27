@@ -106,7 +106,7 @@ def classify_message(text: str) -> dict:
     DECISION_KEYWORDS = ["decision:", "decyzja:"]
 
     # Communication commands: authorize, revoke, list orders, digest
-    COMM_COMMANDS = ["authorize:", "revoke #", "list orders", "lista zlecen", "standing orders", "digest", "raport", "co wyslales"]
+    COMM_COMMANDS = ["authorize:", "revoke #", "list orders", "lista zlecen", "standing orders", "digest", "raport", "co wyslales", "authority ", "outcome #", "skip #"]
     is_comm = any(text_lower.startswith(c) for c in COMM_COMMANDS)
     if is_comm:
         return {"type": "communication_command", "text": text}
@@ -394,11 +394,29 @@ def process_new_messages():
                 log.info("GTD #{task_id} saved (not executed)")
 
         elif msg_type == "communication_command":
-            from app.orchestrator.communication import handle_communication_command
-            result = handle_communication_command(classification["text"])
-            if result:
-                send_whatsapp(result["response"])
-                log.info("Communication: {result['type']}")
+            text_cmd = classification["text"]
+            text_cmd_lower = text_cmd.lower().strip()
+
+            # Authority commands
+            if text_cmd_lower.startswith("authority "):
+                from app.orchestrator.authority import handle_authority_command
+                result = handle_authority_command(text_cmd)
+                if result:
+                    send_whatsapp(json.dumps(result, ensure_ascii=False, default=str))
+                    log.info("Authority command processed")
+            # Decision outcome commands
+            elif text_cmd_lower.startswith("outcome #") or text_cmd_lower.startswith("skip #"):
+                from app.analysis.decision_intelligence import handle_decision_outcome
+                result = handle_decision_outcome(text_cmd)
+                if result:
+                    send_whatsapp(result.get("response", json.dumps(result, ensure_ascii=False, default=str)))
+                    log.info("Decision outcome recorded")
+            else:
+                from app.orchestrator.communication import handle_communication_command
+                result = handle_communication_command(text_cmd)
+                if result:
+                    send_whatsapp(result["response"])
+                    log.info("Communication: {result['type']}")
 
         elif msg_type == "approval":
             from app.orchestrator.action_pipeline import handle_approval_message

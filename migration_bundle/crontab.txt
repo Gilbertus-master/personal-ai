@@ -67,3 +67,12 @@ TZ=Europe/Warsaw
 
 # === NEW: Weekly Executive Synthesis (Sunday 20:00 CET) ===
 0 20 * * 0 cd /home/sebastian/personal-ai && bash scripts/weekly_synthesis.sh >> /home/sebastian/personal-ai/logs/weekly_synthesis.log 2>&1
+
+# === NEW: Action outcome tracking (every 6h) ===
+0 */6 * * * cd /home/sebastian/personal-ai && bash scripts/check_action_outcomes.sh >> /home/sebastian/personal-ai/logs/action_outcomes.log 2>&1
+
+# === NEW: Decision intelligence (daily 8:00 CET) ===
+0 8 * * * cd /home/sebastian/personal-ai && bash scripts/decision_intelligence.sh >> /home/sebastian/personal-ai/logs/decision_intelligence.log 2>&1
+
+# === NEW: Rule reinforcement (Sunday 19:00 CET) ===
+0 19 * * 0 cd /home/sebastian/personal-ai && bash scripts/rule_reinforcement.sh >> /home/sebastian/personal-ai/logs/rule_reinforcement.log 2>&1
