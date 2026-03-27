@@ -76,3 +76,12 @@ TZ=Europe/Warsaw
 
 # === NEW: Rule reinforcement (Sunday 19:00 CET) ===
 0 19 * * 0 cd /home/sebastian/personal-ai && bash scripts/rule_reinforcement.sh >> /home/sebastian/personal-ai/logs/rule_reinforcement.log 2>&1
+
+# === NEW: Delegation check (every 4h) ===
+0 */4 * * * cd /home/sebastian/personal-ai && bash scripts/delegation_check.sh >> /home/sebastian/personal-ai/logs/delegation_check.log 2>&1
+
+# === NEW: Response tracking (every 4h) ===
+30 */4 * * * cd /home/sebastian/personal-ai && bash scripts/track_responses.sh >> /home/sebastian/personal-ai/logs/response_tracking.log 2>&1
+
+# === NEW: Communication effectiveness (monthly 1st at 21:00 CET) ===
+0 21 1 * * cd /home/sebastian/personal-ai && bash scripts/communication_effectiveness.sh >> /home/sebastian/personal-ai/logs/communication_effectiveness.log 2>&1

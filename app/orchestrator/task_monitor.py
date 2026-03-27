@@ -106,7 +106,7 @@ def classify_message(text: str) -> dict:
     DECISION_KEYWORDS = ["decision:", "decyzja:"]
 
     # Communication commands: authorize, revoke, list orders, digest
-    COMM_COMMANDS = ["authorize:", "revoke #", "list orders", "lista zlecen", "standing orders", "digest", "raport", "co wyslales", "authority ", "outcome #", "skip #"]
+    COMM_COMMANDS = ["authorize:", "revoke #", "list orders", "lista zlecen", "standing orders", "digest", "raport", "co wyslales", "authority ", "outcome #", "skip #", "remind #", "cancel #", "extend #"]
     is_comm = any(text_lower.startswith(c) for c in COMM_COMMANDS)
     if is_comm:
         return {"type": "communication_command", "text": text}
@@ -411,6 +411,13 @@ def process_new_messages():
                 if result:
                     send_whatsapp(result.get("response", json.dumps(result, ensure_ascii=False, default=str)))
                     log.info("Decision outcome recorded")
+            # Delegation commands
+            elif any(text_cmd_lower.startswith(p) for p in ["remind #", "cancel #", "extend #"]):
+                from app.orchestrator.delegation_chain import handle_delegation_command
+                result = handle_delegation_command(text_cmd)
+                if result:
+                    send_whatsapp(result.get("response", json.dumps(result, ensure_ascii=False, default=str)))
+                    log.info("Delegation command processed")
             else:
                 from app.orchestrator.communication import handle_communication_command
                 result = handle_communication_command(text_cmd)

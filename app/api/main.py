@@ -1381,3 +1381,66 @@ def set_authority(category: str, level: int):
     """Set authority level for an action category."""
     from app.orchestrator.authority import update_authority_level
     return update_authority_level(category, level)
+
+
+# =========================
+# Delegation Chain endpoints
+# =========================
+
+@app.get("/delegation-chain")
+def delegation_dashboard():
+    """Delegation tasks dashboard: active, overdue, by assignee."""
+    from app.orchestrator.delegation_chain import get_delegation_dashboard
+    return get_delegation_dashboard()
+
+@app.post("/delegation-chain/check")
+def check_delegations():
+    """Check status of all active delegations."""
+    from app.orchestrator.delegation_chain import check_delegation_status
+    return check_delegation_status()
+
+@app.post("/delegation-chain/delegate")
+def delegate(assignee: str, title: str, description: str = "", deadline: str | None = None, priority: str = "medium"):
+    """Create a new delegation task."""
+    from app.orchestrator.delegation_chain import delegate_task
+    return delegate_task(assignee=assignee, title=title, description=description, deadline=deadline, priority=priority)
+
+
+# =========================
+# Response Tracking endpoints
+# =========================
+
+@app.get("/response-tracking")
+def response_stats(days: int = 30):
+    """Response tracking stats: by channel, by person."""
+    from app.analysis.response_tracker import get_response_stats
+    return get_response_stats(days=days)
+
+@app.post("/response-tracking/run")
+def track_responses():
+    """Run response tracking scan."""
+    from app.analysis.response_tracker import run_response_tracking
+    return run_response_tracking()
+
+
+# =========================
+# Communication Effectiveness endpoints
+# =========================
+
+@app.get("/channel-effectiveness")
+def channel_effectiveness(days: int = 60):
+    """Channel effectiveness per person."""
+    from app.analysis.channel_effectiveness import run_channel_analysis
+    return run_channel_analysis(days=days)
+
+@app.get("/standing-order-effectiveness")
+def order_effectiveness(days: int = 30):
+    """Standing order effectiveness metrics."""
+    from app.analysis.standing_order_effectiveness import run_all_order_analysis
+    return run_all_order_analysis(days=days)
+
+@app.get("/authority/suggestions")
+def authority_suggestions():
+    """Get adaptive authority level change suggestions."""
+    from app.orchestrator.adaptive_authority import run_adaptive_authority
+    return run_adaptive_authority()

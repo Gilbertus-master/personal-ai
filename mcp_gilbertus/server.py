@@ -209,6 +209,19 @@ async def list_tools():
              inputSchema={"type": "object", "properties": {
                  "months": {"type": "integer", "default": 6},
              }}),
+        Tool(name="gilbertus_delegation_chain",
+             description="Delegation tasks: dashboard, delegate to people, check status. Track who has what assigned, overdue tasks, escalations.",
+             inputSchema={"type": "object", "properties": {
+                 "action": {"type": "string", "enum": ["dashboard", "delegate", "check"], "default": "dashboard"},
+                 "assignee": {"type": "string", "description": "Person to delegate to (for delegate action)"},
+                 "title": {"type": "string", "description": "Task title (for delegate action)"},
+                 "deadline": {"type": "string", "description": "YYYY-MM-DD deadline (for delegate action)"},
+             }}),
+        Tool(name="gilbertus_response_stats",
+             description="Communication response tracking: who responds, how fast, which channels work. Shows response rates per person and channel.",
+             inputSchema={"type": "object", "properties": {
+                 "days": {"type": "integer", "default": 30},
+             }}),
     ]
 
 
@@ -430,6 +443,25 @@ async def call_tool(name: str, arguments: dict):
         calibration = analyze_confidence_calibration(months=arguments.get("months", 6))
         result = {"patterns": patterns, "calibration": calibration}
         r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+    elif name == "gilbertus_delegation_chain":
+        action = arguments.get("action", "dashboard")
+        if action == "dashboard":
+            from app.orchestrator.delegation_chain import get_delegation_dashboard
+            result = get_delegation_dashboard()
+        elif action == "delegate" and arguments.get("assignee") and arguments.get("title"):
+            from app.orchestrator.delegation_chain import delegate_task
+            result = delegate_task(
+                assignee=arguments["assignee"], title=arguments["title"],
+                deadline=arguments.get("deadline"), priority=arguments.get("priority", "medium"))
+        elif action == "check":
+            from app.orchestrator.delegation_chain import check_delegation_status
+            result = check_delegation_status()
+        else:
+            result = {"error": "Specify action: dashboard, delegate (with assignee+title), or check"}
+        r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+    elif name == "gilbertus_response_stats":
+        from app.analysis.response_tracker import get_response_stats
+        r = json.dumps(get_response_stats(days=arguments.get("days", 30)), ensure_ascii=False, indent=2, default=str)
     else:
         r = f"Unknown tool: {name}"
     return [TextContent(type="text", text=r)]
