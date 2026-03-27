@@ -163,6 +163,37 @@ class OmniusClient:
             "name": name, "role": role, "user_email": user_email,
         })
 
+    def deploy(self) -> dict[str, Any]:
+        """Deploy latest code to this tenant's server via rsync + SSH.
+
+        Runs scripts/deploy_omnius.sh which:
+        1. rsync omnius/ to remote server
+        2. Runs DB migrations
+        3. Rebuilds Docker containers
+        4. Health check
+        """
+        import subprocess
+
+        script = os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "deploy_omnius.sh")
+        script = os.path.abspath(script)
+
+        try:
+            result = subprocess.run(
+                ["bash", script, self.tenant],
+                capture_output=True, text=True, timeout=300,
+                cwd=os.path.dirname(script),
+            )
+            return {
+                "status": "ok" if result.returncode == 0 else "error",
+                "returncode": result.returncode,
+                "stdout": result.stdout[-2000:] if result.stdout else "",
+                "stderr": result.stderr[-500:] if result.stderr else "",
+            }
+        except subprocess.TimeoutExpired:
+            return {"status": "timeout", "error": "Deploy timed out after 300s"}
+        except Exception as e:
+            return {"status": "error", "error": str(e)}
+
 
 # ================================================================
 # Multi-tenant manager

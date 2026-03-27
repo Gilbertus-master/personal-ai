@@ -132,7 +132,7 @@ async def list_tools():
              description="Execute command on Omnius tenant: create_ticket, send_email, schedule_meeting, assign_task, trigger_sync, create_user, create_operator_task, list_operator_tasks, get_audit_log, push_config, push_prompt, create_api_key.",
              inputSchema={"type": "object", "properties": {
                  "tenant": {"type": "string", "default": "ref"},
-                 "command": {"type": "string", "enum": ["create_ticket", "send_email", "schedule_meeting", "assign_task", "trigger_sync", "create_user", "create_operator_task", "list_operator_tasks", "get_audit_log", "push_config", "push_prompt", "create_api_key"]},
+                 "command": {"type": "string", "enum": ["create_ticket", "send_email", "schedule_meeting", "assign_task", "trigger_sync", "create_user", "create_operator_task", "list_operator_tasks", "get_audit_log", "push_config", "push_prompt", "create_api_key", "deploy"]},
                  "params": {"type": "object", "description": "Command parameters (title, to, subject, body, assignee, email, display_name, role, etc.)"},
              }, "required": ["command", "params"]}),
         Tool(name="omnius_status",
@@ -299,6 +299,8 @@ async def call_tool(name: str, arguments: dict):
                 result = client.push_prompt(params.get("prompt_name", ""), params.get("prompt_text", ""))
             elif command == "create_api_key":
                 result = client.create_api_key(**params)
+            elif command == "deploy":
+                result = client.deploy()
             else:
                 result = {"error": f"Unknown command: {command}"}
             r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
