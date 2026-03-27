@@ -1,0 +1,53 @@
+version: "3.8"
+
+services:
+  omnius-db:
+    image: postgres:16-alpine
+    container_name: omnius-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${OMNIUS_POSTGRES_DB:?Set OMNIUS_POSTGRES_DB in .env}
+      POSTGRES_USER: ${OMNIUS_POSTGRES_USER:?Set OMNIUS_POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${OMNIUS_POSTGRES_PASSWORD:?Set OMNIUS_POSTGRES_PASSWORD in .env}
+    volumes:
+      - omnius-pgdata:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U omnius -d omnius_ref"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  omnius-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: omnius-api
+    restart: unless-stopped
+    depends_on:
+      omnius-db:
+        condition: service_healthy
+    environment:
+      OMNIUS_POSTGRES_HOST: omnius-db
+      OMNIUS_POSTGRES_PORT: 5432
+      OMNIUS_POSTGRES_DB: ${OMNIUS_POSTGRES_DB:?required}
+      OMNIUS_POSTGRES_USER: ${OMNIUS_POSTGRES_USER:?required}
+      OMNIUS_POSTGRES_PASSWORD: ${OMNIUS_POSTGRES_PASSWORD:?required}
+      OMNIUS_TENANT: ${OMNIUS_TENANT:-ref}
+      OMNIUS_COMPANY_NAME: ${OMNIUS_COMPANY_NAME:-Respect Energy Fuels}
+      OMNIUS_AZURE_TENANT_ID: ${OMNIUS_AZURE_TENANT_ID:-}
+      OMNIUS_AZURE_CLIENT_ID: ${OMNIUS_AZURE_CLIENT_ID:-}
+      OMNIUS_GRAPH_CLIENT_ID: ${OMNIUS_GRAPH_CLIENT_ID:-}
+      OMNIUS_GRAPH_CLIENT_SECRET: ${OMNIUS_GRAPH_CLIENT_SECRET:-}
+      OMNIUS_TEAMS_APP_ID: ${OMNIUS_TEAMS_APP_ID:-}
+      OMNIUS_TEAMS_APP_SECRET: ${OMNIUS_TEAMS_APP_SECRET:-}
+      OMNIUS_LLM_MODEL: ${OMNIUS_LLM_MODEL:-claude-haiku-4-5}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OMNIUS_DEV_AUTH: ${OMNIUS_DEV_AUTH:-0}
+    ports:
+      - "8000:8000"
+
+volumes:
+  omnius-pgdata:

@@ -129,11 +129,11 @@ async def list_tools():
                  "answer_length": {"type": "string", "enum": ["short", "medium", "long"], "default": "long"},
              }, "required": ["query"]}),
         Tool(name="omnius_command",
-             description="Execute command on Omnius tenant: create_ticket, send_email, schedule_meeting, assign_task, trigger_sync.",
+             description="Execute command on Omnius tenant: create_ticket, send_email, schedule_meeting, assign_task, trigger_sync, create_user, create_operator_task, list_operator_tasks, get_audit_log, push_config, push_prompt, create_api_key.",
              inputSchema={"type": "object", "properties": {
-                 "tenant": {"type": "string", "default": "reh"},
-                 "command": {"type": "string", "enum": ["create_ticket", "send_email", "schedule_meeting", "assign_task", "trigger_sync"]},
-                 "params": {"type": "object", "description": "Command parameters (title, to, subject, body, assignee, etc.)"},
+                 "tenant": {"type": "string", "default": "ref"},
+                 "command": {"type": "string", "enum": ["create_ticket", "send_email", "schedule_meeting", "assign_task", "trigger_sync", "create_user", "create_operator_task", "list_operator_tasks", "get_audit_log", "push_config", "push_prompt", "create_api_key"]},
+                 "params": {"type": "object", "description": "Command parameters (title, to, subject, body, assignee, email, display_name, role, etc.)"},
              }, "required": ["command", "params"]}),
         Tool(name="omnius_status",
              description="Check status of all Omnius tenants.",
@@ -285,6 +285,20 @@ async def call_tool(name: str, arguments: dict):
                 result = client.assign_task(**params)
             elif command == "trigger_sync":
                 result = client.trigger_sync(params.get("source", "all"))
+            elif command == "create_user":
+                result = client.create_user(**params)
+            elif command == "create_operator_task":
+                result = client.create_operator_task(**params)
+            elif command == "list_operator_tasks":
+                result = client.list_operator_tasks(params.get("status", "pending"))
+            elif command == "get_audit_log":
+                result = client.get_audit_log(params.get("limit", 50))
+            elif command == "push_config":
+                result = client.update_config(params.get("key", ""), params.get("value", ""))
+            elif command == "push_prompt":
+                result = client.push_prompt(params.get("prompt_name", ""), params.get("prompt_text", ""))
+            elif command == "create_api_key":
+                result = client.create_api_key(**params)
             else:
                 result = {"error": f"Unknown command: {command}"}
             r = json.dumps(result, ensure_ascii=False, indent=2, default=str)

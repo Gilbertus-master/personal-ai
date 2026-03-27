@@ -107,8 +107,12 @@ class OmniusClient:
     # ADMIN operations
     # ================================================================
 
-    def create_user(self, username: str, role: str = "user") -> dict[str, Any]:
-        return self._post("/admin/users", {"username": username, "role": role})
+    def create_user(self, email: str, display_name: str, role: str = "specialist",
+                    department: str | None = None) -> dict[str, Any]:
+        return self._post("/admin/users", {
+            "email": email, "display_name": display_name,
+            "role": role, "department": department,
+        })
 
     def list_users(self) -> dict[str, Any]:
         return self._get("/admin/users")
@@ -122,6 +126,42 @@ class OmniusClient:
 
     def get_extraction_status(self) -> dict[str, Any]:
         return self._get("/admin/extraction/status")
+
+    def push_permissions(self, role: str, permissions: list[str]) -> dict[str, Any]:
+        """Push RBAC permissions for a role from Gilbertus."""
+        return self._post("/admin/config", {
+            "key": f"rbac:permissions:{role}",
+            "value": permissions,
+        })
+
+    def push_prompt(self, prompt_name: str, prompt_text: str) -> dict[str, Any]:
+        """Push system prompt from Gilbertus."""
+        return self._post("/admin/config", {
+            "key": f"prompt:{prompt_name}",
+            "value": prompt_text,
+        })
+
+    def get_audit_log(self, limit: int = 50) -> list[dict[str, Any]]:
+        """Get recent audit log entries."""
+        return self._get("/admin/audit", params={"limit": limit})
+
+    def create_operator_task(self, title: str, description: str = "",
+                             assignee_email: str = "michal.schulta@re-fuels.com") -> dict[str, Any]:
+        """Create a task for the human operator."""
+        return self._post("/admin/operator-tasks", {
+            "title": title, "description": description,
+            "assignee_email": assignee_email,
+        })
+
+    def list_operator_tasks(self, status: str = "pending") -> list[dict[str, Any]]:
+        """List operator tasks by status."""
+        return self._get("/admin/operator-tasks", params={"status": status})
+
+    def create_api_key(self, name: str, role: str, user_email: str | None = None) -> dict[str, Any]:
+        """Create an API key. Returns the key ONCE."""
+        return self._post("/admin/api-keys", {
+            "name": name, "role": role, "user_email": user_email,
+        })
 
 
 # ================================================================
