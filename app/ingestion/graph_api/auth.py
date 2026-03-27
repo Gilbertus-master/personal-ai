@@ -25,7 +25,6 @@ from __future__ import annotations
 import json
 import os
 import time
-import threading
 import webbrowser
 import secrets
 import urllib.parse
@@ -188,7 +187,7 @@ def authorization_code_login() -> dict[str, Any]:
     print("\n" + "=" * 60)
     print("MICROSOFT GRAPH — AUTHORIZATION CODE LOGIN")
     print("=" * 60)
-    print(f"\nOpening browser for login...")
+    print("\nOpening browser for login...")
     print(f"If the browser does not open, visit:\n{authorize_url}\n")
     print(f"Waiting for redirect on {REDIRECT_URI} (max 120s)...\n")
 

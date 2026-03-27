@@ -9,13 +9,13 @@ Runs as daemon via cron every 2 minutes.
 """
 from __future__ import annotations
 
+import structlog
+log = structlog.get_logger(__name__)
+
 import json
 import os
 import subprocess
-import time
-from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from anthropic import Anthropic
 from dotenv import load_dotenv
@@ -37,7 +37,7 @@ def load_state() -> dict:
     if STATE_FILE.exists():
         try:
             return json.loads(STATE_FILE.read_text())
-        except:
+        except Exception:
             pass
     return {"last_processed_line": 0, "last_session": ""}
 
@@ -84,7 +84,7 @@ def get_new_messages(session_file: Path, last_line: int) -> list[dict]:
             if "self):" in text:
                 try:
                     text = text.split("self):", 1)[1].strip()
-                except:
+                except Exception:
                     pass
 
             if text.strip():
@@ -100,11 +100,68 @@ def classify_message(text: str) -> dict:
     # Explicit keywords:
     # "Gilbertusie task:" / "gilbertus task:" — new task to execute
     # "gtd:" — task discovery / doprecyzowanie / przemyślenie do zapisania
+    # "decision:" / "decyzja:" — log decision to decision journal
     TASK_KEYWORDS = ["gilbertusie task:", "gilbertus task:"]
     GTD_KEYWORDS = ["gtd:"]
+    DECISION_KEYWORDS = ["decision:", "decyzja:"]
+
+    # Communication commands: authorize, revoke, list orders, digest
+    COMM_COMMANDS = ["authorize:", "revoke #", "list orders", "lista zlecen", "standing orders", "digest", "raport", "co wyslales"]
+    is_comm = any(text_lower.startswith(c) for c in COMM_COMMANDS)
+    if is_comm:
+        return {"type": "communication_command", "text": text}
+
+    # Action approval keywords
+    APPROVAL_PATTERNS = ["tak #", "nie #", "approve #", "reject #", "yes #", "no #", "edit #", "zmien #"]
+    is_approval = any(text_lower.startswith(p) for p in APPROVAL_PATTERNS)
+
+    # Feedback keywords: "+1", "-1", "👍", "👎"
+    POSITIVE_FEEDBACK = ["+1", "\U0001f44d", "super", "dobrze", "ok gilbertus"]
+    NEGATIVE_FEEDBACK = ["-1", "\U0001f44e", "zle", "źle", "nie to", "blad"]
+    is_positive = any(text_lower.startswith(p) or text_lower == p for p in POSITIVE_FEEDBACK)
+    is_negative = any(text_lower.startswith(p) or text_lower == p for p in NEGATIVE_FEEDBACK)
+    if is_positive or is_negative:
+        return {"type": "feedback_rating", "rating": 1 if is_positive else -1, "text": text}
 
     is_task = any(kw in text_lower for kw in TASK_KEYWORDS)
     is_gtd = any(kw in text_lower for kw in GTD_KEYWORDS)
+    is_decision = any(kw in text_lower for kw in DECISION_KEYWORDS)
+
+    if is_approval:
+        return {"type": "approval", "text": text}
+
+    if is_decision:
+        for keyword in DECISION_KEYWORDS:
+            if keyword in text_lower:
+                idx = text_lower.index(keyword)
+                decision_text = text[idx + len(keyword):].strip()
+                break
+
+        # Use AI to extract context and area
+        response = client.messages.create(
+            model=ANTHROPIC_FAST,
+            max_tokens=200,
+            temperature=0,
+            system='Przeanalizuj decyzję. Odpowiedz JSON: {"area": "business/trading/relationships/wellbeing/general", "context": "dlaczego ta decyzja została podjęta (1 zdanie)", "expected_outcome": "oczekiwany rezultat (1 zdanie)", "confidence": 0.5}',
+            messages=[{"role": "user", "content": decision_text[:500]}],
+        )
+        from app.db.cost_tracker import log_anthropic_cost
+        if hasattr(response, "usage"):
+            log_anthropic_cost(ANTHROPIC_FAST, "orchestrator.task_monitor", response.usage)
+
+        try:
+            meta = json.loads(response.content[0].text.strip())
+        except Exception:
+            meta = {"area": "general", "context": "", "expected_outcome": "", "confidence": 0.5}
+
+        return {
+            "type": "decision",
+            "decision_text": decision_text,
+            "area": meta.get("area", "general"),
+            "context": meta.get("context", ""),
+            "expected_outcome": meta.get("expected_outcome", ""),
+            "confidence": meta.get("confidence", 0.5),
+        }
 
     if is_task or is_gtd:
         # Extract description after keyword
@@ -123,9 +180,13 @@ def classify_message(text: str) -> dict:
             system='Klasyfikuj zadanie. Odpowiedz JSON: {"priority": "high/medium/low", "area": "business/trading/technical/general"}',
             messages=[{"role": "user", "content": task_desc[:300]}],
         )
+        from app.db.cost_tracker import log_anthropic_cost
+        if hasattr(response, "usage"):
+            log_anthropic_cost(ANTHROPIC_FAST, "orchestrator.task_monitor", response.usage)
+
         try:
             meta = json.loads(response.content[0].text.strip())
-        except:
+        except Exception:
             meta = {"priority": "medium", "area": "general"}
 
         return {
@@ -138,19 +199,6 @@ def classify_message(text: str) -> dict:
     # Everything else — not a task, skip (Gilbertus on WhatsApp handles questions directly)
     return {"type": "chat"}
 
-Odpowiedz JSON: {"type": "...", "task_description": "...", "priority": "...", "area": "..."}""",
-        messages=[{"role": "user", "content": f"Wiadomość: {text[:500]}"}],
-    )
-
-    try:
-        raw = response.content[0].text.strip()
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        return json.loads(raw)
-    except:
-        return {"type": "chat"}
 
 
 def create_task_in_db(description: str, priority: str, area: str, source_text: str) -> int:
@@ -185,7 +233,7 @@ def execute_task(task_id: int, description: str, area: str) -> str:
     """Execute a task using Gilbertus API or direct action."""
     import requests
 
-    API = "http://127.0.0.1:8000"
+    API = os.getenv("GILBERTUS_API_URL", "http://127.0.0.1:8000")
 
     # Most tasks = ask Gilbertus to analyze/search
     try:
@@ -197,7 +245,7 @@ def execute_task(task_id: int, description: str, area: str) -> str:
         if r.status_code == 200:
             answer = r.json().get("answer", "Brak odpowiedzi")
             return answer[:1500]
-    except:
+    except Exception:
         pass
 
     return "Nie udało się wykonać zadania automatycznie. Wymaga ręcznej interwencji."
@@ -208,10 +256,10 @@ def send_whatsapp(message: str):
     try:
         subprocess.run(
             [OPENCLAW_BIN, "message", "send", "--channel", "whatsapp",
-             "--target", "+48505441635", "--message", message],
+             "--target", os.getenv("WA_TARGET", "+48505441635"), "--message", message],
             capture_output=True, text=True, timeout=30,
         )
-    except:
+    except Exception:
         pass
 
 
@@ -242,14 +290,14 @@ def process_new_messages():
     if not messages:
         return
 
-    print(f"[{datetime.now().strftime('%H:%M')}] {len(messages)} new messages")
+    log.info("{len(messages)} new messages")
 
     for msg in messages:
         text = msg["text"]
         classification = classify_message(text)
         msg_type = classification.get("type", "chat")
 
-        print(f"  [{msg_type}] {text[:60]}...")
+        log.info("[{msg_type}] {text[:60]}...")
 
         if msg_type == "task":
             desc = classification.get("task_description", text)
@@ -265,12 +313,12 @@ def process_new_messages():
                     )
                     existing = cur.fetchall()
             if existing:
-                print(f"  Skipping duplicate task: {desc[:50]}")
+                log.info("Skipping duplicate task: {desc[:50]}")
                 continue
 
             # Create task
             task_id = create_task_in_db(desc, priority, area, text)
-            print(f"  Created task #{task_id}: {desc[:50]}")
+            log.info("Created task #{task_id}: {desc[:50]}")
 
             # Notify Sebastian
             emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(priority, "📋")
@@ -282,7 +330,33 @@ def process_new_messages():
 
             # Report back
             send_whatsapp(f"✅ *Task #{task_id} wykonany*\n\n{result[:800]}")
-            print(f"  Task #{task_id} completed")
+            log.info("Task #{task_id} completed")
+
+        elif msg_type == "decision":
+            decision_text = classification.get("decision_text", text)
+            area = classification.get("area", "general")
+            context = classification.get("context", "")
+            expected = classification.get("expected_outcome", "")
+            confidence = classification.get("confidence", 0.5)
+
+            # Save to decisions table
+            with get_pg_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """INSERT INTO decisions (decision_text, context, expected_outcome, area, confidence)
+                           VALUES (%s, %s, %s, %s, %s) RETURNING id""",
+                        (decision_text, context, expected, area, confidence),
+                    )
+                    decision_id = cur.fetchall()[0][0]
+                conn.commit()
+
+            send_whatsapp(
+                f"📋 *Decyzja #{decision_id} zapisana*\n"
+                f"Obszar: {area}\n"
+                f"{decision_text[:300]}\n\n"
+                f"_Przypomnę o sprawdzeniu wyniku za 7 dni._"
+            )
+            log.info("Decision #{decision_id} saved ({area})")
 
         elif msg_type == "gtd":
             desc = classification.get("task_description", text)
@@ -312,15 +386,47 @@ def process_new_messages():
                         )
                     conn.commit()
                 send_whatsapp(f"📝 Doprecyzowanie dopisane do task #{task_id}")
-                print(f"  GTD appended to task #{task_id}")
+                log.info("GTD appended to task #{task_id}")
             else:
                 # Create new GTD note (pending, not auto-executed)
                 task_id = create_task_in_db(desc, "medium", area, text)
                 send_whatsapp(f"📝 *GTD #{task_id} zapisane*\n{desc[:300]}\n\n_Nie wykonuję automatycznie — czekam na 'Gilbertusie task:' jeśli chcesz uruchomić._")
-                print(f"  GTD #{task_id} saved (not executed)")
+                log.info("GTD #{task_id} saved (not executed)")
+
+        elif msg_type == "communication_command":
+            from app.orchestrator.communication import handle_communication_command
+            result = handle_communication_command(classification["text"])
+            if result:
+                send_whatsapp(result["response"])
+                log.info("Communication: {result['type']}")
+
+        elif msg_type == "approval":
+            from app.orchestrator.action_pipeline import handle_approval_message
+            result = handle_approval_message(classification["text"])
+            if result:
+                log.info("Action approval: {result.get('status', result.get('error', '?'))}")
+            else:
+                log.info("Approval parse failed: {text[:50]}")
+
+        elif msg_type == "feedback_rating":
+            rating = classification.get("rating", 0)
+            # Find last ask_run to link feedback to
+            with get_pg_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT id FROM ask_runs ORDER BY created_at DESC LIMIT 1")
+                    rows = cur.fetchall()
+                    run_id = rows[0][0] if rows else None
+                    if run_id:
+                        cur.execute(
+                            "INSERT INTO response_feedback (ask_run_id, rating, comment) VALUES (%s, %s, %s)",
+                            (run_id, rating, classification.get("text", "")),
+                        )
+                conn.commit()
+            emoji = "\U0001f44d" if rating > 0 else "\U0001f44e"
+            log.info("Feedback {emoji} recorded (run_id={run_id})")
 
         elif msg_type == "feedback":
-            print(f"  Feedback recorded")
+            log.info("Feedback recorded")
 
     # Save state
     state["last_processed_line"] = messages[-1]["line"]

@@ -10,7 +10,7 @@ from typing import Any
 from anthropic import Anthropic
 from dotenv import load_dotenv
 from fastapi import APIRouter, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.db.postgres import get_pg_connection
 
@@ -186,6 +186,10 @@ def insights_summary(
             }
         ],
     )
+
+    from app.db.cost_tracker import log_anthropic_cost
+    if hasattr(response, "usage"):
+        log_anthropic_cost(ANTHROPIC_MODEL, "api.insights", response.usage)
 
     summary_text = response.content[0].text
     latency_ms = int((time.time() - started_at) * 1000)

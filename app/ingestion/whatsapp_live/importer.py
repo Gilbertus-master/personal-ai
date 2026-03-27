@@ -18,15 +18,12 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 from app.db.postgres import get_pg_connection
 from app.ingestion.common.db import (
-    document_exists_by_raw_path,
     insert_chunk,
     insert_document,
     insert_source,
@@ -340,11 +337,11 @@ def run() -> None:
     messages, new_offset = read_new_messages(offset)
 
     if not messages:
-        print(f"[{datetime.now().strftime('%H:%M')}] WhatsApp live: no new messages")
+        print(f"[{datetime.now(tz=timezone.utc).strftime('%H:%M')}] WhatsApp live: no new messages")
         return
 
     print(
-        f"[{datetime.now().strftime('%H:%M')}] WhatsApp live: {len(messages)} new messages"
+        f"[{datetime.now(tz=timezone.utc).strftime('%H:%M')}] WhatsApp live: {len(messages)} new messages"
     )
 
     # Group by chat+day

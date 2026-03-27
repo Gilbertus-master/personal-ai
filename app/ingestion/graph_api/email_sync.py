@@ -14,7 +14,7 @@ import os
 import re
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from html import unescape
 from pathlib import Path
 from typing import Any
@@ -22,7 +22,7 @@ from typing import Any
 import requests
 from dotenv import load_dotenv
 
-from app.utils.network import ssl_safe_get, ensure_wsl2_mtu
+from app.utils.network import ssl_safe_get
 from app.ingestion.graph_api.auth import get_access_token
 from app.ingestion.common.db import (
     document_exists_by_raw_path,
@@ -68,7 +68,7 @@ def _save_delta_state(folder: str, delta_link: str) -> None:
             state = json.loads(DELTA_STATE_FILE.read_text())
         except json.JSONDecodeError:
             pass
-    state[folder] = {"delta_link": delta_link, "updated_at": datetime.now().isoformat()}
+    state[folder] = {"delta_link": delta_link, "updated_at": datetime.now(tz=timezone.utc).isoformat()}
     DELTA_STATE_FILE.write_text(json.dumps(state, indent=2))
 
 
@@ -217,7 +217,7 @@ def _download_and_import_attachments(
 
     att_source_id = insert_source(
         conn=None,
-        source_type="company_email_attachment",
+        source_type="email_attachment",
         source_name="email_attachments",
     )
 
@@ -380,7 +380,7 @@ def sync_folder(
     Returns (imported, chunks_created, skipped).
     """
     token = get_access_token()
-    source_type = "company_email"
+    source_type = "email"
 
     source_id = insert_source(conn=None, source_type=source_type, source_name=source_name)
 

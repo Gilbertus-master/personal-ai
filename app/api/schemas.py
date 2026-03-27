@@ -3,6 +3,9 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
+from app.models.query import InterpretedQuery  # noqa: F401 — re-export for backward compat
+
+
 class AskRequest(BaseModel):
     query: str = Field(..., min_length=1)
     top_k: int = Field(default=8, ge=1, le=50)
@@ -20,14 +23,6 @@ class AskRequest(BaseModel):
     channel: str | None = None  # "whatsapp", "api", etc. — affects defaults
 
 
-class InterpretedQuery(BaseModel):
-    normalized_query: str
-    date_from: str | None = None
-    date_to: str | None = None
-    source_types: list[str] | None = None
-    source_names: list[str] | None = None
-    question_type: str = "retrieval"
-    analysis_depth: str = "normal"
 
 
 class MatchItem(BaseModel):

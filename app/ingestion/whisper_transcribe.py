@@ -10,13 +10,13 @@ from __future__ import annotations
 import os
 import sys
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import requests
 from dotenv import load_dotenv
 
-from app.utils.network import ssl_safe_download, ensure_wsl2_mtu
+from app.utils.network import ssl_safe_download
 from app.ingestion.common.db import (
     document_exists_by_raw_path,
     insert_chunk,
@@ -122,7 +122,7 @@ def transcribe_plaud_recordings(limit: int = 10) -> tuple[int, int]:
         # Get audio URL
         audio_url = get_plaud_audio_url(token, file_id)
         if not audio_url:
-            print(f"    Skip: no audio URL")
+            print("    Skip: no audio URL")
             continue
 
         # Download audio
@@ -149,7 +149,7 @@ def transcribe_plaud_recordings(limit: int = 10) -> tuple[int, int]:
                 os.unlink(audio_path)
 
         if not transcript.strip():
-            print(f"    Skip: empty transcript")
+            print("    Skip: empty transcript")
             continue
 
         # Parse timestamp
@@ -239,7 +239,7 @@ def transcribe_local_file(audio_path: str, language: str = "pl") -> None:
         conn=None,
         source_id=source_id,
         title=name,
-        created_at=datetime.now(),
+        created_at=datetime.now(tz=timezone.utc),
         author=None,
         participants=[],
         raw_path=raw_path,

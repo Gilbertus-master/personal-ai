@@ -15,7 +15,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from anthropic import Anthropic, APIConnectionError, APITimeoutError
@@ -216,6 +216,88 @@ def fetch_active_entities(
     ]
 
 
+def fetch_today_calendar(date: str) -> list[dict[str, Any]]:
+    """Fetch today's calendar events with relationship context for each participant."""
+    try:
+        from app.ingestion.graph_api.calendar_sync import get_today_events
+        from app.ingestion.graph_api.auth import get_access_token
+        token = get_access_token()
+        events = get_today_events(token)
+    except Exception as e:
+        logger.warning("Calendar fetch failed: %s", e)
+        return []
+
+    results = []
+    for ev in events:
+        subject = ev.get("subject", "(no subject)")
+        start = ev.get("start", {}).get("dateTime", "?")[:16]
+        end = ev.get("end", {}).get("dateTime", "?")[:16]
+        is_cancelled = ev.get("isCancelled", False)
+
+        if is_cancelled:
+            continue
+
+        attendees = []
+        for att in ev.get("attendees", []):
+            email_obj = att.get("emailAddress", {})
+            name = email_obj.get("name", email_obj.get("address", "?"))
+            attendees.append(name)
+
+        organizer = ev.get("organizer", {}).get("emailAddress", {}).get("name", "?")
+
+        # Get relationship context for each attendee
+        participant_context = []
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                for att_name in attendees[:5]:  # limit to 5 to keep context manageable
+                    # Match attendee to known person via entity bridge
+                    cur.execute("""
+                        SELECT p.first_name || ' ' || p.last_name as name,
+                               r.person_role, r.organization, r.status, r.sentiment,
+                               (SELECT COUNT(*) FROM chunk_entities ce WHERE ce.entity_id = p.entity_id) as mentions
+                        FROM people p
+                        LEFT JOIN relationships r ON r.person_id = p.id
+                        WHERE p.entity_id IN (
+                            SELECT id FROM entities
+                            WHERE entity_type = 'person'
+                              AND canonical_name %% %s
+                              AND similarity(canonical_name, %s) > 0.5
+                        )
+                        LIMIT 1
+                    """, (att_name, att_name))
+                    rows = cur.fetchall()
+                    row = rows[0] if rows else None
+                    if row:
+                        participant_context.append({
+                            "name": row[0], "role": row[1], "org": row[2],
+                            "status": row[3], "sentiment": row[4], "mentions": row[5],
+                        })
+
+                # Get open loops for meeting participants
+                for pc in participant_context:
+                    try:
+                        cur.execute("""
+                            SELECT description, status FROM relationship_open_loops
+                            WHERE person_id = (SELECT id FROM people WHERE first_name || ' ' || last_name = %s LIMIT 1)
+                              AND status = 'open'
+                            LIMIT 3
+                        """, (pc["name"],))
+                        pc["open_loops"] = [{"description": r[0]} for r in cur.fetchall()]
+                    except Exception:
+                        pc["open_loops"] = []
+
+        results.append({
+            "subject": subject,
+            "start": start,
+            "end": end,
+            "organizer": organizer,
+            "attendees": attendees,
+            "participant_context": participant_context,
+        })
+
+    return results
+
+
 def fetch_recent_summaries(
     date_from: str,
     date_to: str,
@@ -252,6 +334,44 @@ def fetch_recent_summaries(
 # Context builder
 # ============================================================
 
+def _render_calendar_section(calendar: list[dict[str, Any]], max_chars: int) -> tuple[list[str], int]:
+    """Render calendar section for brief context."""
+    parts = ["=== DZISIEJSZY KALENDARZ ==="]
+    chars = 0
+    for cal in calendar:
+        line = f"{cal['start']}-{cal['end']}: {cal['subject']}"
+        if cal.get("attendees"):
+            line += f" (uczestnicy: {', '.join(cal['attendees'][:5])})"
+        parts.append(line)
+        for pc in cal.get("participant_context", []):
+            ctx = f"  \u2192 {pc['name']}: {pc.get('role', '?')} @ {pc.get('org', '?')}, {pc.get('mentions', 0)} wzmianek"
+            if pc.get("sentiment"):
+                ctx += f", sentiment: {pc['sentiment']}"
+            parts.append(ctx)
+            for ol in pc.get("open_loops", []):
+                parts.append(f"    \u26a1 Open loop: {ol['description']}")
+        chars += len(line) * 2
+        if chars > max_chars * 0.2:
+            break
+    parts.append("")
+    return parts, chars
+
+
+def _render_items_section(title: str, items: list[dict[str, Any]], format_fn, max_chars_pct: float, total_chars: int, max_chars: int) -> tuple[list[str], int]:
+    """Generic renderer for brief sections."""
+    if not items:
+        return [], total_chars
+    parts = [f"=== {title} ==="]
+    for item in items:
+        line = format_fn(item)
+        parts.append(line)
+        total_chars += len(line)
+        if total_chars > max_chars * max_chars_pct:
+            break
+    parts.append("")
+    return parts, total_chars
+
+
 def build_brief_context(
     events: list[dict[str, Any]],
     open_loops: list[dict[str, Any]],
@@ -259,67 +379,58 @@ def build_brief_context(
     summaries: list[dict[str, Any]],
     max_chars: int = 40000,
     alerts: list[dict[str, Any]] | None = None,
+    calendar: list[dict[str, Any]] | None = None,
 ) -> str:
     """Assemble all data into a single context string for Claude."""
-    parts: list[str] = []
+    all_parts: list[str] = []
     total_chars = 0
 
-    # Proactive alerts
+    # Calendar (highest priority)
+    if calendar:
+        parts, total_chars = _render_calendar_section(calendar, max_chars)
+        all_parts.extend(parts)
+
+    # Alerts
     if alerts:
-        parts.append("=== ALERTY PROAKTYWNE ===")
-        for a in alerts:
-            line = f"[{a['severity'].upper()}] {a['title']}: {a['description']}"
-            parts.append(line)
-            total_chars += len(line)
-            if total_chars > max_chars * 0.15:
-                break
-        parts.append("")
+        parts, total_chars = _render_items_section(
+            "ALERTY PROAKTYWNE", alerts,
+            lambda a: f"[{a['severity'].upper()}] {a['title']}: {a['description']}",
+            0.15, total_chars, max_chars)
+        all_parts.extend(parts)
 
     # Events
-    if events:
-        parts.append("=== WYDARZENIA Z OSTATNICH DNI ===")
-        for e in events:
-            line = f"[{e['event_type']}] {e['event_time'] or '?'}: {e['summary']}"
-            if e.get("entities"):
-                line += f" (osoby: {e['entities']})"
-            parts.append(line)
-            total_chars += len(line)
-            if total_chars > max_chars * 0.35:
-                break
-        parts.append("")
+    def _fmt_event(e):
+        line = f"[{e['event_type']}] {e['event_time'] or '?'}: {e['summary']}"
+        if e.get("entities"):
+            line += f" (osoby: {e['entities']})"
+        return line
+
+    parts, total_chars = _render_items_section("WYDARZENIA Z OSTATNICH DNI", events, _fmt_event, 0.35, total_chars, max_chars)
+    all_parts.extend(parts)
 
     # Open loops
-    if open_loops:
-        parts.append("=== OTWARTE PETLA / NIEROZWIAZANE SPRAWY ===")
-        for ol in open_loops:
-            line = f"[{ol['event_type']}] {ol['event_time'] or '?'}: {ol['summary']}"
-            if ol.get("entities"):
-                line += f" (dotyczy: {ol['entities']})"
-            parts.append(line)
-            total_chars += len(line)
-            if total_chars > max_chars * 0.6:
-                break
-        parts.append("")
+    def _fmt_loop(ol):
+        line = f"[{ol['event_type']}] {ol['event_time'] or '?'}: {ol['summary']}"
+        if ol.get("entities"):
+            line += f" (dotyczy: {ol['entities']})"
+        return line
+
+    parts, total_chars = _render_items_section("OTWARTE PETLA / NIEROZWIAZANE SPRAWY", open_loops, _fmt_loop, 0.6, total_chars, max_chars)
+    all_parts.extend(parts)
 
     # Entities
-    if entities:
-        parts.append("=== AKTYWNE OSOBY / ORGANIZACJE ===")
-        for ent in entities:
-            line = (
-                f"{ent['name']} ({ent['entity_type']}): "
-                f"{ent['event_count']} wydarzen, {ent['chunk_count']} wzmianek"
-            )
-            if ent.get("context"):
-                line += f"\n  Kontekst: {ent['context'][:300]}"
-            parts.append(line)
-            total_chars += len(line)
-            if total_chars > max_chars * 0.8:
-                break
-        parts.append("")
+    def _fmt_entity(ent):
+        line = f"{ent['name']} ({ent['entity_type']}): {ent['event_count']} wydarzen, {ent['chunk_count']} wzmianek"
+        if ent.get("context"):
+            line += f"\n  Kontekst: {ent['context'][:300]}"
+        return line
+
+    parts, total_chars = _render_items_section("AKTYWNE OSOBY / ORGANIZACJE", entities, _fmt_entity, 0.8, total_chars, max_chars)
+    all_parts.extend(parts)
 
     # Summaries
     if summaries:
-        parts.append("=== ISTNIEJACE PODSUMOWANIA ===")
+        all_parts.append("=== ISTNIEJACE PODSUMOWANIA ===")
         for s in summaries:
             header = f"[{s['summary_type']}] {s['period_start']} - {s['period_end']}"
             text = s["text"] or ""
@@ -327,11 +438,11 @@ def build_brief_context(
             if remaining < 100:
                 break
             text_trimmed = text[:min(len(text), remaining)]
-            parts.append(f"{header}\n{text_trimmed}")
+            all_parts.append(f"{header}\n{text_trimmed}")
             total_chars += len(header) + len(text_trimmed)
-        parts.append("")
+        all_parts.append("")
 
-    return "\n".join(parts)
+    return "\n".join(all_parts)
 
 
 # ============================================================
@@ -339,14 +450,23 @@ def build_brief_context(
 # ============================================================
 
 BRIEF_SYSTEM_PROMPT = """
-Jestes Gilbertus Albans — prywatnym asystentem analitycznym Sebastiana.
+Jestes Gilbertus Albans — prywatnym mentatem Sebastiana Jablonskiego (wlasciciel REH i REF, trader energetyczny).
 Twoje zadanie: wygenerowac poranny brief na podstawie dostarczonych danych.
 
-Brief musi zawierac dokladnie 4 sekcje w formacie markdown:
+Brief musi zawierac dokladnie 5 sekcji w formacie markdown:
+
+## Kalendarz dzis
+Spotkania z dzisiejszego kalendarza. Dla kazdego:
+- Godzina + temat + uczestnicy
+- Kontekst relacji z uczestnikami (rola, organizacja, ostatnie interakcje)
+- Open loopy dotyczace uczestnikow (jesli sa)
+- Sugerowane przygotowanie do spotkania
+Jezeli brak spotkan, napisz "Brak spotkan w kalendarzu."
 
 ## Focus dzis
 Top 3 sprawy wymagajace uwagi dzisiaj. Priorytetyzuj: deadliny > konflikty > decyzje > rutynowe.
 Kazdy punkt: konkretna sprawa + dlaczego wymaga uwagi + sugerowane nastepne dzialanie.
+Uwzglednij spotkania z kalendarza jesli wymagaja przygotowania.
 
 ## Otwarte petle
 Nierozwiazane sprawy z ostatniego tygodnia. Dla kazdej:
@@ -358,7 +478,7 @@ Nierozwiazane sprawy z ostatniego tygodnia. Dla kazdej:
 ## Ludzie
 Kto byl aktywny w zyciu Sebastiana ostatnio. Dla kazdej osoby:
 - W jakim kontekscie sie pojawila
-- Jaki jest stan relacji / interakcji
+- Jaki jest stan relacji (rola, organizacja, sentiment jesli dostepny)
 - Czy cos wymaga reakcji
 
 ## Anomalie
@@ -372,6 +492,7 @@ Zasady:
 - Opieraj sie WYLACZNIE na dostarczonym kontekscie. Nie zmyslaj.
 - Pisz po polsku.
 - Badz konkretny — nazwiska, daty, szczegoly.
+- Przy osobach uwzgledniaj kontekst relacji (rola, firma, sentiment, open loops).
 - Jezeli brak danych na ktoras sekcje, napisz "Brak danych za ten okres."
 - Jezeli danych jest malo, skroc brief — nie lej wody.
 - Format: czysty markdown.
@@ -402,6 +523,10 @@ def generate_brief_text(
     except Exception as e:
         logger.error("Unexpected error calling Anthropic: %s", e)
         return f"Blad generowania briefu: {e}"
+
+    from app.db.cost_tracker import log_anthropic_cost
+    if hasattr(response, "usage"):
+        log_anthropic_cost(ANTHROPIC_MODEL, "retrieval.morning_brief", response.usage)
 
     parts = []
     for block in response.content:
@@ -453,9 +578,8 @@ def save_brief(
 def get_todays_brief(date: str | None = None) -> dict[str, Any] | None:
     """Retrieve an already-generated brief for a given date."""
     if date is None:
-        date = datetime.now().strftime("%Y-%m-%d")
+        date = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
 
-    date_start = date
     date_end = (datetime.fromisoformat(date) + timedelta(days=1)).strftime("%Y-%m-%d")
 
     with get_pg_connection() as conn:
@@ -506,7 +630,7 @@ def generate_morning_brief(
         Dict with brief metadata and text.
     """
     if date is None:
-        date = datetime.now().strftime("%Y-%m-%d")
+        date = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
 
     date_to = (datetime.fromisoformat(date) + timedelta(days=1)).strftime("%Y-%m-%d")
     date_from = (
@@ -546,8 +670,9 @@ def generate_morning_brief(
     open_loops = fetch_open_loops(date_from, date_to)
     entities = fetch_active_entities(date_from, date_to)
     summaries = fetch_recent_summaries(date_from, date_to)
+    calendar = fetch_today_calendar(date)
 
-    total_data = len(events) + len(open_loops) + len(entities) + len(summaries)
+    total_data = len(events) + len(open_loops) + len(entities) + len(summaries) + len(calendar)
 
     if total_data == 0:
         logger.warning("No data found for morning brief (%s - %s)", date_from, date_to)
@@ -567,7 +692,7 @@ def generate_morning_brief(
     active_alerts = (
         alerts_result["alerts"] if alerts_result else []
     )
-    context = build_brief_context(events, open_loops, entities, summaries, alerts=active_alerts)
+    context = build_brief_context(events, open_loops, entities, summaries, alerts=active_alerts, calendar=calendar)
     date_label = datetime.fromisoformat(date).strftime("%A, %d %B %Y")
     brief_text = generate_brief_text(context, date_label)
 
@@ -575,8 +700,8 @@ def generate_morning_brief(
     summary_id = save_brief(date_from, date_to, brief_text)
 
     logger.info(
-        "Morning brief generated: id=%s, events=%d, open_loops=%d, entities=%d",
-        summary_id, len(events), len(open_loops), len(entities),
+        "Morning brief generated: id=%s, events=%d, open_loops=%d, entities=%d, calendar=%d",
+        summary_id, len(events), len(open_loops), len(entities), len(calendar),
     )
 
     return {
@@ -589,6 +714,7 @@ def generate_morning_brief(
         "open_loops_count": len(open_loops),
         "entities_count": len(entities),
         "summaries_count": len(summaries),
+        "calendar_count": len(calendar),
         "alerts_count": alerts_result["total_detected"] if alerts_result else 0,
         "text": brief_text,
     }

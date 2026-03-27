@@ -202,6 +202,10 @@ Zasady:
     except Exception as e:
         return f"Błąd generowania podsumowania: {e}"
 
+    from app.db.cost_tracker import log_anthropic_cost
+    if hasattr(response, "usage"):
+        log_anthropic_cost(ANTHROPIC_MODEL, "retrieval.summaries", response.usage)
+
     parts = []
     for block in response.content:
         if getattr(block, "type", None) == "text":

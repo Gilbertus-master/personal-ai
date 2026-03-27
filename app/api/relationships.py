@@ -4,7 +4,7 @@ Relationships API — CRUD for Sebastian's relationship repository.
 from __future__ import annotations
 
 import time
-from datetime import date, datetime
+from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
@@ -222,7 +222,7 @@ def update_person(slug: str, body: PersonUpdate) -> dict[str, Any]:
             if updates:
                 updates.append("updated_at = NOW()")
                 params.append(person_id)
-                cur.execute(
+                cur.execute(  # safe: f-string for column names only, values via %s
                     f"UPDATE people SET {', '.join(updates)} WHERE id = %s",
                     params,
                 )
@@ -244,7 +244,7 @@ def update_person(slug: str, body: PersonUpdate) -> dict[str, Any]:
                 # Upsert
                 cur.execute("SELECT id FROM relationships WHERE person_id = %s", (person_id,))
                 if cur.fetchone():
-                    cur.execute(
+                    cur.execute(  # safe: f-string for column names only, values via %s
                         f"UPDATE relationships SET {', '.join(rel_updates)} WHERE person_id = %s",
                         rel_params,
                     )

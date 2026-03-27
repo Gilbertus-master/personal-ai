@@ -1,7 +1,7 @@
 """
 Live ingestion daemon — continuously imports new data from:
 1. WhatsApp (via OpenClaw session logs)
-2. ChatGPT exports (filesystem watcher)
+2. ChatGPT exports (DISABLED 2026-03-26 — Sebastian no longer uses ChatGPT)
 3. Claude Code sessions (filesystem watcher)
 4. Plaud Pin S (via Plaud API sync)
 
@@ -9,12 +9,13 @@ Runs as cron every 5 minutes.
 """
 from __future__ import annotations
 
+import structlog
+log = structlog.get_logger(__name__)
+
 import json
 import os
-import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from app.ingestion.common.db import (
     document_exists_by_raw_path,
@@ -38,7 +39,7 @@ def load_state() -> dict:
     if STATE_FILE.exists():
         try:
             return json.loads(STATE_FILE.read_text())
-        except:
+        except Exception:
             pass
     return {}
 
@@ -72,7 +73,6 @@ def ingest_whatsapp_sessions() -> tuple[int, int]:
         return 0, 0
 
     state = load_state()
-    processed_sessions = set(state.get("whatsapp_sessions", []))
 
     source_id = None
     imported = 0
@@ -133,7 +133,7 @@ def ingest_whatsapp_sessions() -> tuple[int, int]:
             source_id = insert_source(conn=None, source_type="whatsapp_live", source_name="openclaw_gilbertus")
 
         # Build conversation text
-        lines = [f"WhatsApp konwersacja z Gilbertusem"]
+        lines = ["WhatsApp konwersacja z Gilbertusem"]
         if session_ts:
             lines.append(f"Data: {session_ts}")
         lines.append("")
@@ -161,7 +161,7 @@ def ingest_whatsapp_sessions() -> tuple[int, int]:
         if session_ts:
             try:
                 recorded_at = datetime.fromisoformat(session_ts.replace("Z", "+00:00"))
-            except:
+            except Exception:
                 pass
 
         document_id = insert_document(
@@ -209,7 +209,6 @@ def ingest_chatgpt_exports() -> tuple[int, int]:
 
         try:
             from app.ingestion.chatgpt.parser import parse_chatgpt_export_file
-            from app.ingestion.chatgpt.importer import chunk_text as chatgpt_chunk
 
             convs = parse_chatgpt_export_file(f)
 
@@ -240,8 +239,8 @@ def ingest_chatgpt_exports() -> tuple[int, int]:
                 imported += 1
                 chunks_total += len(chunks)
 
-        except Exception as e:
-            print(f"  Error processing {f.name}: {e}")
+        except Exception:
+            log.info("Error processing {f.name}: {e}")
 
         processed.add(f.name)
 
@@ -300,7 +299,7 @@ def ingest_claude_code_sessions() -> tuple[int, int]:
             if source_id is None:
                 source_id = insert_source(conn=None, source_type="claude_code", source_name="claude_code_sessions")
 
-            full_text = f"Claude Code sesja\n\n" + "\n\n".join(messages)
+            full_text = "Claude Code sesja\n\n" + "\n\n".join(messages)
 
             doc_id = insert_document(
                 conn=None, source_id=source_id, title=f"Claude Code {sessions_dir.name[:20]}",
@@ -318,8 +317,8 @@ def ingest_claude_code_sessions() -> tuple[int, int]:
             imported += 1
             chunks_total += len(chunks)
 
-        except Exception as e:
-            print(f"  Error: {sessions_dir}: {e}")
+        except Exception:
+            log.info("Error: {sessions_dir}: {e}")
 
         processed.add(fname)
 
@@ -380,35 +379,37 @@ def ingest_whatsapp_live_all() -> tuple[int, int]:
         save_state(state)
         return total_docs, total_chunks
 
-    except Exception as e:
-        print(f"  WhatsApp live (all chats) error: {e}")
+    except Exception:
+        log.info("WhatsApp live (all chats) error: {e}")
         return 0, 0
 
 
 def run_all():
-    print(f"[{datetime.now().strftime('%H:%M')}] Live ingest starting...")
+    log.info("Live ingest starting...")
 
     wa_docs, wa_chunks = ingest_whatsapp_sessions()
     if wa_docs:
-        print(f"  WhatsApp (self): {wa_docs} conversations, {wa_chunks} chunks")
+        log.info("WhatsApp (self): {wa_docs} conversations, {wa_chunks} chunks")
 
     wa_live_docs, wa_live_chunks = ingest_whatsapp_live_all()
     if wa_live_docs:
-        print(f"  WhatsApp (all chats): {wa_live_docs} documents, {wa_live_chunks} chunks")
+        log.info("WhatsApp (all chats): {wa_live_docs} documents, {wa_live_chunks} chunks")
 
-    gpt_docs, gpt_chunks = ingest_chatgpt_exports()
-    if gpt_docs:
-        print(f"  ChatGPT: {gpt_docs} conversations, {gpt_chunks} chunks")
+    # ChatGPT import disabled — Sebastian no longer uses ChatGPT (2026-03-26)
+    # gpt_docs, gpt_chunks = ingest_chatgpt_exports()
+    # if gpt_docs:
+    #     log.info("ChatGPT: {gpt_docs} conversations, {gpt_chunks} chunks")
+    gpt_docs = 0
 
     cc_docs, cc_chunks = ingest_claude_code_sessions()
     if cc_docs:
-        print(f"  Claude Code: {cc_docs} sessions, {cc_chunks} chunks")
+        log.info("Claude Code: {cc_docs} sessions, {cc_chunks} chunks")
 
     total = wa_docs + gpt_docs + cc_docs + wa_live_docs
     if total == 0:
-        print(f"  No new data")
+        log.info("  No new data")
     else:
-        print(f"  Total: {total} documents imported")
+        log.info("Total: {total} documents imported")
         # Immediately analyze new data
         _analyze_new_data(total)
 
@@ -416,9 +417,8 @@ def run_all():
 def _analyze_new_data(new_count: int):
     """Immediately process new data: embed, extract entities/events, check for alerts."""
     import subprocess
-    import os
 
-    print(f"  Analyzing {new_count} new documents...")
+    log.info("Analyzing {new_count} new documents...")
 
     # 1. Embed immediately
     try:
@@ -428,18 +428,18 @@ def _analyze_new_data(new_count: int):
              "--batch-size", "50", "--limit", str(new_count * 5)],
             capture_output=True, timeout=120, env=env,
         )
-        print(f"  Embedded new chunks")
+        log.info("  Embedded new chunks")
     except Exception:
         pass
 
     # 2. Extract entities on new chunks (quick pass, 50 max)
     try:
-        env = {**os.environ, "ANTHROPIC_EXTRACTION_MODEL": "claude-haiku-4-5-20251001"}
+        env = {**os.environ, "ANTHROPIC_EXTRACTION_MODEL": "claude-haiku-4-5"}
         subprocess.run(
             [".venv/bin/python", "-m", "app.extraction.entities", str(min(new_count * 3, 50))],
             capture_output=True, timeout=180, env=env,
         )
-        print(f"  Extracted entities from new data")
+        log.info("  Extracted entities from new data")
     except Exception:
         pass
 
@@ -449,7 +449,7 @@ def _analyze_new_data(new_count: int):
             [".venv/bin/python", "-m", "app.retrieval.alerts"],
             capture_output=True, timeout=60,
         )
-        print(f"  Alerts checked")
+        log.info("  Alerts checked")
     except Exception:
         pass
 

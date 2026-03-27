@@ -112,7 +112,6 @@ def cleanup_matches(
     if not matches:
         return [], stats
 
-    query_tokens = tokenize_query(normalized_query)
 
     # 0) junk chunk filter — remove short / boilerplate / numeric-only chunks
     non_junk: list[dict[str, Any]] = []

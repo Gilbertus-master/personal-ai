@@ -11,8 +11,6 @@ data (whatsapp, chatgpt, whatsapp_live) is ever exposed.
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import logging
 import os
 import time
@@ -25,8 +23,6 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.api.presentation import (
-    ALLOWED_SOURCE_TYPES,
-    BLOCKED_SOURCE_TYPES,
     _enforce_source_filter,
     _validate_no_blocked_sources,
 )

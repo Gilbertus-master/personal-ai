@@ -92,7 +92,7 @@ def import_extracted_pst(
 
     print(f"Preparing source: type={source_type}, name={source_name}")
     source_id = insert_source(
-        conn=conn,
+        conn=None,  # pool handles connection
         source_type=source_type,
         source_name=source_name,
     )
@@ -136,7 +136,7 @@ def import_extracted_pst(
             continue
 
         document_id = insert_document(
-            conn=conn,
+            conn=None,  # pool handles connection
             source_id=source_id,
             title=parsed.subject or "(no subject)",
             created_at=parsed.sent_at,
@@ -150,7 +150,7 @@ def import_extracted_pst(
 
         for chunk_index, chunk in enumerate(chunks):
             insert_chunk(
-                conn=conn,
+                conn=None,  # pool handles connection
                 document_id=document_id,
                 chunk_index=chunk_index,
                 text=chunk,

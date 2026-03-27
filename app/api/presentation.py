@@ -16,10 +16,9 @@ from typing import Any
 
 from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
-from app.api.schemas import AskRequest
 from app.retrieval.query_interpreter import interpret_query
 from app.retrieval.retriever import search_chunks
 from app.retrieval.answering import answer_question
@@ -39,9 +38,7 @@ ALLOWED_SOURCE_TYPES = frozenset({
     "teams",
     "spreadsheet",
     "document",
-    "company_email",
-    "company_teams",
-    "company_email_attachment",
+    "email_attachment",
     "audio_transcript",
 })
 

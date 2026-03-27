@@ -9,7 +9,7 @@ from datetime import date
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
-from app.api.schemas import InterpretedQuery
+from app.models.query import InterpretedQuery
 
 load_dotenv()
 
@@ -195,6 +195,10 @@ Przykłady (zakładając dzisiejszą datę {today}):
             date_from=date_from,
             date_to=date_to,
         )
+
+    from app.db.cost_tracker import log_anthropic_cost
+    if hasattr(response, "usage"):
+        log_anthropic_cost(ANTHROPIC_FAST_MODEL, "retrieval.query_interpreter", response.usage)
 
     parts = []
     for block in response.content:

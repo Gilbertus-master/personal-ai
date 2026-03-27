@@ -1,5 +1,4 @@
 import json
-from typing import Any
 
 from app.db.postgres import get_pg_connection
 

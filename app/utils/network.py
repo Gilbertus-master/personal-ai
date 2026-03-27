@@ -19,8 +19,6 @@ This module provides:
 from __future__ import annotations
 
 import logging
-import os
-import platform
 import shutil
 import ssl
 import subprocess

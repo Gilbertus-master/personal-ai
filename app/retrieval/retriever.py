@@ -21,9 +21,58 @@ client = OpenAI(api_key=OPENAI_API_KEY, timeout=30.0)
 qdrant = QdrantClient(url=QDRANT_URL, timeout=15.0)
 
 
+def resolve_person_aliases(query: str) -> str:
+    """If query mentions a known person, expand with their aliases and canonical name.
+    This improves semantic search by matching multiple name forms.
+    """
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                # Find people mentioned in query (fuzzy match against known names)
+                cur.execute("""
+                    SELECT p.first_name, p.last_name, p.aliases,
+                           e.canonical_name, r.person_role, r.organization
+                    FROM people p
+                    LEFT JOIN entities e ON e.id = p.entity_id
+                    LEFT JOIN relationships r ON r.person_id = p.id
+                    WHERE p.first_name IS NOT NULL
+                """)
+                people = cur.fetchall()
+
+        expansions = []
+        query_lower = query.lower()
+        for first, last, aliases, canonical, role, org in people:
+            # Check if person is mentioned in query (last name, first name, or full name)
+            full_name = f"{first} {last}".lower()
+            first_lower = first.lower() if first else ""
+            last_lower = last.lower() if last else ""
+            if last_lower in query_lower or full_name in query_lower or (len(first_lower) > 3 and first_lower in query_lower):
+                # Add canonical name and role context
+                parts = [canonical] if canonical else [f"{first} {last}"]
+                if role:
+                    parts.append(role)
+                if org:
+                    parts.append(org)
+                if aliases:
+                    for alias in aliases[:3]:
+                        if alias.lower() not in query_lower:
+                            parts.append(alias)
+                expansions.append(" ".join(parts))
+
+        if expansions:
+            return f"{query} ({'; '.join(expansions)})"
+    except Exception:
+        pass
+
+    return query
+
+
 def embed_query(text: str) -> list[float]:
     try:
         resp = client.embeddings.create(model=EMBEDDING_MODEL, input=text)
+        from app.db.cost_tracker import log_openai_cost
+        if hasattr(resp, "usage") and hasattr(resp.usage, "total_tokens"):
+            log_openai_cost(EMBEDDING_MODEL, "retrieval.query_embed", resp.usage.total_tokens)
         return resp.data[0].embedding
     except (APIConnectionError, APITimeoutError) as e:
         raise RuntimeError(f"OpenAI embedding request failed (connection/timeout): {e}") from e
@@ -176,10 +225,13 @@ def search_chunks(
 ) -> list[dict[str, Any]]:
     limit = prefetch_k or max(top_k * 3, 20)
 
+    # Expand query with person aliases for better recall
+    expanded_query = resolve_person_aliases(query)
+
     try:
         hits = qdrant.query_points(
             collection_name=QDRANT_COLLECTION,
-            query=embed_query(query),
+            query=embed_query(expanded_query),
             limit=limit,
             with_payload=True,
         ).points

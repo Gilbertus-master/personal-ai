@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 from typing import Any
 
 from app.db.postgres import get_pg_connection
@@ -100,7 +100,7 @@ def detect_decisions_without_followup(
                 "event_type": event_type,
                 "event_time": event_time.isoformat() if event_time else None,
                 "days_ago": days_ago,
-            }, ensure_ascii=False),
+            }, ensure_ascii=False, default=str),
         })
 
     return alerts
@@ -156,7 +156,7 @@ def detect_conflict_spikes(
                 "week_start": week_label,
                 "conflict_count": conflict_count,
                 "event_ids": event_ids[:10],
-            }, ensure_ascii=False),
+            }, ensure_ascii=False, default=str),
         })
 
     return alerts
@@ -241,7 +241,7 @@ def detect_missing_communication(
                 "entity_type": entity_type,
                 "active_months": active_months,
                 "total_events": total_events,
-            }, ensure_ascii=False),
+            }, ensure_ascii=False, default=str),
         })
 
     return alerts
@@ -319,7 +319,7 @@ def detect_health_clustering(
                 "count_in_window": count_in_window,
                 "latest_event_id": event_id,
                 "latest_event_time": event_time.isoformat() if event_time else None,
-            }, ensure_ascii=False),
+            }, ensure_ascii=False, default=str),
         })
 
     return alerts
@@ -354,7 +354,8 @@ def save_alerts(alerts: list[dict[str, Any]]) -> list[int]:
                     """,
                     (alert["alert_type"], alert["title"]),
                 )
-                if cur.fetchone():
+                existing = cur.fetchall()
+                if existing:
                     continue
 
                 cur.execute(
@@ -371,9 +372,9 @@ def save_alerts(alerts: list[dict[str, Any]]) -> list[int]:
                         alert.get("evidence"),
                     ),
                 )
-                row = cur.fetchone()
-                if row:
-                    inserted_ids.append(row[0])
+                rows = cur.fetchall()
+                if rows:
+                    inserted_ids.append(rows[0][0])
 
         conn.commit()
 
@@ -458,7 +459,7 @@ def run_alerts_check(
         Dict with counts per alert type and list of new alerts.
     """
     if date is None:
-        date = datetime.now().strftime("%Y-%m-%d")
+        date = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
 
     logger.info("Running alerts check for reference date: %s", date)
 

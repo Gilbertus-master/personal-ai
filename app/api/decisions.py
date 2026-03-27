@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from anthropic import Anthropic
@@ -85,7 +85,7 @@ class PatternsResponse(BaseModel):
 
 @router.post("/decision", response_model=DecisionResponse)
 def create_decision(body: DecisionCreate) -> DecisionResponse:
-    decided_at = body.decided_at or datetime.utcnow()
+    decided_at = body.decided_at or datetime.now(tz=timezone.utc)
 
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
@@ -114,7 +114,7 @@ def create_decision(body: DecisionCreate) -> DecisionResponse:
 
 @router.post("/decision/{decision_id}/outcome", response_model=OutcomeResponse)
 def create_outcome(decision_id: int, body: OutcomeCreate) -> OutcomeResponse:
-    outcome_date = body.outcome_date or datetime.utcnow()
+    outcome_date = body.outcome_date or datetime.now(tz=timezone.utc)
 
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
@@ -296,6 +296,10 @@ def analyze_patterns() -> PatternsResponse:
             }
         ],
     )
+
+    from app.db.cost_tracker import log_anthropic_cost
+    if hasattr(response, "usage"):
+        log_anthropic_cost(ANTHROPIC_MODEL, "api.decisions", response.usage)
 
     insights = response.content[0].text
     latency_ms = int((time.time() - started_at) * 1000)

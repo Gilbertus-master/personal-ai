@@ -23,9 +23,15 @@ from app.retrieval.summaries import (
     get_summaries,
     AREAS,
 )
-from app.retrieval.morning_brief import generate_morning_brief, get_todays_brief
+from app.retrieval.morning_brief import generate_morning_brief
+from app.analysis.correlation import run_correlation, person_event_profile
+from app.analysis.inefficiency import generate_inefficiency_report
+from app.analysis.opportunity_detector import run_opportunity_scan
+from app.evaluation.data_collector import collect_person_data
+from app.evaluation.evaluator import evaluate_person
 from app.retrieval.alerts import get_alerts, run_alerts_check
 from app.api.plaud_webhook import router as plaud_router
+from app.api.voice import router as voice_router
 from app.api.decisions import router as decisions_router
 from app.api.insights import router as insights_router
 from app.api.presentation import router as presentation_router
@@ -51,6 +57,148 @@ app.include_router(insights_router)
 app.include_router(presentation_router)
 app.include_router(relationships_router)
 app.include_router(teams_router)
+app.include_router(voice_router)
+
+
+# =========================
+# Evaluation endpoint
+# =========================
+
+class EvaluateRequest(BaseModel):
+    person_slug: str = Field(description="Person slug or 'first-last' name")
+    date_from: str | None = Field(default=None, description="YYYY-MM-DD")
+    date_to: str | None = Field(default=None, description="YYYY-MM-DD")
+
+@app.post("/evaluate")
+def evaluate(req: EvaluateRequest):
+    started = time.time()
+    data = collect_person_data(
+        person_slug=req.person_slug,
+        date_from=req.date_from,
+        date_to=req.date_to,
+    )
+    if "error" in data:
+        return {"error": data["error"]}
+
+    result = evaluate_person(data)
+    result["latency_ms"] = int((time.time() - started) * 1000)
+    return result
+
+
+# =========================
+# Scorecard endpoint
+# =========================
+
+@app.get("/scorecard/{person_slug}")
+def scorecard(person_slug: str):
+    """Employee scorecard — aggregated view of a person's data, events, anomalies."""
+    from app.db.postgres import get_pg_connection
+
+    name_parts = person_slug.replace("-", " ").split()
+    first = name_parts[0] if name_parts else ""
+    last = name_parts[-1] if len(name_parts) > 1 else ""
+
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            # Find person
+            cur.execute("""
+                SELECT p.id, p.first_name, p.last_name, p.entity_id,
+                       r.person_role, r.organization, r.status, r.sentiment
+                FROM people p
+                LEFT JOIN relationships r ON r.person_id = p.id
+                WHERE LOWER(p.first_name) = LOWER(%s) AND LOWER(p.last_name) = LOWER(%s)
+                LIMIT 1
+            """, (first, last))
+            rows = cur.fetchall()
+            if not rows:
+                return {"error": f"Person not found: {person_slug}"}
+
+            pid, fn, ln, eid, role, org, status, sentiment = rows[0]
+
+            # Data volume
+            chunks = 0
+            events_count = 0
+            if eid:
+                cur.execute("SELECT COUNT(*) FROM chunk_entities WHERE entity_id = %s", (eid,))
+                chunks = cur.fetchall()[0][0]
+                cur.execute("SELECT COUNT(*) FROM event_entities WHERE entity_id = %s", (eid,))
+                events_count = cur.fetchall()[0][0]
+
+            # Recent events (last 30 days)
+            recent = []
+            if eid:
+                cur.execute("""
+                    SELECT e.event_type, e.event_time, e.summary
+                    FROM events e JOIN event_entities ee ON ee.event_id = e.id
+                    WHERE ee.entity_id = %s AND e.event_time > NOW() - INTERVAL '30 days'
+                    ORDER BY e.event_time DESC LIMIT 10
+                """, (eid,))
+                recent = [{"type": r[0], "time": str(r[1]) if r[1] else None, "summary": r[2]} for r in cur.fetchall()]
+
+            # Open loops
+            cur.execute("""
+                SELECT description FROM relationship_open_loops
+                WHERE person_id = %s AND status = 'open'
+            """, (pid,))
+            loops = [r[0] for r in cur.fetchall()]
+
+    # Event profile
+    profile = person_event_profile(f"{fn} {ln}", months=3)
+
+    return {
+        "person": {"name": f"{fn} {ln}", "role": role, "org": org, "status": status, "sentiment": sentiment},
+        "data_volume": {"chunks": chunks, "events": events_count},
+        "recent_events_30d": recent,
+        "open_loops": loops,
+        "event_profile_3m": profile.get("event_type_breakdown", {}),
+        "weekly_activity": profile.get("weekly_data", [])[:8],
+    }
+
+
+# =========================
+# Correlation endpoint
+# =========================
+
+@app.post("/opportunities/scan")
+def scan_opportunities(hours: int = 2):
+    return run_opportunity_scan(hours=hours, notify=False)
+
+@app.get("/opportunities")
+def list_opportunities(status: str = "new", limit: int = 20):
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, opportunity_type, description, estimated_value_pln,
+                       estimated_effort_hours, roi_score, confidence, status, created_at
+                FROM opportunities WHERE status = %s
+                ORDER BY roi_score DESC NULLS LAST LIMIT %s
+            """, (status, limit))
+            return [{"id": r[0], "type": r[1], "description": r[2], "value_pln": float(r[3]) if r[3] else 0,
+                     "effort_hours": float(r[4]) if r[4] else 0, "roi": float(r[5]) if r[5] else 0,
+                     "confidence": r[6], "status": r[7], "created": str(r[8])} for r in cur.fetchall()]
+
+@app.get("/inefficiency")
+def inefficiency():
+    return generate_inefficiency_report()
+
+
+class CorrelationRequest(BaseModel):
+    correlation_type: str = Field(default="report", description="temporal, person, anomaly, or report")
+    event_type_a: str | None = None
+    event_type_b: str | None = None
+    person: str | None = None
+    window: str = "week"
+
+@app.post("/correlate")
+def correlate(req: CorrelationRequest):
+    result = run_correlation(
+        correlation_type=req.correlation_type,
+        event_type_a=req.event_type_a,
+        event_type_b=req.event_type_b,
+        person=req.person,
+        window=req.window,
+    )
+    return result
 
 
 # =========================
@@ -419,10 +567,62 @@ def _apply_channel_defaults(request: AskRequest) -> AskRequest:
     return request
 
 
+def _cache_key_for_ask(query: str, source_types, date_from, date_to) -> str:
+    import hashlib
+    import json
+    raw = json.dumps([query.strip().lower(), source_types, date_from, date_to], sort_keys=True)
+    return hashlib.md5(raw.encode()).hexdigest()
+
+
+def _check_answer_cache(cache_key: str):
+    """Check if answer is cached and not expired."""
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT answer_text, meta FROM answer_cache WHERE cache_key = %s AND expires_at > NOW() LIMIT 1",
+                    (cache_key,),
+                )
+                rows = cur.fetchall()
+                return rows[0] if rows else None
+    except Exception:
+        return None
+
+
+def _save_answer_cache(cache_key: str, query: str, answer: str, meta: dict, ttl_hours: int = 1):
+    """Cache an answer."""
+    try:
+        import json
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """INSERT INTO answer_cache (cache_key, query_text, answer_text, meta, expires_at)
+                       VALUES (%s, %s, %s, %s::jsonb, NOW() + INTERVAL '%s hours')
+                       ON CONFLICT (cache_key) DO UPDATE SET answer_text=EXCLUDED.answer_text, meta=EXCLUDED.meta, expires_at=EXCLUDED.expires_at""",
+                    (cache_key, query, answer, json.dumps(meta, default=str), ttl_hours),
+                )
+            conn.commit()
+    except Exception:
+        pass
+
+
+
+
 @app.post("/ask", response_model=AskResponse)
 def ask(request: AskRequest) -> AskResponse:
     started_at = time.time()
     request = _apply_channel_defaults(request)
+
+    # Check cache
+    cache_key = _cache_key_for_ask(request.query, request.source_types, request.date_from, request.date_to)
+    cached = _check_answer_cache(cache_key)
+    if cached and not request.debug:
+        import json
+        answer_text, meta_json = cached
+        meta = json.loads(meta_json) if isinstance(meta_json, str) else (meta_json or {})
+        meta["cache_hit"] = True
+        meta["latency_ms"] = int((time.time() - started_at) * 1000)
+        return AskResponse(answer=answer_text, meta=meta)
     request_payload = model_to_dict(request)
 
     interpreted = interpret_query(
@@ -606,6 +806,9 @@ def ask(request: AskRequest) -> AskResponse:
         matches=matches_for_answer,
         latency_ms=latency_ms,
     )
+
+    # Save to cache (1h TTL)
+    _save_answer_cache(cache_key, request.query, answer, response_meta)
 
     return AskResponse(
         answer=answer,

@@ -276,6 +276,10 @@ Materiał źródłowy:
         print(f"[answering] ERROR: Claude API call failed: {e}")
         return "Wystąpił błąd podczas generowania odpowiedzi. Spróbuj ponownie."
 
+    from app.db.cost_tracker import log_anthropic_cost
+    if hasattr(response, "usage"):
+        log_anthropic_cost(model, "retrieval.answering", response.usage)
+
     parts = []
     for block in response.content:
         if getattr(block, "type", None) == "text":
