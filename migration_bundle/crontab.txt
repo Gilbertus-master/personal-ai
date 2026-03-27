@@ -1,0 +1,45 @@
+TZ=Europe/Warsaw
+# === Gilbertus Albans — crontab ===
+# Fixed 2026-03-26. All entries have cd prefix, correct model names, logging.
+
+# --- Backup & Recovery ---
+0 3 * * * /bin/bash ./scripts/backup_db.sh >> /home/sebastian/personal-ai/backups/backup.log 2>&1
+20 3 * * * cd /home/sebastian/personal-ai && /bin/bash ./scripts/prune_backups.sh >> /home/sebastian/personal-ai/backups/backup.log 2>&1
+0 7,11,15,19,23 * * * cd /home/sebastian/personal-ai && /bin/bash ./scripts/backup_db.sh >> /home/sebastian/personal-ai/backups/backup.log 2>&1
+@reboot sleep 30 && cd /home/sebastian/personal-ai && /bin/bash ./scripts/pg_auto_restore.sh >> /home/sebastian/personal-ai/backups/auto_restore.log 2>&1
+
+# --- Live data ingestion (every 5 min): WhatsApp, Claude sessions (ChatGPT disabled 2026-03-26) ---
+*/5 * * * * cd /home/sebastian/personal-ai && TIKTOKEN_CACHE_DIR=/tmp/tiktoken_cache .venv/bin/python -m app.retrieval.index_chunks --batch-size 50 --limit 50 >> /home/sebastian/personal-ai/logs/auto_embed.log 2>&1
+*/5 * * * * cd /home/sebastian/personal-ai && .venv/bin/python -m app.ingestion.live_ingest >> /home/sebastian/personal-ai/logs/live_ingest.log 2>&1
+
+# --- Plaud audio sync (every 15 min) ---
+*/15 * * * * cd /home/sebastian/personal-ai && bash scripts/plaud_monitor.sh >> /home/sebastian/personal-ai/logs/plaud_monitor.log 2>&1
+
+# --- Corporate email + Teams sync (hourly at :15) ---
+15 * * * * cd /home/sebastian/personal-ai && bash scripts/sync_corporate_data.sh >> /home/sebastian/personal-ai/logs/sync_corporate_data.log 2>&1
+
+
+
+# --- Claude Code session archive (every 30 min) ---
+*/30 * * * * cd /home/sebastian/personal-ai && bash scripts/archive_claude_sessions.sh >> /home/sebastian/personal-ai/logs/claude_archive.log 2>&1
+
+# --- Insights & monitoring ---
+*/30 * * * * cd /home/sebastian/personal-ai && bash scripts/send_insights_to_whatsapp.sh >> /home/sebastian/personal-ai/logs/insight_delivery.log 2>&1
+*/2 * * * * cd /home/sebastian/personal-ai && bash scripts/task_monitor.sh >> /home/sebastian/personal-ai/logs/task_monitor.log 2>&1
+15 */2 * * * cd /home/sebastian/personal-ai && bash scripts/continuous_improvement.sh >> /home/sebastian/personal-ai/logs/continuous_improvement.log 2>&1
+
+# --- Data quality & morning brief ---
+45 7,11,15,19,23 * * * cd /home/sebastian/personal-ai && bash scripts/verify_data_quality.sh >> /home/sebastian/personal-ai/logs/data_quality.log 2>&1
+0 7 * * * cd /home/sebastian/personal-ai && bash scripts/morning_brief.sh >> /home/sebastian/personal-ai/logs/morning_brief.log 2>&1
+
+# --- Turbo extraction (every 30 min, 3000 per run) ---
+*/30 * * * * cd /home/sebastian/personal-ai && bash scripts/turbo_extract.sh 3000 12 claude-haiku-4-5-20251001 >> /home/sebastian/personal-ai/logs/turbo_extract_cron.log 2>&1
+
+# --- Session context (every 30 min) ---
+*/30 * * * * cd /home/sebastian/personal-ai && bash scripts/generate_session_context.sh >> /home/sebastian/personal-ai/logs/session_context.log 2>&1
+
+# --- Code quality check (daily 6:00) ---
+0 6 * * * cd /home/sebastian/personal-ai && bash scripts/code_quality_check.sh >> /home/sebastian/personal-ai/logs/code_quality.log 2>&1
+
+# --- Quarterly employee evaluations (Q1/Q2/Q3/Q4 start) ---
+0 8 1 1,4,7,10 * cd /home/sebastian/personal-ai && bash scripts/quarterly_eval.sh >> /home/sebastian/personal-ai/logs/quarterly_eval.log 2>&1
