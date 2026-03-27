@@ -28,7 +28,7 @@ echo "  ENTITIES: ${ENTITY_CHUNKS}/${TOTAL_CHUNKS} chunks (${ENTITY_PCT}%)"
 
 if [ "$ENTITY_PCT" -lt 20 ]; then
     echo "  ENTITIES: Below 20% — running extraction (100 chunks)"
-    ANTHROPIC_EXTRACTION_MODEL=claude-haiku-4-5-20251001 .venv/bin/python -m app.extraction.entities --candidates-only 100 2>/dev/null &
+    ANTHROPIC_EXTRACTION_MODEL=claude-haiku-4-5 .venv/bin/python -m app.extraction.entities --candidates-only 100 2>/dev/null &
 fi
 
 # 3. Check event coverage

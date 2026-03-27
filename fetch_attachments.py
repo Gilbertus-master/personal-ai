@@ -143,7 +143,7 @@ for name, filepath, size in downloaded:
 
 # 5. Import attachment texts to DB
 if all_text:
-    source_id = insert_source(conn=None, source_type="company_email_attachment",
+    source_id = insert_source(conn=None, source_type="email_attachment",
                               source_name="email_attachments")
     sender = email.get("from", {}).get("emailAddress", {}).get("address", "?")
     recorded_at = None

@@ -1,7 +1,7 @@
 """
 Batch download and import attachments for all corporate emails.
 
-Queries the DB for company_email documents, checks Graph API for attachments,
+Queries the DB for email documents (Graph API), checks Graph API for attachments,
 downloads and extracts text (PDF, DOCX, PPTX, plain text), and imports into DB.
 
 Uses retry logic with backoff for SSL/network resilience.
@@ -282,14 +282,14 @@ def _graph_get_with_retry(
 
 def _get_email_documents() -> list[dict[str, Any]]:
     """
-    Get all company_email documents from DB.
+    Get all email documents (Graph API) from DB.
     Returns list of dicts with id, raw_path, title, author, created_at.
     """
     sql = """
         SELECT d.id, d.raw_path, d.title, d.author, d.created_at
         FROM documents d
         JOIN sources s ON d.source_id = s.id
-        WHERE s.source_type = 'company_email'
+        WHERE s.source_type = 'email'
         ORDER BY d.created_at ASC NULLS LAST
     """
     with get_pg_connection() as conn:
@@ -318,7 +318,7 @@ def _get_existing_attachment_msg_ids() -> set[str]:
         SELECT DISTINCT d.raw_path
         FROM documents d
         JOIN sources s ON d.source_id = s.id
-        WHERE s.source_type = 'company_email_attachment'
+        WHERE s.source_type = 'email_attachment'
     """
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
@@ -535,7 +535,7 @@ def main() -> None:
 
     # 1. Get all corporate email documents from DB
     email_docs = _get_email_documents()
-    log.info("Found %d company_email documents in DB", len(email_docs))
+    log.info("Found %d email documents in DB", len(email_docs))
 
     # 2. Get set of msg IDs that already have attachments imported
     existing_att_ids = _get_existing_attachment_msg_ids()
@@ -549,7 +549,7 @@ def main() -> None:
     # 4. Get or create the attachment source
     att_source_id = insert_source(
         conn=None,
-        source_type="company_email_attachment",
+        source_type="email_attachment",
         source_name="email_attachments",
     )
 

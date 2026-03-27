@@ -1,75 +1,124 @@
 #!/usr/bin/env bash
-# plaud_monitor.sh — Monitors Plaud recordings, auto-triggers transcription, auto-imports.
+# plaud_monitor.sh — Full Plaud automation pipeline.
 # Runs as cron every 15 minutes.
+#
+# Pipeline: Plaud Pin S → (Bluetooth/app sync) → Plaud Cloud → auto-trigger
+#           transcription → poll for completion → import to Gilbertus →
+#           embed → extract entities/events.
+#
+# The ONLY manual step is syncing Plaud Pin S with the phone app.
+# Everything else is fully automatic.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 .venv/bin/python -c "
-import requests, json
+import requests, json, os, subprocess, time
 from datetime import datetime
 from app.ingestion.plaud_sync import get_plaud_token, list_recordings, get_recording_details, sync_plaud
 
 token = get_plaud_token()
 headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
 
-recs = list_recordings(token, limit=50)
+# --- Step 1: Scan all recordings (paginate through everything) ---
+all_recs = []
+skip = 0
+while True:
+    batch = list_recordings(token, limit=50, skip=skip)
+    if not batch:
+        break
+    all_recs.extend(batch)
+    if len(batch) < 50:
+        break
+    skip += len(batch)
+
 now = datetime.now()
 
-uploaded_no_trans = []
-not_uploaded = []
+needs_transcription = []
 transcribed = []
 
-for r in recs:
-    ori = r.get('ori_ready', False)
+for r in all_recs:
     trans = r.get('is_trans', False)
-    start = r.get('start_time', 0)
-
     if trans:
         transcribed.append(r)
-    elif ori and not trans:
-        uploaded_no_trans.append(r)
     else:
-        not_uploaded.append(r)
+        needs_transcription.append(r)
 
-print(f'[{now.strftime(\"%Y-%m-%d %H:%M\")}] Plaud status: {len(transcribed)} transcribed, {len(uploaded_no_trans)} uploaded (no trans), {len(not_uploaded)} not uploaded')
+print(f'[{now.strftime(\"%Y-%m-%d %H:%M\")}] Plaud: {len(all_recs)} total, {len(transcribed)} transcribed, {len(needs_transcription)} need transcription')
 
-# Auto-trigger transcription for uploaded recordings
+# --- Step 2: Auto-trigger transcription (2-step: PATCH config + POST trigger) ---
 triggered = 0
-for r in uploaded_no_trans:
+for r in needs_transcription:
     fid = r['id']
     name = r.get('filename', '?')
+    dur = r.get('duration', 0) / 1000
+    # Skip very short recordings (<10s) — likely accidental
+    if dur < 10:
+        continue
     try:
+        # Step 2a: Configure transcription via PATCH
+        requests.patch(
+            f'https://api.plaud.ai/file/{fid}',
+            headers=headers,
+            json={'extra_data': {'tranConfig': {'language': 'auto', 'trans_type': 1}}},
+            timeout=15,
+        )
+        # Step 2b: Trigger transcription via POST
         resp = requests.post(
             f'https://api.plaud.ai/ai/transsumm/{fid}',
-            headers=headers,
-            json={'language': 'auto'},
+            headers={**headers, 'Origin': 'https://web.plaud.ai', 'Referer': 'https://web.plaud.ai/'},
+            json={'language': 'auto', 'summ_type': 1, 'support_mul_summ': True,
+                  'info': json.dumps({'language': 'auto', 'summary_type': 1})},
             timeout=30,
         )
         data = resp.json()
-        if data.get('status') == 0:
+        if data.get('status') == 0 or 'processing' in str(data.get('msg', '')).lower():
             triggered += 1
-            print(f'  Triggered transcription: {name}')
+            print(f'  Triggered transcription: {name} ({dur:.0f}s)')
+        elif 'already' in str(data.get('msg', '')).lower():
+            pass  # Already processing, skip
         else:
-            print(f'  Failed to trigger {name}: {data.get(\"msg\", \"?\")}')
+            msg = data.get('msg', '?')
+            err = data.get('err_msg', '')
+            print(f'  Trigger result {name}: status={data.get("status")} msg={msg} err={err}')
     except Exception as e:
         print(f'  Error triggering {name}: {e}')
 
 if triggered:
-    print(f'  Triggered {triggered} transcriptions')
+    print(f'  Triggered {triggered} new transcriptions')
 
-# Auto-import newly transcribed recordings
-imported, chunks, skipped = sync_plaud(limit=50)
+# --- Step 3: Import all transcribed recordings (paginate) ---
+imported, chunks, skipped = sync_plaud(limit=50, sync_all=True)
 if imported:
     print(f'  Imported {imported} recordings ({chunks} chunks)')
 
-# Index new chunks
+# --- Step 4: Embed + extract on new data ---
 if imported:
-    import subprocess
-    result = subprocess.run(
-        ['.venv/bin/python', '-m', 'app.retrieval.index_chunks', '--batch-size', '100', '--limit', '200'],
-        capture_output=True, text=True, timeout=120,
-        env={**__import__('os').environ, 'TIKTOKEN_CACHE_DIR': '/tmp/tiktoken_cache'},
-    )
-    if 'Zaindeksowano' in result.stdout:
-        print(f'  {result.stdout.strip().splitlines()[-1]}')
+    # Embed
+    try:
+        result = subprocess.run(
+            ['.venv/bin/python', '-m', 'app.retrieval.index_chunks', '--batch-size', '100', '--limit', '500'],
+            capture_output=True, text=True, timeout=120,
+            env={**os.environ, 'TIKTOKEN_CACHE_DIR': '/tmp/tiktoken_cache'},
+        )
+        if result.returncode == 0:
+            for line in result.stdout.strip().splitlines():
+                if 'indeksowano' in line.lower() or 'indexed' in line.lower():
+                    print(f'  {line}')
+    except Exception:
+        pass
+
+    # Extract entities
+    try:
+        subprocess.run(
+            ['.venv/bin/python', '-m', 'app.extraction.entities', '--candidates-only', str(min(chunks * 3, 100))],
+            capture_output=True, timeout=180,
+            env={**os.environ, 'ANTHROPIC_EXTRACTION_MODEL': 'claude-haiku-4-5'},
+        )
+        print(f'  Extracted entities from audio data')
+    except Exception:
+        pass
+
+remaining = len(needs_transcription) - triggered
+if remaining > 0:
+    print(f'  Note: {remaining} recordings still awaiting transcription (processing or skipped)')
 "

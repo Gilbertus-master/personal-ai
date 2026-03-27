@@ -19,7 +19,8 @@ run_step() {
   echo "==> END: $name"
 }
 
-run_step "import_chatgpt" ./scripts/import_chatgpt.sh
+# ChatGPT import disabled — Sebastian no longer uses ChatGPT (2026-03-26)
+# run_step "import_chatgpt" ./scripts/import_chatgpt.sh
 run_step "import_docs" ./scripts/import_docs.sh
 run_step "import_email_spreadsheets" ./scripts/import_email_spreadsheets.sh
 run_step "import_teams" ./scripts/import_teams.sh

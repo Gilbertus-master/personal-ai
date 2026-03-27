@@ -251,7 +251,7 @@ def main() -> None:
                       'done' if nc.get('old_embedding_id') else 'pending'))
 
         conn.commit()
-        print(f"  [OK] Committed.\n")
+        print("  [OK] Committed.\n")
 
     # ── Step 4: Final report ──
     print("=" * 70)

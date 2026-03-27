@@ -12,9 +12,14 @@ export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PROJE
 export TIKTOKEN_CACHE_DIR="/tmp/tiktoken_cache"
 
 # Load .env for Graph API credentials, DB connection, etc.
-set -a
-[ -f "$PROJECT_DIR/.env" ] && source "$PROJECT_DIR/.env"
-set +a
+# Use export+grep instead of source to handle values with spaces safely.
+if [ -f "$PROJECT_DIR/.env" ]; then
+    while IFS= read -r line; do
+        # Skip comments and blank lines
+        [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+        export "$line"
+    done < "$PROJECT_DIR/.env"
+fi
 
 LOG="$PROJECT_DIR/logs/sync_corporate_data.log"
 mkdir -p "$PROJECT_DIR/logs"
@@ -45,16 +50,23 @@ unset MS_GRAPH_USER_ID  # Force /me/ endpoint for delegated permissions
     echo "[$(TS)] WARNING: Teams sync failed (exit $?)" >> "$LOG"
 }
 
-# --- 4. Embed new chunks ---
-echo "[$(TS)] Step 4/5: Embedding new chunks" >> "$LOG"
+# --- 4. Sync calendar events (7 days back, 3 ahead) ---
+echo "[$(TS)] Step 4/7: Syncing calendar" >> "$LOG"
+"$PROJECT_DIR/.venv/bin/python" -m app.ingestion.graph_api.calendar_sync \
+    --days-back 7 --days-ahead 3 >> "$LOG" 2>&1 || {
+    echo "[$(TS)] WARNING: Calendar sync failed (exit $?)" >> "$LOG"
+}
+
+# --- 5. Embed new chunks ---
+echo "[$(TS)] Step 5/7: Embedding new chunks" >> "$LOG"
 "$PROJECT_DIR/.venv/bin/python" -m app.retrieval.index_chunks \
     --batch-size 100 --limit 500 >> "$LOG" 2>&1 || {
     echo "[$(TS)] WARNING: Embedding failed (exit $?)" >> "$LOG"
 }
 
-# --- 5. Entity extraction on new data (50 chunks, Haiku) ---
-echo "[$(TS)] Step 5/5: Entity extraction (50 chunks, Haiku)" >> "$LOG"
-ANTHROPIC_EXTRACTION_MODEL=claude-haiku-4-5-20251001 \
+# --- 6. Entity extraction on new data (50 chunks, Haiku) ---
+echo "[$(TS)] Step 6/7: Entity extraction (50 chunks, Haiku)" >> "$LOG"
+ANTHROPIC_EXTRACTION_MODEL=claude-haiku-4-5 \
 "$PROJECT_DIR/.venv/bin/python" -m app.extraction.entities \
     --candidates-only 50 >> "$LOG" 2>&1 || {
     echo "[$(TS)] WARNING: Entity extraction failed (exit $?)" >> "$LOG"

@@ -10,12 +10,12 @@ echo "[$(TS)] === Continuous improvement cycle ===" >> "$LOG"
 
 # 1. AGGRESSIVE entity extraction (500 per cycle)
 echo "[$(TS)] Entity extraction (500)" >> "$LOG"
-ANTHROPIC_EXTRACTION_MODEL=claude-haiku-4-5-20251001 \
+ANTHROPIC_EXTRACTION_MODEL=claude-haiku-4-5 \
     .venv/bin/python -m app.extraction.entities --candidates-only 500 >> "$LOG" 2>&1 || true
 
 # 2. AGGRESSIVE event extraction (500 per cycle)
 echo "[$(TS)] Event extraction (500)" >> "$LOG"
-ANTHROPIC_EXTRACTION_MODEL=claude-haiku-4-5-20251001 \
+ANTHROPIC_EXTRACTION_MODEL=claude-haiku-4-5 \
     .venv/bin/python -m app.extraction.events --candidates-only 500 >> "$LOG" 2>&1 || true
 
 # 3. DEEP INSIGHTS from FULL HISTORY (not just recent data)

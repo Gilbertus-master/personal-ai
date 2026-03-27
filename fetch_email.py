@@ -157,7 +157,7 @@ if document_exists_by_raw_path(raw_path):
     print("Already imported!")
     exit(0)
 
-source_id = insert_source(conn=None, source_type="company_email", source_name="priority_import")
+source_id = insert_source(conn=None, source_type="email", source_name="priority_import")
 recorded_at = None
 try: recorded_at = datetime.fromisoformat(received.replace("Z", "+00:00"))
 except: pass

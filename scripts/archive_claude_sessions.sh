@@ -38,6 +38,36 @@ CLAUDE_DIR = Path(os.path.expanduser('~/.claude/projects/-home-sebastian-persona
 
 source_id = insert_source(conn=None, source_type='claude_code_full', source_name='claude_code_sessions')
 
+import re
+
+# Patterns that match secrets — redact before storing
+SECRET_PATTERNS = [
+    # API keys
+    (r'sk-proj-[A-Za-z0-9_-]{20,}', '[REDACTED:OPENAI_KEY]'),
+    (r'sk-ant-[A-Za-z0-9_-]{20,}', '[REDACTED:ANTHROPIC_KEY]'),
+    (r'ANTHROPIC_API_KEY=\S+', 'ANTHROPIC_API_KEY=[REDACTED]'),
+    (r'OPENAI_API_KEY=\s*\S+', 'OPENAI_API_KEY=[REDACTED]'),
+    # Generic env secrets
+    (r'(PASSWORD|SECRET|TOKEN|PRIVATE.?KEY)\s*[=:]\s*\S+', r'\1=[REDACTED]'),
+    # WireGuard private keys (base64, 44 chars)
+    (r'PrivateKey\s*=\s*[A-Za-z0-9+/]{43}=', 'PrivateKey = [REDACTED]'),
+    # Bearer tokens
+    (r'Bearer\s+[A-Za-z0-9._-]{20,}', 'Bearer [REDACTED]'),
+    # JWT tokens
+    (r'eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}', '[REDACTED:JWT]'),
+    # MS Graph client secrets
+    (r'MS_GRAPH_CLIENT_SECRET=\S+', 'MS_GRAPH_CLIENT_SECRET=[REDACTED]'),
+    # Postgres connection strings with passwords
+    (r'postgresql://[^@]+:[^@]+@', 'postgresql://[REDACTED]@'),
+    # SSH private key blocks
+    (r'-----BEGIN [A-Z ]+ PRIVATE KEY-----[\s\S]*?-----END [A-Z ]+ PRIVATE KEY-----', '[REDACTED:PRIVATE_KEY_BLOCK]'),
+]
+
+def redact_secrets(text):
+    for pattern, replacement in SECRET_PATTERNS:
+        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+    return text
+
 imported = 0
 chunks_total = 0
 
@@ -96,7 +126,7 @@ for jsonl in sorted(CLAUDE_DIR.glob('*.jsonl')):
     if not lines:
         continue
 
-    full_text = '\n\n'.join(lines)
+    full_text = redact_secrets('\n\n'.join(lines))
 
     recorded_at = None
     if session_start:
@@ -169,7 +199,7 @@ for session_dir in sorted(CLAUDE_DIR.glob('*/subagents')):
         if len(lines) < 2:
             continue
 
-        full_text = '\n\n'.join(lines)
+        full_text = redact_secrets('\n\n'.join(lines))
         if len(full_text) < 100:
             continue
 
