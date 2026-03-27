@@ -77,6 +77,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(SecurityHeadersMiddleware)
 
+# ── Prometheus metrics ─────────────────────────────────────────────────────
+
+try:
+    from omnius.api.metrics import MetricsMiddleware, metrics_endpoint
+    app.add_middleware(MetricsMiddleware)
+    app.add_route("/metrics", metrics_endpoint)
+except ImportError:
+    pass  # prometheus_client not installed — skip metrics
+
 
 # ── Health ──────────────────────────────────────────────────────────────────
 
@@ -156,3 +165,20 @@ try:
     app.include_router(teams_router)
 except ImportError:
     pass
+
+# ── Static frontend ────────────────────────────────────────────────────────
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+FRONTEND_DIR = BASE_DIR / "frontend"
+if FRONTEND_DIR.exists():
+    @app.get("/")
+    async def serve_frontend():
+        return FileResponse(FRONTEND_DIR / "index.html")
+
+    @app.get("/auth/callback")
+    async def auth_callback():
+        """Azure AD redirect — serve same SPA which handles the hash fragment."""
+        return FileResponse(FRONTEND_DIR / "index.html")
+
+    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")

@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Omnius — Corporate AI</title>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1d27;
+            --border: #2a2d3a;
+            --text: #e4e4e7;
+            --text-muted: #71717a;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #22c55e;
+            --error: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .header .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .header .role-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .role-ceo { background: #7c3aed22; color: #a78bfa; border: 1px solid #7c3aed44; }
+        .role-board { background: #3b82f622; color: #93c5fd; border: 1px solid #3b82f644; }
+        .role-director { background: #0891b222; color: #67e8f9; border: 1px solid #0891b244; }
+        .role-manager { background: #059669; color: #6ee7b7; border: 1px solid #05966944; }
+        .role-specialist { background: #71717a22; color: #a1a1aa; border: 1px solid #71717a44; }
+
+        /* Login screen */
+        .login-screen {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .login-box h2 { margin-bottom: 8px; }
+        .login-box p { color: var(--text-muted); margin-bottom: 24px; font-size: 14px; }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: var(--accent-hover); }
+
+        /* Dev login */
+        .dev-login {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .dev-login input {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        /* Chat area */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .message-user {
+            align-self: flex-end;
+            background: var(--accent);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message-assistant {
+            align-self: flex-start;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-assistant pre {
+            background: var(--bg);
+            padding: 8px 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 8px 0;
+            font-size: 13px;
+        }
+
+        .message-assistant code {
+            background: var(--bg);
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+
+        .message-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .typing {
+            align-self: flex-start;
+            color: var(--text-muted);
+            font-style: italic;
+            font-size: 13px;
+        }
+
+        /* Input */
+        .input-area {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+        .input-row {
+            display: flex;
+            gap: 8px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .input-row textarea {
+            flex: 1;
+            padding: 10px 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            height: 44px;
+            max-height: 120px;
+        }
+
+        .input-row textarea:focus { outline: none; border-color: var(--accent); }
+
+        .input-row button {
+            padding: 10px 20px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .input-row button:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Omnius</h1>
+        <div class="user-info" id="user-info" style="display:none">
+            <span id="user-name"></span>
+            <span id="user-role" class="role-badge"></span>
+            <button class="btn" onclick="logout()" style="padding:4px 12px;font-size:12px;background:var(--border)">Wyloguj</button>
+        </div>
+    </div>
+
+    <!-- Login -->
+    <div class="login-screen" id="login-screen">
+        <div class="login-box">
+            <h2>Omnius</h2>
+            <p id="company-name">Korporacyjny asystent AI</p>
+            <button class="btn btn-primary" onclick="loginAzureAD()">
+                Zaloguj przez Microsoft
+            </button>
+            <div class="dev-login" id="dev-login" style="display:none">
+                <p style="font-size:12px;margin-bottom:8px">Dev mode:</p>
+                <input type="email" id="dev-email" placeholder="email@re-fuels.com" onkeydown="if(event.key==='Enter')loginDev()">
+                <button class="btn btn-primary" onclick="loginDev()" style="width:100%">Dev Login</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat -->
+    <div class="chat-container" id="chat-container" style="display:none">
+        <div class="messages" id="messages">
+            <div class="message message-assistant">
+                Dzień dobry! Jestem <strong>Omnius</strong>. Jak mogę pomóc?
+            </div>
+        </div>
+        <div class="input-area">
+            <div class="input-row">
+                <textarea id="query-input" placeholder="Zadaj pytanie..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendQuery()}"></textarea>
+                <button id="send-btn" onclick="sendQuery()">Wyślij</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let authToken = null;
+        let authType = null; // 'azure_ad' or 'dev'
+        let currentUser = null;
+
+        // Check if dev mode
+        fetch(`${API_BASE}/health`).then(r => r.json()).then(data => {
+            document.getElementById('company-name').textContent = data.company || 'Corporate AI';
+            document.title = `Omnius — ${data.company || 'Corporate AI'}`;
+        });
+
+        // Show dev login if dev auth enabled
+        fetch(`${API_BASE}/api/v1/status`).then(() => {
+            // Check if dev auth is available by trying a dev request
+            document.getElementById('dev-login').style.display = 'block';
+        }).catch(() => {});
+
+        // Restore session
+        const saved = localStorage.getItem('omnius_session');
+        if (saved) {
+            try {
+                const session = JSON.parse(saved);
+                authToken = session.token;
+                authType = session.type;
+                currentUser = session.user;
+                showChat();
+            } catch(e) { localStorage.removeItem('omnius_session'); }
+        }
+
+        function loginAzureAD() {
+            const tenantId = ''; // Will be set from config
+            const clientId = ''; // Will be set from config
+            const redirectUri = encodeURIComponent(window.location.origin + '/auth/callback');
+            const scope = encodeURIComponent('openid profile email');
+
+            if (!tenantId || !clientId) {
+                alert('Azure AD nie jest jeszcze skonfigurowany. Użyj Dev Login.');
+                return;
+            }
+
+            window.location.href = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=token&redirect_uri=${redirectUri}&scope=${scope}&response_mode=fragment`;
+        }
+
+        function loginDev() {
+            const email = document.getElementById('dev-email').value.trim();
+            if (!email) return;
+
+            authToken = null;
+            authType = 'dev';
+
+            // Test auth by calling status with dev header
+            fetch(`${API_BASE}/api/v1/status`, {
+                headers: { 'X-User-Email': email }
+            }).then(r => {
+                if (r.ok) {
+                    currentUser = { email, display_name: email.split('@')[0], role_name: 'unknown' };
+                    localStorage.setItem('omnius_session', JSON.stringify({
+                        token: null, type: 'dev', user: currentUser, devEmail: email
+                    }));
+                    showChat();
+                } else {
+                    alert('Nie znaleziono użytkownika: ' + email);
+                }
+            });
+        }
+
+        function logout() {
+            authToken = null;
+            authType = null;
+            currentUser = null;
+            localStorage.removeItem('omnius_session');
+            document.getElementById('login-screen').style.display = 'flex';
+            document.getElementById('chat-container').style.display = 'none';
+            document.getElementById('user-info').style.display = 'none';
+        }
+
+        function showChat() {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('chat-container').style.display = 'flex';
+            document.getElementById('user-info').style.display = 'flex';
+            document.getElementById('user-name').textContent = currentUser?.display_name || currentUser?.email || '';
+
+            const roleEl = document.getElementById('user-role');
+            const role = currentUser?.role_name || 'unknown';
+            roleEl.textContent = role;
+            roleEl.className = `role-badge role-${role}`;
+
+            document.getElementById('query-input').focus();
+        }
+
+        function getHeaders() {
+            const h = { 'Content-Type': 'application/json' };
+            if (authType === 'dev') {
+                const session = JSON.parse(localStorage.getItem('omnius_session') || '{}');
+                h['X-User-Email'] = session.devEmail || currentUser?.email || '';
+            } else if (authToken) {
+                h['Authorization'] = `Bearer ${authToken}`;
+            }
+            return h;
+        }
+
+        function addMessage(text, type, meta) {
+            const div = document.createElement('div');
+            div.className = `message message-${type}`;
+
+            if (type === 'assistant') {
+                // Simple markdown rendering
+                let html = text
+                    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                    .replace(/`([^`]+)`/g, '<code>$1</code>')
+                    .replace(/\n/g, '<br>');
+                div.innerHTML = html;
+            } else {
+                div.textContent = text;
+            }
+
+            if (meta) {
+                const metaDiv = document.createElement('div');
+                metaDiv.className = 'message-meta';
+                metaDiv.textContent = meta;
+                div.appendChild(metaDiv);
+            }
+
+            const messages = document.getElementById('messages');
+            messages.appendChild(div);
+            messages.scrollTop = messages.scrollHeight;
+            return div;
+        }
+
+        async function sendQuery() {
+            const input = document.getElementById('query-input');
+            const query = input.value.trim();
+            if (!query) return;
+
+            input.value = '';
+            document.getElementById('send-btn').disabled = true;
+
+            addMessage(query, 'user');
+
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'typing';
+            typingDiv.textContent = 'Omnius myśli...';
+            document.getElementById('messages').appendChild(typingDiv);
+
+            try {
+                const resp = await fetch(`${API_BASE}/api/v1/ask`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({ query, answer_length: 'medium' }),
+                });
+
+                typingDiv.remove();
+
+                if (resp.status === 401 || resp.status === 403) {
+                    addMessage('Brak autoryzacji. Zaloguj się ponownie.', 'assistant');
+                    logout();
+                    return;
+                }
+
+                const data = await resp.json();
+                const meta = `${data.sources_count || 0} źródeł • ${data.latency_ms || 0}ms`;
+                addMessage(data.answer || data.detail || 'Brak odpowiedzi', 'assistant', meta);
+
+                // Update user info from response if available
+                if (data.user_role && currentUser) {
+                    currentUser.role_name = data.user_role;
+                    showChat();
+                }
+            } catch (e) {
+                typingDiv.remove();
+                addMessage('Błąd połączenia z Omniusem. Spróbuj ponownie.', 'assistant');
+            }
+
+            document.getElementById('send-btn').disabled = false;
+            input.focus();
+        }
+
+        // Handle Azure AD callback
+        if (window.location.hash.includes('access_token')) {
+            const params = new URLSearchParams(window.location.hash.substring(1));
+            authToken = params.get('access_token');
+            authType = 'azure_ad';
+            // Decode JWT to get user info
+            try {
+                const payload = JSON.parse(atob(authToken.split('.')[1]));
+                currentUser = {
+                    email: payload.preferred_username || payload.upn || payload.email,
+                    display_name: payload.name || payload.preferred_username,
+                    role_name: 'unknown', // Will be resolved by server
+                };
+                localStorage.setItem('omnius_session', JSON.stringify({
+                    token: authToken, type: 'azure_ad', user: currentUser
+                }));
+                window.location.hash = '';
+                showChat();
+            } catch(e) { console.error('Token decode failed', e); }
+        }
+    </script>
+</body>
+</html>

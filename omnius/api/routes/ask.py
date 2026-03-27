@@ -57,25 +57,57 @@ async def ask(request: Request, body: AskRequest, user: dict = None):
             latency_ms=0,
         )
 
-    # Full-text search with classification + ownership filter
-    # Personal docs visible only to owner, corporate docs visible per RBAC
+    # Full-text search with classification + ownership + department filter
     user_id = user.get("user_id")
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT c.id, c.content, d.title, d.source_type, c.classification
-                FROM omnius_chunks c
-                JOIN omnius_documents d ON d.id = c.document_id
-                WHERE c.classification = ANY(%s)
-                  AND (d.owner_user_id IS NULL
-                       OR d.owner_user_id = %s
-                       OR c.classification != 'personal')
-                  AND to_tsvector('simple', c.content) @@ plainto_tsquery('simple', %s)
-                ORDER BY ts_rank(to_tsvector('simple', c.content),
-                                 plainto_tsquery('simple', %s)) DESC
-                LIMIT 15
-            """, (classifications, user_id, body.query, body.query))
-            matches = cur.fetchall()
+    department = user.get("department")
+    role_name = user["role_name"]
+
+    # Try Qdrant semantic search first, fall back to PostgreSQL FTS
+    matches = []
+    search_method = "fts"
+
+    try:
+        from omnius.sync.embeddings import search_vectors
+        vector_results = search_vectors(
+            query=body.query,
+            classifications=classifications,
+            user_id=user_id,
+            department=department if role_name in ("director", "manager", "specialist") else None,
+            limit=15,
+        )
+        if vector_results:
+            matches = [(r["chunk_id"], r["content"], r["title"], r["source_type"], r["classification"])
+                       for r in vector_results]
+            search_method = "vector"
+    except Exception as e:
+        log.debug("qdrant_unavailable_falling_back_to_fts", error=str(e))
+
+    # Fallback: PostgreSQL full-text search
+    if not matches:
+        dept_filter = ""
+        dept_params: list = []
+        if role_name in ("director", "manager", "specialist") and department:
+            dept_filter = "AND (d.department IS NULL OR d.department = %s)"
+            dept_params = [department]
+
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"""
+                    SELECT c.id, c.content, d.title, d.source_type, c.classification
+                    FROM omnius_chunks c
+                    JOIN omnius_documents d ON d.id = c.document_id
+                    WHERE c.classification = ANY(%s)
+                      AND (d.owner_user_id IS NULL
+                           OR d.owner_user_id = %s
+                           OR c.classification != 'personal')
+                      {dept_filter}
+                      AND to_tsvector('simple', c.content) @@ plainto_tsquery('simple', %s)
+                    ORDER BY ts_rank(to_tsvector('simple', c.content),
+                                     plainto_tsquery('simple', %s)) DESC
+                    LIMIT 15
+                """, (classifications, user_id, *dept_params, body.query, body.query))
+                matches = cur.fetchall()
+        search_method = "fts"
 
     if not matches:
         return AskResponse(
@@ -108,6 +140,7 @@ async def ask(request: Request, body: AskRequest, user: dict = None):
     latency_ms = int((time.time() - started_at) * 1000)
 
     log.info("omnius_ask", user=user.get("email", user.get("api_key_name")),
-             query=body.query[:100], matches=len(matches), latency_ms=latency_ms)
+             query=body.query[:100], matches=len(matches), latency_ms=latency_ms,
+             search=search_method)
 
     return AskResponse(answer=answer, sources_count=len(matches), latency_ms=latency_ms)

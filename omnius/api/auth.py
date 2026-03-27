@@ -164,7 +164,7 @@ def _lookup_user(email: str, oid: str = "") -> dict[str, Any]:
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT u.id, u.email, u.display_name, r.name, r.level
+                SELECT u.id, u.email, u.display_name, r.name, r.level, u.department
                 FROM omnius_users u
                 JOIN omnius_roles r ON r.id = u.role_id
                 WHERE u.email = %s AND u.is_active = TRUE
@@ -188,6 +188,7 @@ def _lookup_user(email: str, oid: str = "") -> dict[str, Any]:
                 "display_name": row[2],
                 "role_name": row[3],
                 "role_level": row[4],
+                "department": row[5],
                 "permissions": permissions,
             }
 
