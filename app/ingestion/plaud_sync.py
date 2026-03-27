@@ -66,6 +66,7 @@ def list_recordings(token: str, limit: int = 50, skip: int = 0) -> list[dict[str
         headers=_headers(token),
         params={"skip": skip, "limit": limit, "is_trash": 0, "sort_by": "start_time", "is_desc": "true"},
         timeout=30,
+        verify=False,
     )
     resp.raise_for_status()
     data = resp.json()
@@ -81,6 +82,7 @@ def get_recording_details(token: str, file_ids: list[str]) -> list[dict[str, Any
         headers={**_headers(token), "Content-Type": "application/json"},
         json=file_ids,
         timeout=60,
+        verify=False,
     )
     resp.raise_for_status()
     data = resp.json()

@@ -1565,3 +1565,95 @@ def assess_health():
     """Run health assessment for current week."""
     from app.analysis.org_health import run_health_assessment
     return run_health_assessment()
+
+
+# =========================
+# Scenario Analyzer endpoints
+# =========================
+
+@app.get("/scenarios")
+def list_scenarios(status: str | None = None, limit: int = 20):
+    from app.analysis.scenario_analyzer import list_scenarios
+    return list_scenarios(status=status, limit=limit)
+
+@app.post("/scenarios")
+def create_scenario_endpoint(title: str, description: str = "", scenario_type: str = "risk"):
+    from app.analysis.scenario_analyzer import create_scenario
+    return create_scenario(title=title, description=description, scenario_type=scenario_type)
+
+@app.post("/scenarios/{scenario_id}/analyze")
+def analyze_scenario_endpoint(scenario_id: int):
+    from app.analysis.scenario_analyzer import analyze_scenario
+    return analyze_scenario(scenario_id=scenario_id)
+
+@app.get("/scenarios/compare")
+def compare_scenarios_endpoint(ids: str = ""):
+    """Compare scenarios. Pass comma-separated IDs."""
+    from app.analysis.scenario_analyzer import compare_scenarios
+    id_list = [int(x.strip()) for x in ids.split(",") if x.strip().isdigit()]
+    return compare_scenarios(scenario_ids=id_list)
+
+@app.post("/scenarios/auto-scan")
+def auto_scenario_scan():
+    from app.analysis.scenario_analyzer import run_auto_scenarios
+    return run_auto_scenarios()
+
+
+# =========================
+# Market Intelligence endpoints
+# =========================
+
+@app.get("/market/dashboard")
+def market_dashboard(days: int = 7):
+    from app.analysis.market_intelligence import get_market_dashboard
+    return get_market_dashboard(days=days)
+
+@app.post("/market/scan")
+def market_scan():
+    from app.analysis.market_intelligence import run_market_scan
+    return run_market_scan()
+
+@app.get("/market/insights")
+def market_insights(insight_type: str | None = None, min_relevance: int = 0, limit: int = 20):
+    from app.analysis.market_intelligence import get_market_insights
+    return get_market_insights(insight_type=insight_type, min_relevance=min_relevance, limit=limit)
+
+@app.post("/market/sources")
+def add_market_source_endpoint(name: str, url: str, source_type: str = "rss"):
+    from app.analysis.market_intelligence import add_market_source
+    return add_market_source(name=name, url=url, source_type=source_type)
+
+@app.get("/market/alerts")
+def market_alerts(acknowledged: bool = False):
+    from app.analysis.market_intelligence import get_market_alerts
+    return get_market_alerts(acknowledged=acknowledged)
+
+
+# =========================
+# Competitor Intelligence endpoints
+# =========================
+
+@app.get("/competitors")
+def competitive_landscape():
+    from app.analysis.competitor_intelligence import get_competitive_landscape
+    return get_competitive_landscape()
+
+@app.post("/competitors")
+def add_competitor_endpoint(name: str, krs_number: str | None = None, industry: str = "energia", watch_level: str = "active"):
+    from app.analysis.competitor_intelligence import add_competitor
+    return add_competitor(name=name, krs_number=krs_number, industry=industry, watch_level=watch_level)
+
+@app.post("/competitors/scan")
+def competitor_scan():
+    from app.analysis.competitor_intelligence import run_competitor_scan
+    return run_competitor_scan()
+
+@app.get("/competitors/{competitor_id}/analysis")
+def competitor_analysis(competitor_id: int):
+    from app.analysis.competitor_intelligence import analyze_competitor
+    return analyze_competitor(competitor_id=competitor_id)
+
+@app.get("/competitors/signals")
+def competitor_signals(competitor_id: int | None = None, signal_type: str | None = None, days: int = 30):
+    from app.analysis.competitor_intelligence import get_competitor_signals
+    return get_competitor_signals(competitor_id=competitor_id, signal_type=signal_type, days=days)

@@ -425,7 +425,74 @@ def fetch_week_data(week_start: str) -> dict:
         "predictive_alerts": _fetch_predictive_alerts(week_start, week_end),
         "delegation_scores": _fetch_delegation_scores(week_start, week_end),
         "blind_spots": _fetch_blind_spots(week_start, week_end),
+        "market_insights": _fetch_market_insights_week(week_start, week_end),
+        "competitor_landscape": _fetch_competitor_landscape_week(week_start, week_end),
+        "scenarios": _fetch_scenarios_week(week_start, week_end),
     }
+
+
+def _fetch_market_insights_week(week_start: str, week_end: str) -> list[dict]:
+    """Market insights from the past week."""
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT insight_type, title, description, impact_assessment, relevance_score
+                    FROM market_insights
+                    WHERE created_at >= %s::timestamptz AND created_at < %s::timestamptz
+                    ORDER BY relevance_score DESC
+                    LIMIT 10
+                """, (week_start, week_end))
+                return [{"type": r[0], "title": r[1], "description": r[2],
+                         "impact": r[3], "relevance": r[4]} for r in cur.fetchall()]
+    except Exception:
+        return []
+
+
+def _fetch_competitor_landscape_week(week_start: str, week_end: str) -> list[dict]:
+    """Competitor signals and analyses from the past week."""
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT c.name,
+                           COUNT(cs.id) as signal_count,
+                           COUNT(cs.id) FILTER (WHERE cs.severity = 'high') as high_count,
+                           (SELECT ca.summary FROM competitor_analysis ca
+                            WHERE ca.competitor_id = c.id
+                            ORDER BY ca.created_at DESC LIMIT 1) as latest_swot
+                    FROM competitors c
+                    LEFT JOIN competitor_signals cs ON cs.competitor_id = c.id
+                        AND cs.created_at >= %s::timestamptz AND cs.created_at < %s::timestamptz
+                    WHERE c.watch_level = 'active'
+                    GROUP BY c.id, c.name
+                    HAVING COUNT(cs.id) > 0
+                    ORDER BY signal_count DESC
+                """, (week_start, week_end))
+                return [{"name": r[0], "signals": r[1], "high_severity": r[2],
+                         "swot_summary": r[3]} for r in cur.fetchall()]
+    except Exception:
+        return []
+
+
+def _fetch_scenarios_week(week_start: str, week_end: str) -> list[dict]:
+    """Scenarios created/analyzed this week."""
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT s.title, s.scenario_type, s.status,
+                           COALESCE(SUM(o.impact_value_pln), 0) as total_impact
+                    FROM scenarios s
+                    LEFT JOIN scenario_outcomes o ON o.scenario_id = s.id
+                    WHERE s.created_at >= %s::timestamptz AND s.created_at < %s::timestamptz
+                    GROUP BY s.id, s.title, s.scenario_type, s.status
+                    ORDER BY total_impact
+                """, (week_start, week_end))
+                return [{"title": r[0], "type": r[1], "status": r[2],
+                         "total_impact": float(r[3]) if r[3] else 0} for r in cur.fetchall()]
+    except Exception:
+        return []
 
 
 # ============================================================
@@ -532,6 +599,39 @@ def build_synthesis_context(data: dict) -> str:
         parts.append("Brak wykrytych blind spotow.")
     parts.append("")
 
+    # Market Intelligence
+    parts.append("=== RYNEK ENERGII ===")
+    if data.get("market_insights"):
+        for mi in data["market_insights"]:
+            parts.append(f"  [{mi['type']}] {mi['title']} (relevance: {mi['relevance']}/100)")
+            parts.append(f"    {mi['description']}")
+            if mi.get("impact"):
+                parts.append(f"    Wpływ: {mi['impact']}")
+    else:
+        parts.append("Brak insightów rynkowych w tym tygodniu.")
+    parts.append("")
+
+    # Competitive Landscape
+    parts.append("=== KONKURENCJA ===")
+    if data.get("competitor_landscape"):
+        for cl in data["competitor_landscape"]:
+            parts.append(f"  {cl['name']}: {cl['signals']} sygnałów ({cl['high_severity']} high)")
+            if cl.get("swot_summary"):
+                parts.append(f"    SWOT: {cl['swot_summary'][:200]}")
+    else:
+        parts.append("Brak sygnałów konkurencyjnych.")
+    parts.append("")
+
+    # Scenarios
+    parts.append("=== SCENARIUSZE ===")
+    if data.get("scenarios"):
+        for sc in data["scenarios"]:
+            impact_str = f"{sc['total_impact']:,.0f} PLN" if sc.get("total_impact") else "brak wyceny"
+            parts.append(f"  [{sc['type']}] {sc['title']} — {impact_str} — {sc['status']}")
+    else:
+        parts.append("Brak nowych scenariuszy.")
+    parts.append("")
+
     # Communication stats
     parts.append("=== STATYSTYKI KOMUNIKACJI ===")
     stats = data["communication_stats"]
@@ -573,6 +673,21 @@ Ludzie wymagajacy uwagi.
 ## Commitments
 Tabela: osoba | obiecane | termin | status (fulfilled/broken/overdue)
 Podsumowanie: completion rate ogolny i per osoba.
+
+## Rynek energii
+Kluczowe zmiany rynkowe: ceny, regulacje, przetargi, trendy.
+Wplyw na REH/REF. Co Sebastian powinien wiedziec.
+Jezeli brak, napisz "Brak istotnych zmian rynkowych."
+
+## Konkurencja
+Ruchy konkurentow: Tauron, PGE, Enea, Energa, Orlen, Polenergia.
+Nowe sygnaly, zagrozenia, szanse dla REH.
+Jezeli brak, napisz "Brak nowych sygnalow."
+
+## Scenariusze ryzyka
+Nowe scenariusze "co jesli?" z tego tygodnia.
+Szacowany wplyw finansowy. Sugestie mitygacji.
+Jezeli brak, napisz "Brak nowych scenariuszy."
 
 ## Szanse i ryzyka
 Wykryte w tym tygodniu: typ, wartosc PLN, status.

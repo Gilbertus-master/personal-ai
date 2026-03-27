@@ -298,6 +298,77 @@ def fetch_today_calendar(date: str) -> list[dict[str, Any]]:
     return results
 
 
+def fetch_market_insights(limit: int = 5) -> list[dict[str, Any]]:
+    """Fetch recent high-relevance market insights for morning brief."""
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT insight_type, title, description, impact_assessment,
+                           relevance_score, created_at
+                    FROM market_insights
+                    WHERE created_at > NOW() - INTERVAL '24 hours'
+                    AND relevance_score >= 50
+                    ORDER BY relevance_score DESC
+                    LIMIT %s
+                """, (limit,))
+                return [
+                    {"type": r[0], "title": r[1], "description": r[2],
+                     "impact": r[3], "relevance": r[4], "created_at": str(r[5])}
+                    for r in cur.fetchall()
+                ]
+    except Exception as e:
+        logger.warning("Market insights fetch failed: %s", e)
+        return []
+
+
+def fetch_competitor_signals(limit: int = 5) -> list[dict[str, Any]]:
+    """Fetch recent competitor signals for morning brief."""
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT c.name, cs.signal_type, cs.title, cs.description, cs.severity
+                    FROM competitor_signals cs
+                    JOIN competitors c ON c.id = cs.competitor_id
+                    WHERE cs.created_at > NOW() - INTERVAL '48 hours'
+                    ORDER BY
+                        CASE cs.severity WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
+                        cs.created_at DESC
+                    LIMIT %s
+                """, (limit,))
+                return [
+                    {"competitor": r[0], "type": r[1], "title": r[2],
+                     "description": r[3], "severity": r[4]}
+                    for r in cur.fetchall()
+                ]
+    except Exception as e:
+        logger.warning("Competitor signals fetch failed: %s", e)
+        return []
+
+
+def fetch_predictive_alerts(limit: int = 5) -> list[dict[str, Any]]:
+    """Fetch active predictive alerts for morning brief."""
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT alert_type, prediction, probability, suggested_action
+                    FROM predictive_alerts
+                    WHERE status = 'active' AND probability >= 0.5
+                    ORDER BY probability DESC
+                    LIMIT %s
+                """, (limit,))
+                return [
+                    {"type": r[0], "prediction": r[1], "probability": float(r[2]),
+                     "action": r[3]}
+                    for r in cur.fetchall()
+                ]
+    except Exception as e:
+        logger.warning("Predictive alerts fetch failed: %s", e)
+        return []
+
+
 def fetch_recent_summaries(
     date_from: str,
     date_to: str,
@@ -380,6 +451,9 @@ def build_brief_context(
     max_chars: int = 40000,
     alerts: list[dict[str, Any]] | None = None,
     calendar: list[dict[str, Any]] | None = None,
+    market_insights: list[dict[str, Any]] | None = None,
+    competitor_signals: list[dict[str, Any]] | None = None,
+    predictive_alerts: list[dict[str, Any]] | None = None,
 ) -> str:
     """Assemble all data into a single context string for Claude."""
     all_parts: list[str] = []
@@ -388,6 +462,30 @@ def build_brief_context(
     # Calendar (highest priority)
     if calendar:
         parts, total_chars = _render_calendar_section(calendar, max_chars)
+        all_parts.extend(parts)
+
+    # Market Intelligence (high priority — actionable for trader)
+    if market_insights:
+        parts, total_chars = _render_items_section(
+            "RYNEK ENERGII (ostatnie 24h)", market_insights,
+            lambda m: f"[{m['type']}] {m['title']} (relevance: {m['relevance']}/100)\n  {m['description']}\n  Wpływ na REH/REF: {m['impact']}",
+            0.12, total_chars, max_chars)
+        all_parts.extend(parts)
+
+    # Competitor signals
+    if competitor_signals:
+        parts, total_chars = _render_items_section(
+            "KONKURENCJA (ostatnie 48h)", competitor_signals,
+            lambda c: f"[{c['severity'].upper()}] {c['competitor']}: {c['title']}\n  {c['description'][:200]}",
+            0.08, total_chars, max_chars)
+        all_parts.extend(parts)
+
+    # Predictive alerts
+    if predictive_alerts:
+        parts, total_chars = _render_items_section(
+            "PREDYKCJE I RYZYKA", predictive_alerts,
+            lambda p: f"[{p['type']}] {p['prediction']} (prawdop. {p['probability']:.0%})\n  Zalecenie: {p['action']}",
+            0.08, total_chars, max_chars)
         all_parts.extend(parts)
 
     # Alerts
@@ -453,7 +551,14 @@ BRIEF_SYSTEM_PROMPT = """
 Jestes Gilbertus Albans — prywatnym mentatem Sebastiana Jablonskiego (wlasciciel REH i REF, trader energetyczny).
 Twoje zadanie: wygenerowac poranny brief na podstawie dostarczonych danych.
 
-Brief musi zawierac dokladnie 5 sekcji w formacie markdown:
+Brief musi zawierac dokladnie 7 sekcji w formacie markdown:
+
+## Rynek i konkurencja
+Najwazniejsze sygnaly rynkowe i ruchy konkurencji z ostatnich 24-48h.
+- Zmiany cen energii, nowe regulacje, przetargi
+- Ruchy konkurentow (Tauron, PGE, Enea, Energa, Orlen, Polenergia)
+- Wplyw na REH/REF — co Sebastian powinien wiedziec
+Jezeli brak danych, napisz "Brak nowych sygnalow rynkowych."
 
 ## Kalendarz dzis
 Spotkania z dzisiejszego kalendarza. Dla kazdego:
@@ -480,6 +585,12 @@ Kto byl aktywny w zyciu Sebastiana ostatnio. Dla kazdej osoby:
 - W jakim kontekscie sie pojawila
 - Jaki jest stan relacji (rola, organizacja, sentiment jesli dostepny)
 - Czy cos wymaga reakcji
+
+## Ryzyka i predykcje
+Zidentyfikowane zagrozenia i predykcje z systemow wczesnego ostrzegania:
+- Eskalacje, luki komunikacyjne, zagrozenia deadlinow
+- Scenariusze ryzyka (jezeli wygenerowane)
+Jezeli brak, napisz "Brak aktywnych ryzyk."
 
 ## Anomalie
 Nietypowe wzorce, zmiany, odstepstwa od normy. Np.:
@@ -671,8 +782,11 @@ def generate_morning_brief(
     entities = fetch_active_entities(date_from, date_to)
     summaries = fetch_recent_summaries(date_from, date_to)
     calendar = fetch_today_calendar(date)
+    market = fetch_market_insights()
+    competitors = fetch_competitor_signals()
+    predictions = fetch_predictive_alerts()
 
-    total_data = len(events) + len(open_loops) + len(entities) + len(summaries) + len(calendar)
+    total_data = len(events) + len(open_loops) + len(entities) + len(summaries) + len(calendar) + len(market) + len(competitors)
 
     if total_data == 0:
         logger.warning("No data found for morning brief (%s - %s)", date_from, date_to)
@@ -692,7 +806,12 @@ def generate_morning_brief(
     active_alerts = (
         alerts_result["alerts"] if alerts_result else []
     )
-    context = build_brief_context(events, open_loops, entities, summaries, alerts=active_alerts, calendar=calendar)
+    context = build_brief_context(
+        events, open_loops, entities, summaries,
+        alerts=active_alerts, calendar=calendar,
+        market_insights=market, competitor_signals=competitors,
+        predictive_alerts=predictions,
+    )
     date_label = datetime.fromisoformat(date).strftime("%A, %d %B %Y")
     brief_text = generate_brief_text(context, date_label)
 
@@ -715,6 +834,9 @@ def generate_morning_brief(
         "entities_count": len(entities),
         "summaries_count": len(summaries),
         "calendar_count": len(calendar),
+        "market_count": len(market),
+        "competitor_count": len(competitors),
+        "predictions_count": len(predictions),
         "alerts_count": alerts_result["total_detected"] if alerts_result else 0,
         "text": brief_text,
     }

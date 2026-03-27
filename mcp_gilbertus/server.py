@@ -257,6 +257,37 @@ async def list_tools():
                  "action": {"type": "string", "enum": ["assess", "trend"], "default": "trend"},
                  "weeks": {"type": "integer", "default": 8},
              }}),
+        Tool(name="gilbertus_scenarios",
+             description="Scenario analyzer: 'co jeśli?' impact simulation on 5 dimensions (revenue, costs, people, operations, reputation). Create, analyze, compare scenarios.",
+             inputSchema={"type": "object", "properties": {
+                 "action": {"type": "string", "enum": ["list", "create", "analyze", "compare", "auto_scan"], "default": "list"},
+                 "title": {"type": "string", "description": "Scenario title (for create)"},
+                 "description": {"type": "string", "description": "Scenario description (for create)"},
+                 "scenario_type": {"type": "string", "enum": ["risk", "opportunity", "strategic"], "default": "risk"},
+                 "scenario_id": {"type": "integer", "description": "Scenario ID (for analyze)"},
+                 "ids": {"type": "string", "description": "Comma-separated IDs (for compare)"},
+                 "status": {"type": "string", "description": "Filter by status (draft/analyzed/archived)"},
+             }}),
+        Tool(name="gilbertus_market",
+             description="Market intelligence: energy market monitoring (TGE, URE, PSE, BiznesAlert, CIRE). RSS feeds, price changes, regulations, tenders, trends. Dashboard, scan, alerts.",
+             inputSchema={"type": "object", "properties": {
+                 "action": {"type": "string", "enum": ["dashboard", "scan", "insights", "sources", "add_source", "alerts"], "default": "dashboard"},
+                 "days": {"type": "integer", "default": 7},
+                 "insight_type": {"type": "string", "enum": ["price_change", "regulation", "tender", "trend", "risk"]},
+                 "min_relevance": {"type": "integer", "default": 0},
+                 "name": {"type": "string", "description": "Source name (for add_source)"},
+                 "url": {"type": "string", "description": "Source URL (for add_source)"},
+             }}),
+        Tool(name="gilbertus_competitors",
+             description="Competitor intelligence: track Tauron, PGE, Enea, Energa, Orlen + custom. KRS changes, media, signals, SWOT analysis. Weekly landscape.",
+             inputSchema={"type": "object", "properties": {
+                 "action": {"type": "string", "enum": ["landscape", "add", "scan", "analyze", "signals"], "default": "landscape"},
+                 "name": {"type": "string", "description": "Competitor name (for add)"},
+                 "krs_number": {"type": "string", "description": "KRS number (for add)"},
+                 "competitor_id": {"type": "integer", "description": "Competitor ID (for analyze/signals)"},
+                 "signal_type": {"type": "string", "enum": ["krs_change", "hiring", "media", "tender", "financial"]},
+                 "days": {"type": "integer", "default": 30},
+             }}),
     ]
 
 
@@ -571,6 +602,82 @@ async def call_tool(name: str, arguments: dict):
         else:
             from app.analysis.org_health import get_health_trend
             result = get_health_trend(weeks=arguments.get("weeks", 8))
+        r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+    elif name == "gilbertus_scenarios":
+        action = arguments.get("action", "list")
+        if action == "list":
+            from app.analysis.scenario_analyzer import list_scenarios
+            result = list_scenarios(status=arguments.get("status"))
+        elif action == "create" and arguments.get("title"):
+            from app.analysis.scenario_analyzer import create_scenario
+            result = create_scenario(
+                title=arguments["title"],
+                description=arguments.get("description", ""),
+                scenario_type=arguments.get("scenario_type", "risk"))
+        elif action == "analyze" and arguments.get("scenario_id"):
+            from app.analysis.scenario_analyzer import analyze_scenario
+            result = analyze_scenario(arguments["scenario_id"])
+        elif action == "compare" and arguments.get("ids"):
+            from app.analysis.scenario_analyzer import compare_scenarios
+            id_list = [int(x.strip()) for x in arguments["ids"].split(",") if x.strip().isdigit()]
+            result = compare_scenarios(id_list)
+        elif action == "auto_scan":
+            from app.analysis.scenario_analyzer import run_auto_scenarios
+            result = run_auto_scenarios()
+        else:
+            result = {"error": "Specify action: list, create (title), analyze (scenario_id), compare (ids), auto_scan"}
+        r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+    elif name == "gilbertus_market":
+        action = arguments.get("action", "dashboard")
+        if action == "dashboard":
+            from app.analysis.market_intelligence import get_market_dashboard
+            result = get_market_dashboard(days=arguments.get("days", 7))
+        elif action == "scan":
+            from app.analysis.market_intelligence import run_market_scan
+            result = run_market_scan()
+        elif action == "insights":
+            from app.analysis.market_intelligence import get_market_insights
+            result = get_market_insights(
+                insight_type=arguments.get("insight_type"),
+                min_relevance=arguments.get("min_relevance", 0))
+        elif action == "sources":
+            from app.analysis.market_intelligence import get_market_dashboard
+            result = get_market_dashboard(days=1)
+            result = {"sources": result.get("sources", [])}
+        elif action == "add_source" and arguments.get("name") and arguments.get("url"):
+            from app.analysis.market_intelligence import add_market_source
+            result = add_market_source(arguments["name"], arguments["url"])
+        elif action == "alerts":
+            from app.analysis.market_intelligence import get_market_alerts
+            result = get_market_alerts()
+        else:
+            result = {"error": "Specify action: dashboard, scan, insights, sources, add_source (name+url), alerts"}
+        r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+    elif name == "gilbertus_competitors":
+        action = arguments.get("action", "landscape")
+        if action == "landscape":
+            from app.analysis.competitor_intelligence import get_competitive_landscape
+            result = get_competitive_landscape()
+        elif action == "add" and arguments.get("name"):
+            from app.analysis.competitor_intelligence import add_competitor
+            result = add_competitor(
+                name=arguments["name"],
+                krs_number=arguments.get("krs_number"),
+                watch_level=arguments.get("watch_level", "active"))
+        elif action == "scan":
+            from app.analysis.competitor_intelligence import run_competitor_scan
+            result = run_competitor_scan()
+        elif action == "analyze" and arguments.get("competitor_id"):
+            from app.analysis.competitor_intelligence import analyze_competitor
+            result = analyze_competitor(arguments["competitor_id"])
+        elif action == "signals":
+            from app.analysis.competitor_intelligence import get_competitor_signals
+            result = get_competitor_signals(
+                competitor_id=arguments.get("competitor_id"),
+                signal_type=arguments.get("signal_type"),
+                days=arguments.get("days", 30))
+        else:
+            result = {"error": "Specify action: landscape, add (name), scan, analyze (competitor_id), signals"}
         r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
     else:
         r = f"Unknown tool: {name}"

@@ -105,6 +105,19 @@ def classify_message(text: str) -> dict:
     GTD_KEYWORDS = ["gtd:"]
     DECISION_KEYWORDS = ["decision:", "decyzja:"]
 
+    # Quick query commands — return data instantly, no AI needed
+    QUERY_COMMANDS = {
+        "brief": "brief", "poranny brief": "brief", "morning brief": "brief",
+        "market": "market", "rynek": "market", "energia": "market",
+        "competitors": "competitors", "konkurencja": "competitors", "konkurenci": "competitors",
+        "status": "status", "stan systemu": "status", "gilbertus status": "status",
+        "scenarios": "scenarios", "scenariusze": "scenarios",
+        "alerts": "alerts", "alerty": "alerts",
+    }
+    for cmd_prefix, cmd_type in QUERY_COMMANDS.items():
+        if text_lower == cmd_prefix or text_lower.startswith(cmd_prefix + " "):
+            return {"type": "query_command", "command": cmd_type, "text": text}
+
     # Communication commands: authorize, revoke, list orders, digest
     COMM_COMMANDS = ["authorize:", "revoke #", "list orders", "lista zlecen", "standing orders", "digest", "raport", "co wyslales", "authority ", "outcome #", "skip #", "remind #", "cancel #", "extend #"]
     is_comm = any(text_lower.startswith(c) for c in COMM_COMMANDS)
@@ -424,6 +437,85 @@ def process_new_messages():
                 if result:
                     send_whatsapp(result["response"])
                     log.info("Communication: {result['type']}")
+
+        elif msg_type == "query_command":
+            cmd = classification.get("command", "")
+            log.info("query_command", command=cmd)
+            try:
+                if cmd == "brief":
+                    from app.retrieval.morning_brief import generate_morning_brief
+                    result = generate_morning_brief(force=True)
+                    brief_text = result.get("text", "Nie udało się wygenerować briefu.")
+                    # Truncate for WhatsApp (max ~4000 chars)
+                    if len(brief_text) > 3500:
+                        brief_text = brief_text[:3500] + "\n\n_...skrócone_"
+                    send_whatsapp(f"📋 *Poranny Brief*\n\n{brief_text}")
+
+                elif cmd == "market":
+                    from app.analysis.market_intelligence import get_market_dashboard
+                    dashboard = get_market_dashboard(days=3)
+                    lines = ["📈 *Rynek energii (3 dni)*\n"]
+                    for ins in dashboard.get("insights", [])[:5]:
+                        lines.append(f"• [{ins['type']}] {ins['title']} (rel: {ins['relevance']})")
+                        if ins.get("impact"):
+                            lines.append(f"  _{ins['impact']}_")
+                    if dashboard.get("alerts"):
+                        lines.append(f"\n⚡ Aktywne alerty: {len(dashboard['alerts'])}")
+                    send_whatsapp("\n".join(lines) if len(lines) > 1 else "📈 Brak nowych insightów rynkowych.")
+
+                elif cmd == "competitors":
+                    from app.analysis.competitor_intelligence import get_competitive_landscape
+                    landscape = get_competitive_landscape()
+                    lines = ["🏢 *Konkurencja*\n"]
+                    for comp in landscape.get("competitors", [])[:7]:
+                        sig = comp.get("recent_signals_30d", 0)
+                        line = f"• {comp['name']}: {sig} sygnałów"
+                        if comp.get("high_severity"):
+                            line += f" ({comp['high_severity']} ⚠️)"
+                        lines.append(line)
+                        if comp.get("latest_analysis"):
+                            lines.append(f"  _{comp['latest_analysis'][:120]}_")
+                    send_whatsapp("\n".join(lines))
+
+                elif cmd == "scenarios":
+                    from app.analysis.scenario_analyzer import list_scenarios
+                    scenarios = list_scenarios(limit=5)
+                    lines = ["🔮 *Scenariusze*\n"]
+                    for sc in scenarios:
+                        impact = f"{sc['total_impact_pln']:,.0f} PLN" if sc.get("total_impact_pln") else "brak"
+                        lines.append(f"• [{sc['type']}] {sc['title']} — {impact} ({sc['status']})")
+                    send_whatsapp("\n".join(lines) if len(lines) > 1 else "🔮 Brak scenariuszy.")
+
+                elif cmd == "alerts":
+                    from app.analysis.market_intelligence import get_market_alerts
+                    market_alerts = get_market_alerts()
+                    lines = ["🚨 *Aktywne alerty*\n"]
+                    for ma in market_alerts[:5]:
+                        lines.append(f"• [{ma['level']}] {ma['message'][:150]}")
+                    send_whatsapp("\n".join(lines) if len(lines) > 1 else "🚨 Brak aktywnych alertów.")
+
+                elif cmd == "status":
+                    from app.db.postgres import get_pg_connection as _gc
+                    with _gc() as conn:
+                        with conn.cursor() as cur:
+                            cur.execute("SELECT COUNT(*) FROM chunks")
+                            chunks = cur.fetchone()[0]
+                            cur.execute("SELECT COUNT(*) FROM events")
+                            events = cur.fetchone()[0]
+                            cur.execute("SELECT COUNT(*) FROM entities")
+                            entities = cur.fetchone()[0]
+                    send_whatsapp(
+                        f"⚙️ *Gilbertus Status*\n\n"
+                        f"Chunks: {chunks:,}\n"
+                        f"Events: {events:,}\n"
+                        f"Entities: {entities:,}\n"
+                        f"MCP tools: 39\n"
+                        f"Crons: 30+\n"
+                        f"DB tables: 73"
+                    )
+            except Exception as e:
+                log.error("query_command_failed", command=cmd, error=str(e))
+                send_whatsapp(f"❌ Błąd: {str(e)[:200]}")
 
         elif msg_type == "approval":
             from app.orchestrator.action_pipeline import handle_approval_message

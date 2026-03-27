@@ -130,8 +130,9 @@ def sync_chat_messages(
             if not content or len(content) < 10:
                 continue
 
-            sender = msg.get("from", {})
-            sender_name = sender.get("user", {}).get("displayName") if sender else None
+            sender = msg.get("from") or {}
+            user = sender.get("user") or {}
+            sender_name = user.get("displayName") if user else None
             created = None
             if msg.get("createdDateTime"):
                 try:

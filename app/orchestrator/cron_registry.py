@@ -388,6 +388,33 @@ SEED_JOBS = [
      "description": "Quarterly employee evaluations", "category": "qc",
      "log_file": "/home/sebastian/personal-ai/logs/quarterly_eval.log",
      "users": ["sebastian"]},
+    # Wave 4: Proactive Command
+    {"job_name": "scenario_auto_scan", "schedule": "0 17 * * 0",
+     "command": "cd /home/sebastian/personal-ai && bash scripts/scenario_scan.sh",
+     "description": "Auto-generate scenarios from risk signals (Sunday 18:00 CET)", "category": "intelligence",
+     "log_file": "/home/sebastian/personal-ai/logs/scenario_scan.log",
+     "users": ["sebastian"]},
+    {"job_name": "market_scan_morning", "schedule": "0 6 * * 1-5",
+     "command": "cd /home/sebastian/personal-ai && bash scripts/market_scan.sh",
+     "description": "Market intelligence morning scan (7:00 CET weekdays)", "category": "intelligence",
+     "log_file": "/home/sebastian/personal-ai/logs/market_scan.log",
+     "users": ["sebastian"]},
+    {"job_name": "market_scan_afternoon", "schedule": "0 15 * * 1-5",
+     "command": "cd /home/sebastian/personal-ai && bash scripts/market_scan.sh",
+     "description": "Market intelligence afternoon update (16:00 CET weekdays)", "category": "intelligence",
+     "log_file": "/home/sebastian/personal-ai/logs/market_scan.log",
+     "users": ["sebastian"]},
+    {"job_name": "competitor_scan", "schedule": "0 19 * * 5",
+     "command": "cd /home/sebastian/personal-ai && bash scripts/competitor_scan.sh",
+     "description": "Competitor intelligence weekly scan (Friday 20:00 CET)", "category": "intelligence",
+     "log_file": "/home/sebastian/personal-ai/logs/competitor_scan.log",
+     "users": ["sebastian"]},
+    # Etap 1: Smart Alert Delivery
+    {"job_name": "smart_alert_delivery", "schedule": "*/30 8-21 * * *",
+     "command": "cd /home/sebastian/personal-ai && bash scripts/smart_alert_delivery.sh",
+     "description": "Smart alert delivery: market/competitor/predictive (every 30min 8-22 CET)", "category": "communication",
+     "log_file": "/home/sebastian/personal-ai/logs/smart_alert_delivery.log",
+     "users": ["sebastian"]},
 ]
 
 

@@ -219,6 +219,6 @@ if __name__ == "__main__":
 
     rules = get_active_rules()
     if rules:
-        log.info("\nActive self-rules ({len(rules)}):")
+        log.info("active_self_rules", count=len(rules))
         for r in rules:
-            log.info("[{r['importance']}] [{r['category']}] {r['rule']}")
+            log.info("self_rule", importance=r['importance'], category=r['category'], rule=r['rule'])

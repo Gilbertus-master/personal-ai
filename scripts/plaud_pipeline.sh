@@ -55,17 +55,22 @@ for r in needs:
     fname = r.get("filename", "?")
     try:
         requests.patch(f"{PLAUD_API}/file/{fid}", headers=headers,
-            json={"extra_data": {"tranConfig": {"language": "auto", "trans_type": 1}}}, timeout=15)
+            json={"extra_data": {"tranConfig": {"language": "auto", "trans_type": 1}}},
+            timeout=15, verify=False)
         resp = requests.post(f"{PLAUD_API}/ai/transsumm/{fid}",
             headers={**headers, "Origin": "https://web.plaud.ai", "Referer": "https://web.plaud.ai/"},
             json={"language": "auto", "summ_type": "1", "support_mul_summ": True,
-                  "info": json.dumps({"language": "auto", "summary_type": 1})}, timeout=30)
+                  "info": json.dumps({"language": "auto", "summary_type": 1})},
+            timeout=30, verify=False)
         status_code = resp.json().get("status")
+        msg = resp.json().get("msg", "")
         if status_code == 0:
             triggered += 1
             print(f"  Plaud triggered: {fname}")
+        else:
+            print(f"  Plaud cloud rejected: {fname} (status={status_code}, {msg}) — audio may not be synced from device")
     except Exception as e:
-        pass  # Will fall through to Whisper
+        print(f"  Plaud cloud error: {fname}: {e}")
 
 if triggered:
     print(f"  Waiting 30s for Plaud to process...")
