@@ -140,10 +140,15 @@ async def status():
 from omnius.api.routes.ask import router as ask_router
 from omnius.api.routes.commands import router as commands_router
 from omnius.api.routes.admin import router as admin_router
+from omnius.api.routes.plaud import router as plaud_router, webhook_router as plaud_webhook_router
 
 app.include_router(ask_router, prefix="/api/v1")
 app.include_router(commands_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1")
+app.include_router(plaud_router, prefix="/api/v1")
+
+# Plaud webhook (no versioning — Plaud sends to fixed URL)
+app.include_router(plaud_webhook_router)
 
 # Teams Bot router (no versioning — Bot Framework expects fixed path)
 try:

@@ -57,7 +57,9 @@ async def ask(request: Request, body: AskRequest, user: dict = None):
             latency_ms=0,
         )
 
-    # Full-text search with classification filter
+    # Full-text search with classification + ownership filter
+    # Personal docs visible only to owner, corporate docs visible per RBAC
+    user_id = user.get("user_id")
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -65,11 +67,14 @@ async def ask(request: Request, body: AskRequest, user: dict = None):
                 FROM omnius_chunks c
                 JOIN omnius_documents d ON d.id = c.document_id
                 WHERE c.classification = ANY(%s)
+                  AND (d.owner_user_id IS NULL
+                       OR d.owner_user_id = %s
+                       OR c.classification != 'personal')
                   AND to_tsvector('simple', c.content) @@ plainto_tsquery('simple', %s)
                 ORDER BY ts_rank(to_tsvector('simple', c.content),
                                  plainto_tsquery('simple', %s)) DESC
                 LIMIT 15
-            """, (classifications, body.query, body.query))
+            """, (classifications, user_id, body.query, body.query))
             matches = cur.fetchall()
 
     if not matches:

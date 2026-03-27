@@ -5,14 +5,15 @@ from typing import Any
 
 # Classification levels — what each role can see
 CLASSIFICATION_ACCESS: dict[str, list[str]] = {
-    "gilbertus_admin": ["public", "internal", "confidential", "ceo_only"],
+    "gilbertus_admin": ["public", "internal", "confidential", "ceo_only", "personal"],
     "operator": [],  # No access to business data — infra/dev role only
-    "ceo": ["public", "internal", "confidential", "ceo_only"],
-    "board": ["public", "internal", "confidential"],
-    "director": ["public", "internal"],
-    "manager": ["public", "internal"],
-    "specialist": ["public"],
+    "ceo": ["public", "internal", "confidential", "ceo_only", "personal"],
+    "board": ["public", "internal", "confidential", "personal"],
+    "director": ["public", "internal", "personal"],
+    "manager": ["public", "internal", "personal"],
+    "specialist": ["public", "personal"],
 }
+# NOTE: "personal" docs are further filtered by owner_user_id in /ask query
 
 # Admin bypass level — gilbertus_admin skips all permission checks
 ADMIN_BYPASS_LEVEL = 99
