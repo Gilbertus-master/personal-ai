@@ -60,7 +60,22 @@ if ! ssh $SSH_OPTS ${REMOTE_USER}@${REMOTE_HOST} "echo 'SSH OK'" 2>/dev/null; th
     exit 1
 fi
 
-# 2. Sync omnius/ code via rsync
+# 2. Pre-deploy non-regression check (ZASADA ZERO)
+echo ""
+echo ">>> Non-regression check (pre-deploy)..."
+if python3 scripts/non_regression_gate.py check 2>/dev/null; then
+    echo "  ✅ Gilbertus baseline OK"
+else
+    echo "  ❌ NON-REGRESSION FAILED — deploy blocked"
+    echo "  Run: python3 scripts/non_regression_gate.py check"
+    exit 1
+fi
+
+# Save pre-deploy snapshot for post-deploy comparison
+python3 scripts/non_regression_gate.py snapshot pre_deploy 2>/dev/null || true
+echo "  Pre-deploy snapshot saved"
+
+# 3. Sync omnius/ code via rsync
 echo ""
 echo ">>> Syncing code (omnius/ → ${REMOTE_HOST}:${REMOTE_DIR}/omnius/)..."
 rsync -avz --delete \
@@ -104,8 +119,34 @@ if [ "$STATUS" = "ok" ]; then
     COMMIT=$(git log --oneline -1 2>/dev/null || echo "unknown")
     echo "  Commit: $COMMIT"
     echo "  Time: $(date '+%Y-%m-%d %H:%M:%S %Z')"
+
+    # Post-deploy non-regression check
+    echo ""
+    echo ">>> Post-deploy non-regression check..."
+    if python3 scripts/non_regression_gate.py compare pre_deploy 2>/dev/null; then
+        echo "  ✅ No regression detected"
+    else
+        echo "  ⚠️  Regression detected — consider rollback"
+        echo "  Rollback: ssh $SSH_OPTS ${REMOTE_USER}@${REMOTE_HOST} 'cd ${REMOTE_DIR} && docker compose -f omnius/docker-compose.yml down && docker compose -f omnius/docker-compose.yml up -d'"
+    fi
 else
     echo ""
-    echo "⚠️  Deploy completed but health check returned: $STATUS"
-    echo "  Check logs: ssh $SSH_OPTS ${REMOTE_USER}@${REMOTE_HOST} 'docker logs omnius-api --tail 50'"
+    echo "❌ Deploy FAILED — health check returned: $STATUS"
+    echo "  Attempting rollback..."
+
+    # Auto-rollback: restart with previous image
+    ssh $SSH_OPTS ${REMOTE_USER}@${REMOTE_HOST} \
+        "cd ${REMOTE_DIR} && docker compose -f omnius/docker-compose.yml down && docker compose -f omnius/docker-compose.yml up -d" 2>/dev/null || true
+
+    echo "  Rollback attempted. Check logs:"
+    echo "  ssh $SSH_OPTS ${REMOTE_USER}@${REMOTE_HOST} 'docker logs omnius-api --tail 50'"
+
+    # Alert via WhatsApp
+    if command -v openclaw &>/dev/null || [ -f "$HOME/.npm-global/bin/openclaw" ]; then
+        OPENCLAW="${HOME}/.npm-global/bin/openclaw"
+        $OPENCLAW message send --channel whatsapp --target "+48505441635" \
+            --message "⚠️ Omnius $TENANT deploy FAILED + auto-rollback. Health: $STATUS. Commit: $(git log --oneline -1)" 2>/dev/null || true
+    fi
+
+    exit 1
 fi
