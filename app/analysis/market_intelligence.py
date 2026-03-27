@@ -33,22 +33,33 @@ client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"), timeout=60.0)
 
 FETCH_TIMEOUT = 15  # seconds
 
-MARKET_ANALYSIS_PROMPT = """Jesteś analitykiem rynku energetycznego pracującym dla Respect Energy Holding (REH) i Respect Energy Fuels (REF).
-REH zajmuje się tradingiem energii i OZE. REF to obrót paliwami.
+MARKET_ANALYSIS_PROMPT = """Jesteś senior analitykiem rynku energetycznego. Twój klient:
+- Respect Energy Holding (REH): trading energii elektrycznej i gazu, portfel OZE (farmy wiatrowe, PV), kontrakty PPA, aktywny na TGE i OTC
+- Respect Energy Fuels (REF): obrót paliwami płynnymi (benzyna, ON, LPG)
 
-Przeanalizuj poniższe wiadomości rynkowe i dla każdej wyodrębnij insight:
+Kontekst tradingowy REH: pozycje na TGE (BASE, PEAK, GAS), kontrakty forward/spot, hedging OZE, bilansowanie portfela. Kluczowe: ceny energii i gazu, regulacje URE/PSE, przetargi OZE, zmiany w systemie rozliczeń.
+
+Kontekst REF: marże na paliwa, regulacje cenowe (np. CPN), przetargi publiczne na dostawy, logistyka.
+
+Przeanalizuj wiadomości rynkowe i dla KAŻDEJ ISTOTNEJ wyodrębnij insight:
 - insight_type: price_change | regulation | tender | trend | risk
-- title: krótki tytuł (po polsku, max 80 znaków)
-- description: 1-2 zdania opisu i kontekstu
-- impact_assessment: jak to wpływa na REH/REF (1 zdanie)
-- relevance_score: 0-100 (100 = krytyczne dla REH/REF)
-- companies_affected: lista firm których dotyczy (["REH", "REF"] lub inne)
+- title: max 80 znaków, po polsku, konkretny
+- description: 2-3 zdania — co się stało, jaki kontekst, dlaczego ważne
+- impact_assessment: konkretny wpływ na REH lub REF (marże, pozycje, compliance, strategia)
+- relevance_score: 0-100 (90+ = wymaga natychmiastowej reakcji, 70-89 = ważne strategicznie, 50-69 = warte uwagi)
+- companies_affected: ["REH"] i/lub ["REF"]
 
-Ignoruj wiadomości nieistotne dla sektora energetycznego.
-Zwróć TYLKO JSON array:
-[{"insight_type": "...", "title": "...", "description": "...", "impact_assessment": "...", "relevance_score": 75, "companies_affected": ["REH"], "source_item_ids": [1,2]}]
+Kryteria istotności:
+- Zmiany cen energii/gazu na TGE → 80+
+- Nowe regulacje URE/PSE → 75+
+- Przetargi OZE/PPA → 70+
+- Zmiany w systemie rozliczeń TGE → 85+
+- Regulacje paliwowe (CPN, akcyza) → 80+ dla REF
+- Magazyny energii, BESS → 65+
+- Ogólne trendy energetyczne → 50-65
 
-Jeśli żadna wiadomość nie jest istotna, zwróć pustą tablicę: []"""
+Ignoruj: sport, politykę niezwiązaną z energetyką, eventy PR.
+Respond ONLY with JSON array. Pusta tablica [] jeśli nic istotnego."""
 
 # Default RSS sources for Polish energy market
 DEFAULT_SOURCES = [
@@ -64,6 +75,18 @@ DEFAULT_SOURCES = [
      "url": "https://wysokienapiecie.pl/feed/", "fetch_config": {}},
     {"name": "Gramwzielone.pl", "source_type": "rss",
      "url": "https://www.gramwzielone.pl/feed", "fetch_config": {}},
+    {"name": "PSE - Komunikaty", "source_type": "rss",
+     "url": "https://www.pse.pl/rss/aktualnosci", "fetch_config": {}},
+    {"name": "TGE - Aktualności", "source_type": "rss",
+     "url": "https://tge.pl/rss", "fetch_config": {}},
+    {"name": "Instrat - Energia", "source_type": "rss",
+     "url": "https://instrat.pl/feed/", "fetch_config": {}},
+    {"name": "Rynekelektryczny.pl", "source_type": "rss",
+     "url": "https://www.rynekelektryczny.pl/feed/", "fetch_config": {}},
+    {"name": "Energetyka24.com", "source_type": "rss",
+     "url": "https://energetyka24.com/feed", "fetch_config": {}},
+    {"name": "Teraz Środowisko", "source_type": "rss",
+     "url": "https://www.teraz-srodowisko.pl/rss/media.xml", "fetch_config": {}},
 ]
 
 
