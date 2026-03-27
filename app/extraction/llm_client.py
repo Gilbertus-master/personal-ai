@@ -1,4 +1,3 @@
-import json
 import os
 from pathlib import Path
 from typing import Any
@@ -10,11 +9,14 @@ from anthropic import Anthropic, APIConnectionError, APITimeoutError
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env")
 
+# Haiku pricing per 1M tokens
+from app.db.cost_tracker import log_anthropic_cost  # noqa: E402
+
 
 class LLMExtractionClient:
-    def __init__(self) -> None:
+    def __init__(self, model_override: str | None = None, module: str = "extraction") -> None:
         api_key = os.getenv("ANTHROPIC_API_KEY")
-        model = os.getenv("ANTHROPIC_EXTRACTION_MODEL")
+        model = model_override or os.getenv("ANTHROPIC_EXTRACTION_MODEL")
 
         if not api_key:
             raise RuntimeError("ANTHROPIC_API_KEY is not set in .env")
@@ -22,6 +24,7 @@ class LLMExtractionClient:
             raise RuntimeError("ANTHROPIC_EXTRACTION_MODEL is not set in .env")
 
         self.model = model
+        self.module = module
         self.client = Anthropic(api_key=api_key, timeout=45.0)
 
     def extract_object(
@@ -36,7 +39,7 @@ class LLMExtractionClient:
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=1200,
-                system=system_prompt,
+                system=[{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}],
                 messages=[
                     {
                         "role": "user",
@@ -56,6 +59,9 @@ class LLMExtractionClient:
             raise RuntimeError(f"Anthropic extraction API connection/timeout error: {e}") from e
         except Exception as e:
             raise RuntimeError(f"Anthropic extraction API call failed: {e}") from e
+
+        if hasattr(response, "usage"):
+            log_anthropic_cost(self.model, self.module, response.usage)
 
         for block in response.content:
             if getattr(block, "type", None) == "tool_use" and getattr(block, "name", None) == tool_name:

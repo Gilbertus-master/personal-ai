@@ -11,7 +11,7 @@ import time
 from openai import RateLimitError
 
 from dotenv import load_dotenv
-from openai import OpenAI, RateLimitError, APIConnectionError, APITimeoutError
+from openai import OpenAI, APIConnectionError, APITimeoutError
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 import psycopg
@@ -51,13 +51,8 @@ def ensure_collection() -> None:
 
 
 def get_pg_connection():
-    return psycopg.connect(
-        host=POSTGRES_HOST,
-        port=POSTGRES_PORT,
-        dbname=POSTGRES_DB,
-        user=POSTGRES_USER,
-        password=POSTGRES_PASSWORD,
-    )
+    from app.db.postgres import get_pg_connection as _pool_conn
+    return _pool_conn()
 
 def count_tokens(text: str) -> int:
     return len(TOKENIZER.encode(text or ""))
@@ -114,6 +109,9 @@ def embed_texts(texts: list[str], max_retries: int = 10) -> list[list[float]]:
                 model=EMBEDDING_MODEL,
                 input=texts,
             )
+            from app.db.cost_tracker import log_openai_cost
+            if hasattr(resp, "usage") and hasattr(resp.usage, "total_tokens"):
+                log_openai_cost(EMBEDDING_MODEL, "retrieval.embeddings", resp.usage.total_tokens)
             return [item.embedding for item in resp.data]
 
         except RateLimitError:

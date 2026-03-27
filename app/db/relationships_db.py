@@ -4,7 +4,6 @@ Relationships DB — migration, seed data, and SQL helper functions.
 from __future__ import annotations
 
 import logging
-from datetime import date
 
 from app.db.postgres import get_pg_connection
 

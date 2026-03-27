@@ -1,13 +1,26 @@
 import json
+import signal
 import sys
 from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
 
-from app.extraction.llm_client import LLMExtractionClient
-from app.extraction.taxonomy import ENTITY_TYPES
-from app.db.postgres import get_pg_connection
+_shutdown_requested = False
+
+
+def _handle_sigterm(signum, frame):
+    global _shutdown_requested
+    _shutdown_requested = True
+    print("[SIGTERM] Graceful shutdown requested — finishing current chunk...")
+
+
+signal.signal(signal.SIGTERM, _handle_sigterm)
+signal.signal(signal.SIGINT, _handle_sigterm)
+
+from app.extraction.llm_client import LLMExtractionClient  # noqa: E402
+from app.extraction.taxonomy import ENTITY_TYPES  # noqa: E402
+from app.db.postgres import get_pg_connection  # noqa: E402
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -36,7 +49,6 @@ Rules:
 - If nothing clearly relevant is present, return an empty list.
 - mention_text must be a short explicit surface form from the chunk.
 - confidence must be between 0 and 1.
-- Be conservative.
 """.strip()
 
 
@@ -67,9 +79,12 @@ ENTITY_TOOL_SCHEMA = {
 }
 
 
-def parse_args() -> tuple[int | None, int | None, bool, bool]:
+def parse_args() -> tuple[int | None, int | None, bool, bool, int, int, str | None]:
     candidates_only = False
     event_backfill_only = False
+    worker_id = 0
+    worker_total = 1
+    model_override = None
 
     if "--candidates-only" in sys.argv:
         candidates_only = True
@@ -79,12 +94,32 @@ def parse_args() -> tuple[int | None, int | None, bool, bool]:
         event_backfill_only = True
         sys.argv.remove("--event-backfill-only")
 
+    if "--model" in sys.argv:
+        idx = sys.argv.index("--model")
+        try:
+            model_override = sys.argv[idx + 1]
+        except IndexError:
+            raise ValueError("--model expects a model name")
+        sys.argv.pop(idx + 1)
+        sys.argv.pop(idx)
+
+    if "--worker" in sys.argv:
+        idx = sys.argv.index("--worker")
+        try:
+            parts = sys.argv[idx + 1].split("/")
+            worker_id = int(parts[0])
+            worker_total = int(parts[1])
+        except (IndexError, ValueError):
+            raise ValueError("--worker expects format N/M, e.g. --worker 0/6")
+        sys.argv.pop(idx + 1)
+        sys.argv.pop(idx)
+
     if len(sys.argv) >= 3 and sys.argv[1] == "--chunk-id":
         try:
             chunk_id = int(sys.argv[2])
         except ValueError:
             raise ValueError(f"Invalid chunk_id: {sys.argv[2]}")
-        return None, chunk_id, candidates_only, event_backfill_only
+        return None, chunk_id, candidates_only, event_backfill_only, worker_id, worker_total, model_override
 
     if len(sys.argv) >= 2:
         try:
@@ -93,9 +128,9 @@ def parse_args() -> tuple[int | None, int | None, bool, bool]:
             raise ValueError(f"Invalid limit: {sys.argv[1]}")
         if value <= 0:
             raise ValueError(f"Limit must be > 0, got: {value}")
-        return value, None, candidates_only, event_backfill_only
+        return value, None, candidates_only, event_backfill_only, worker_id, worker_total, model_override
 
-    return DEFAULT_LIMIT, None, candidates_only, event_backfill_only
+    return DEFAULT_LIMIT, None, candidates_only, event_backfill_only, worker_id, worker_total, model_override
 
 
 def _rows_to_chunk_dicts(rows: list[tuple]) -> list[dict[str, Any]]:
@@ -112,37 +147,55 @@ def _rows_to_chunk_dicts(rows: list[tuple]) -> list[dict[str, Any]]:
     return result
 
 
+MIN_TEXT_LENGTH = 50
+
+
 def fetch_candidate_chunks(
     limit: int,
     candidates_only: bool = False,
     event_backfill_only: bool = False,
+    worker_id: int = 0,
+    worker_total: int = 1,
 ) -> list[dict[str, Any]]:
+    partition_clause = ""
+    if worker_total > 1:
+        partition_clause = f"AND c.id %% {worker_total} = {worker_id}"
+
     if event_backfill_only:
-        sql = """
+        sql = f"""
         SELECT c.id, c.document_id, c.chunk_index, c.text
         FROM chunks c
         JOIN event_entity_backfill_candidates ebc ON ebc.chunk_id = c.id
         LEFT JOIN chunk_entities ce ON ce.chunk_id = c.id
-        WHERE ce.id IS NULL
+        LEFT JOIN chunks_entity_checked cec ON cec.chunk_id = c.id
+        WHERE ce.id IS NULL AND cec.chunk_id IS NULL
+          AND length(c.text) >= {MIN_TEXT_LENGTH}
+          {partition_clause}
         ORDER BY c.id
         LIMIT %s
         """
     elif candidates_only:
-        sql = """
+        sql = f"""
         SELECT c.id, c.document_id, c.chunk_index, c.text
         FROM chunks c
         JOIN event_candidate_chunks ecc ON ecc.chunk_id = c.id
         LEFT JOIN chunk_entities ce ON ce.chunk_id = c.id
-        WHERE ce.id IS NULL
+        LEFT JOIN chunks_entity_checked cec ON cec.chunk_id = c.id
+        WHERE ce.id IS NULL AND cec.chunk_id IS NULL
+          AND length(c.text) >= {MIN_TEXT_LENGTH}
+          {partition_clause}
         ORDER BY ecc.priority DESC, c.id
         LIMIT %s
         """
     else:
-        sql = """
+        sql = f"""
         SELECT c.id, c.document_id, c.chunk_index, c.text
         FROM chunks c
         LEFT JOIN chunk_entities ce ON ce.chunk_id = c.id
-        WHERE ce.id IS NULL
+        LEFT JOIN chunks_entity_checked cec ON cec.chunk_id = c.id
+        WHERE ce.id IS NULL AND cec.chunk_id IS NULL
+          AND length(c.text) >= {MIN_TEXT_LENGTH}
+          {partition_clause}
         ORDER BY c.id
         LIMIT %s
         """
@@ -235,11 +288,15 @@ def upsert_entity(entity: dict[str, Any]) -> int:
 
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
+            # 1. Exact match (case-insensitive)
             cur.execute(
                 """
                 SELECT id FROM entities
                 WHERE entity_type = %s
-                  AND (canonical_name = %s OR name = %s OR name = %s OR canonical_name = %s)
+                  AND (LOWER(TRIM(canonical_name)) = LOWER(TRIM(%s))
+                       OR LOWER(TRIM(name)) = LOWER(TRIM(%s))
+                       OR LOWER(TRIM(name)) = LOWER(TRIM(%s))
+                       OR LOWER(TRIM(canonical_name)) = LOWER(TRIM(%s)))
                 ORDER BY id LIMIT 1
                 """,
                 (entity_type, canonical_name, name, canonical_name, name),
@@ -248,6 +305,23 @@ def upsert_entity(entity: dict[str, Any]) -> int:
             if rows:
                 return rows[0][0]
 
+            # 2. Fuzzy match (trigram similarity > 0.7, same type)
+            cur.execute(
+                """
+                SELECT id FROM entities
+                WHERE entity_type = %s
+                  AND canonical_name %% %s
+                  AND similarity(canonical_name, %s) > 0.7
+                ORDER BY similarity(canonical_name, %s) DESC, id
+                LIMIT 1
+                """,
+                (entity_type, canonical_name, canonical_name, canonical_name),
+            )
+            rows = cur.fetchall()
+            if rows:
+                return rows[0][0]
+
+            # 3. Insert new
             cur.execute(
                 """
                 INSERT INTO entities (name, entity_type, canonical_name, created_at)
@@ -278,9 +352,19 @@ def insert_chunk_entity(chunk_id: int, entity_id: int, mention_text: str, confid
         conn.commit()
 
 
+def mark_entity_checked(chunk_id: int) -> None:
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO chunks_entity_checked (chunk_id) VALUES (%s) ON CONFLICT DO NOTHING",
+                (chunk_id,),
+            )
+        conn.commit()
+
+
 def main() -> None:
-    limit, chunk_id, candidates_only, event_backfill_only = parse_args()
-    llm = LLMExtractionClient()
+    limit, chunk_id, candidates_only, event_backfill_only, worker_id, worker_total, model_override = parse_args()
+    llm = LLMExtractionClient(model_override=model_override)
 
     if chunk_id is not None:
         rows = fetch_chunk_by_id(chunk_id)
@@ -290,13 +374,19 @@ def main() -> None:
             limit=limit or DEFAULT_LIMIT,
             candidates_only=candidates_only,
             event_backfill_only=event_backfill_only,
+            worker_id=worker_id,
+            worker_total=worker_total,
         )
-        print(f"Chunks to process: {len(rows)}")
+        print(f"Chunks to process: {len(rows)} (worker {worker_id}/{worker_total})")
 
     processed = 0
     mentions_written = 0
 
     for row in rows:
+        if _shutdown_requested:
+            print(f"[SHUTDOWN] Stopping after {processed} chunks.")
+            break
+
         current_chunk_id = row["chunk_id"]
         text = row["text"] or ""
 
@@ -313,15 +403,18 @@ def main() -> None:
             )
         )
 
-        for entity in entities:
-            entity_id = upsert_entity(entity)
-            insert_chunk_entity(
-                chunk_id=current_chunk_id,
-                entity_id=entity_id,
-                mention_text=entity["mention_text"],
-                confidence=float(entity["confidence"]),
-            )
-            mentions_written += 1
+        if entities:
+            for entity in entities:
+                entity_id = upsert_entity(entity)
+                insert_chunk_entity(
+                    chunk_id=current_chunk_id,
+                    entity_id=entity_id,
+                    mention_text=entity["mention_text"],
+                    confidence=float(entity["confidence"]),
+                )
+                mentions_written += 1
+        else:
+            mark_entity_checked(current_chunk_id)
 
         processed += 1
 

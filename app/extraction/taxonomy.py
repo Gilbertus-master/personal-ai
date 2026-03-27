@@ -15,4 +15,11 @@ EVENT_TYPES = [
     "health",
     "family",
     "milestone",
+    "deadline",
+    "commitment",
+    "escalation",
+    "blocker",
+    "task_assignment",
+    "approval",
+    "rejection",
 ]

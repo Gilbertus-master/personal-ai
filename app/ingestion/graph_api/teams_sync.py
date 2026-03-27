@@ -8,8 +8,7 @@ from __future__ import annotations
 import json
 import os
 import sys
-import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -48,7 +47,7 @@ def _save_delta_state(chat_id: str, delta_link: str) -> None:
             state = json.loads(DELTA_STATE_FILE.read_text())
         except json.JSONDecodeError:
             pass
-    state[chat_id] = {"delta_link": delta_link, "updated_at": datetime.now().isoformat()}
+    state[chat_id] = {"delta_link": delta_link, "updated_at": datetime.now(tz=timezone.utc).isoformat()}
     DELTA_STATE_FILE.write_text(json.dumps(state, indent=2))
 
 
@@ -187,7 +186,7 @@ def sync_all_chats(
 ) -> tuple[int, int]:
     """Sync all Teams chats."""
     token = get_access_token()
-    source_type = "company_teams"
+    source_type = "teams"
 
     source_id = insert_source(conn=None, source_type=source_type, source_name=source_name)
 

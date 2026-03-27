@@ -65,13 +65,8 @@ TARGET_DOCUMENT_IDS = [
 
 
 def get_pg_connection():
-    return psycopg.connect(
-        host=POSTGRES_HOST,
-        port=POSTGRES_PORT,
-        dbname=POSTGRES_DB,
-        user=POSTGRES_USER,
-        password=POSTGRES_PASSWORD,
-    )
+    from app.db.postgres import get_pg_connection as _pool_conn
+    return _pool_conn()
 
 
 qdrant = QDRANTClient = QdrantClient(url=QDRANT_URL)
