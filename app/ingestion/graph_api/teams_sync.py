@@ -63,7 +63,7 @@ def _load_delta_state(chat_id: str) -> str | None:
 
 def list_chats(token: str) -> list[dict[str, Any]]:
     """List all Teams chats the user is part of."""
-    user_path = f"users/{MS_GRAPH_USER_ID}" if MS_GRAPH_USER_ID else "me"
+    user_path = "me"  # Delegated permissions require /me/ for Teams
     url = f"{GRAPH_BASE}/{user_path}/chats"
     params = {"$top": "50", "$select": "id,topic,chatType,lastUpdatedDateTime"}
 
@@ -89,7 +89,7 @@ def sync_chat_messages(
     if delta_link:
         url = delta_link
     else:
-        user_path = f"users/{MS_GRAPH_USER_ID}" if MS_GRAPH_USER_ID else "me"
+        user_path = "me"  # Delegated permissions require /me/ for Teams
         url = f"{GRAPH_BASE}/{user_path}/chats/{chat_id}/messages"
 
     params = {"$top": "50"}
