@@ -159,6 +159,43 @@ async def list_tools():
                  "event_type_a": {"type": "string"}, "event_type_b": {"type": "string"},
                  "person": {"type": "string"},
              }}),
+        Tool(name="gilbertus_commitments",
+             description="Track commitments/promises. Shows open, overdue, fulfilled commitments per person. Check who delivered and who didn't.",
+             inputSchema={"type": "object", "properties": {
+                 "person": {"type": "string", "description": "Filter by person name (optional)"},
+                 "status": {"type": "string", "enum": ["open", "fulfilled", "broken", "overdue"], "default": "open"},
+                 "limit": {"type": "integer", "default": 20},
+             }}),
+        Tool(name="gilbertus_meeting_prep",
+             description="Get prep brief for upcoming meetings: attendee context, open loops, talking points, red flags.",
+             inputSchema={"type": "object", "properties": {}}),
+        Tool(name="gilbertus_sentiment",
+             description="Sentiment trend for a person over past weeks. Detects falling/rising sentiment, red flags.",
+             inputSchema={"type": "object", "properties": {
+                 "person": {"type": "string", "description": "Person name"},
+                 "weeks": {"type": "integer", "default": 8},
+             }, "required": ["person"]}),
+        Tool(name="gilbertus_wellbeing",
+             description="Sebastian's wellbeing monitor: stress, family, health, work-life balance scores and trends.",
+             inputSchema={"type": "object", "properties": {
+                 "weeks": {"type": "integer", "default": 8},
+             }}),
+        Tool(name="gilbertus_delegation",
+             description="Delegation effectiveness: who delivers on commitments, completion rates, on-time performance.",
+             inputSchema={"type": "object", "properties": {
+                 "person": {"type": "string", "description": "Person name (optional, shows ranking if omitted)"},
+             }}),
+        Tool(name="gilbertus_network",
+             description="Communication network analysis: who talks to whom, silos, bottlenecks, missing connections.",
+             inputSchema={"type": "object", "properties": {}}),
+        Tool(name="gilbertus_crons",
+             description="Cron registry: list, enable, disable cron jobs per user. Categories: backup, ingestion, extraction, intelligence, communication, qc.",
+             inputSchema={"type": "object", "properties": {
+                 "action": {"type": "string", "enum": ["list", "summary", "enable", "disable", "generate"], "default": "summary"},
+                 "user": {"type": "string", "default": "sebastian", "description": "Username (sebastian, roch, krystian)"},
+                 "job_name": {"type": "string", "description": "Job name (for enable/disable)"},
+                 "category": {"type": "string", "description": "Filter by category"},
+             }}),
     ]
 
 
@@ -316,6 +353,52 @@ async def call_tool(name: str, arguments: dict):
             except Exception as e:
                 results[t] = {"error": str(e)}
         r = json.dumps(results, ensure_ascii=False, indent=2, default=str) if tenants else "No Omnius tenants configured. Set OMNIUS_REH_URL and OMNIUS_REH_ADMIN_KEY in .env"
+    elif name == "gilbertus_commitments":
+        from app.analysis.commitment_tracker import get_open_commitments, get_commitment_summary
+        if arguments.get("person"):
+            result = get_commitment_summary(person_name=arguments["person"])
+        else:
+            result = get_open_commitments(limit=arguments.get("limit", 20))
+        r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+    elif name == "gilbertus_meeting_prep":
+        from app.analysis.meeting_prep import run_meeting_prep
+        r = json.dumps(run_meeting_prep(), ensure_ascii=False, indent=2, default=str)
+    elif name == "gilbertus_sentiment":
+        from app.analysis.sentiment_tracker import detect_sentiment_trends
+        result = detect_sentiment_trends(arguments["person"], weeks=arguments.get("weeks", 8))
+        r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+    elif name == "gilbertus_wellbeing":
+        from app.analysis.wellbeing_monitor import get_wellbeing_trend
+        r = json.dumps(get_wellbeing_trend(weeks=arguments.get("weeks", 8)), ensure_ascii=False, indent=2, default=str)
+    elif name == "gilbertus_delegation":
+        if arguments.get("person"):
+            from app.analysis.delegation_tracker import calculate_delegation_score
+            result = calculate_delegation_score(arguments["person"])
+        else:
+            from app.analysis.delegation_tracker import run_delegation_report
+            result = run_delegation_report()
+        r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+    elif name == "gilbertus_network":
+        from app.analysis.network_graph import run_network_analysis
+        r = json.dumps(run_network_analysis(), ensure_ascii=False, indent=2, default=str)
+    elif name == "gilbertus_crons":
+        from app.orchestrator.cron_registry import list_jobs, get_registry_summary, enable_job, disable_job, generate_crontab
+        action = arguments.get("action", "summary")
+        user = arguments.get("user", "sebastian")
+        if action == "summary":
+            result = get_registry_summary()
+        elif action == "list":
+            result = list_jobs(username=user, category=arguments.get("category"))
+        elif action == "enable" and arguments.get("job_name"):
+            result = enable_job(arguments["job_name"], user)
+        elif action == "disable" and arguments.get("job_name"):
+            result = disable_job(arguments["job_name"], user)
+        elif action == "generate":
+            r = generate_crontab(user)
+            return [TextContent(type="text", text=r)]
+        else:
+            result = {"error": "Specify action: list, summary, enable, disable, generate"}
+        r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
     else:
         r = f"Unknown tool: {name}"
     return [TextContent(type="text", text=r)]

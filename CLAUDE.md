@@ -20,14 +20,20 @@ Gilbertus Albans to prywatny mentat AI Sebastiana — system, który indeksuje d
 - **Źródła:** Teams (Graph API), email (Graph API + PST), WhatsApp (OpenClaw), Plaud (audio), dokumenty, ChatGPT
 - **Ekstrakcja:** Entities (5 typów) + Events (15 typów) via Claude Haiku, 24 workers, partycjonowane
 - **Delivery:** WhatsApp, Teams Bot, HTTP API (15 endpointów)
-- **Automatyzacja:** 28 cron jobów (ingestion co 5 min, extraction co 30 min, backup co 4h, brief o 7:00, QC daily 6:00, arch review Sun 22:00)
+- **Automatyzacja:** 37 cron jobów (ingestion co 5 min, extraction co 30 min, commitment extract co 30 min, meeting prep co 15 min 8-20, response drafter co 15 min 8-20, backup co 4h, brief o 7:00, weekly synthesis Sun 20:00, weekly analysis Fri 21:00, intelligence scan daily 22:00, QC daily 6:00)
 
-## MCP Tools (18)
+## MCP Tools (28)
 Gilbertus API jest dostępne jako MCP server (`mcp_gilbertus/server.py`).
 
 **Core (11):** `gilbertus_ask`, `gilbertus_timeline`, `gilbertus_summary`, `gilbertus_brief`, `gilbertus_alerts`, `gilbertus_status`, `gilbertus_db_stats`, `gilbertus_decide`, `gilbertus_people`, `gilbertus_lessons`, `gilbertus_costs`.
 
 **Extended (7):** `gilbertus_evaluate`, `gilbertus_propose_action`, `gilbertus_pending_actions`, `gilbertus_self_rules`, `gilbertus_opportunities`, `gilbertus_inefficiency`, `gilbertus_correlate`.
+
+**Intelligence (6):** `gilbertus_commitments`, `gilbertus_meeting_prep`, `gilbertus_sentiment`, `gilbertus_wellbeing`, `gilbertus_delegation`, `gilbertus_network`.
+
+**Operations (1):** `gilbertus_crons`.
+
+**Omnius (3):** `omnius_ask`, `omnius_command`, `omnius_status`.
 
 ## Komendy statusowe (gdy MCP niedostępny)
 ```bash

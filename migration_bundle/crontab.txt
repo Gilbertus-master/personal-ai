@@ -43,3 +43,27 @@ TZ=Europe/Warsaw
 
 # --- Quarterly employee evaluations (Q1/Q2/Q3/Q4 start) ---
 0 8 1 1,4,7,10 * cd /home/sebastian/personal-ai && bash scripts/quarterly_eval.sh >> /home/sebastian/personal-ai/logs/quarterly_eval.log 2>&1
+
+# === NEW: Commitment extraction (every 30 min, 500 per run, 4 workers) ===
+*/30 * * * * cd /home/sebastian/personal-ai && bash scripts/extract_commitments.sh 500 4 claude-haiku-4-5-20251001 >> /home/sebastian/personal-ai/logs/commitment_extract.log 2>&1
+
+# === NEW: Commitment overdue check (every 2h at :30) ===
+30 */2 * * * cd /home/sebastian/personal-ai && bash scripts/check_commitments.sh >> /home/sebastian/personal-ai/logs/commitment_check.log 2>&1
+
+# === NEW: Meeting prep brief (every 15 min, 8:00-20:00 CET) ===
+*/15 8-20 * * * cd /home/sebastian/personal-ai && bash scripts/meeting_prep.sh >> /home/sebastian/personal-ai/logs/meeting_prep.log 2>&1
+
+# === NEW: Meeting minutes generation (every 30 min) ===
+*/30 * * * * cd /home/sebastian/personal-ai && bash scripts/generate_minutes.sh >> /home/sebastian/personal-ai/logs/meeting_minutes.log 2>&1
+
+# === NEW: Smart Response Drafter (every 15 min, 8:00-20:00 CET) ===
+*/15 8-20 * * * cd /home/sebastian/personal-ai && bash scripts/response_drafter.sh 30 >> /home/sebastian/personal-ai/logs/response_drafter.log 2>&1
+
+# === NEW: Weekly analysis — sentiment + wellbeing + predictions (Friday 21:00 CET) ===
+0 21 * * 5 cd /home/sebastian/personal-ai && bash scripts/weekly_analysis.sh >> /home/sebastian/personal-ai/logs/weekly_analysis.log 2>&1
+
+# === NEW: Intelligence scan — contracts + delegation + blind spots + network (daily 22:00 CET) ===
+0 22 * * * cd /home/sebastian/personal-ai && bash scripts/intelligence_scan.sh >> /home/sebastian/personal-ai/logs/intelligence_scan.log 2>&1
+
+# === NEW: Weekly Executive Synthesis (Sunday 20:00 CET) ===
+0 20 * * 0 cd /home/sebastian/personal-ai && bash scripts/weekly_synthesis.sh >> /home/sebastian/personal-ai/logs/weekly_synthesis.log 2>&1

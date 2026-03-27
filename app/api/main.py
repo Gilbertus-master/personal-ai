@@ -1076,3 +1076,234 @@ def alerts(
             "latency_ms": latency_ms,
         },
     )
+
+
+# =========================
+# Commitment endpoints
+# =========================
+
+@app.get("/commitments")
+def list_commitments(person: str | None = None, status: str = "open", limit: int = 20):
+    """List commitments, optionally filtered by person and status."""
+    from app.analysis.commitment_tracker import get_open_commitments, get_commitment_summary
+    if person:
+        return get_commitment_summary(person_name=person)
+    return {"commitments": get_open_commitments(limit=limit)}
+
+@app.post("/commitments/check")
+def check_commitments():
+    """Run commitment check: overdue detection + fulfillment scan."""
+    from app.analysis.commitment_tracker import run_commitment_check
+    return run_commitment_check()
+
+
+# =========================
+# Meeting Prep endpoint
+# =========================
+
+@app.get("/meeting-prep")
+def meeting_prep():
+    """Get prep briefs for upcoming meetings."""
+    from app.analysis.meeting_prep import run_meeting_prep
+    return run_meeting_prep()
+
+
+# =========================
+# Meeting Minutes endpoints
+# =========================
+
+@app.get("/meeting-minutes")
+def list_minutes(limit: int = 10):
+    """List recent meeting minutes."""
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            try:
+                cur.execute("""
+                    SELECT id, document_id, title, meeting_date, participants, summary, created_at
+                    FROM meeting_minutes ORDER BY created_at DESC LIMIT %s
+                """, (limit,))
+                return [{"id": r[0], "document_id": r[1], "title": r[2],
+                         "date": str(r[3]) if r[3] else None, "participants": r[4],
+                         "summary": r[5], "created": str(r[6])} for r in cur.fetchall()]
+            except Exception:
+                return []
+
+@app.post("/meeting-minutes/generate")
+def generate_minutes():
+    """Generate minutes for unprocessed recordings."""
+    from app.analysis.meeting_minutes import run_minutes_generation
+    return run_minutes_generation()
+
+
+# =========================
+# Sentiment endpoints
+# =========================
+
+@app.get("/sentiment/{person_slug}")
+def person_sentiment(person_slug: str, weeks: int = 8):
+    """Get sentiment trend for a person."""
+    from app.analysis.sentiment_tracker import detect_sentiment_trends
+    name = person_slug.replace("-", " ").title()
+    return detect_sentiment_trends(name, weeks=weeks)
+
+@app.get("/sentiment-alerts")
+def sentiment_alerts():
+    """Get people with significant sentiment changes."""
+    from app.analysis.sentiment_tracker import get_sentiment_alerts
+    return {"alerts": get_sentiment_alerts()}
+
+
+# =========================
+# Wellbeing endpoint
+# =========================
+
+@app.get("/wellbeing")
+def wellbeing(weeks: int = 8):
+    """Get Sebastian's wellbeing trend."""
+    from app.analysis.wellbeing_monitor import get_wellbeing_trend
+    return get_wellbeing_trend(weeks=weeks)
+
+@app.post("/wellbeing/check")
+def wellbeing_check():
+    """Run wellbeing assessment for current week."""
+    from app.analysis.wellbeing_monitor import run_wellbeing_check
+    return run_wellbeing_check()
+
+
+# =========================
+# Contract endpoints
+# =========================
+
+@app.get("/contracts")
+def list_contracts(status: str = "active", limit: int = 20):
+    """List tracked contracts."""
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            try:
+                cur.execute("""
+                    SELECT id, title, parties, contract_type, value_pln, start_date,
+                           end_date, renewal_date, status, created_at
+                    FROM contracts WHERE status = %s ORDER BY end_date ASC NULLS LAST LIMIT %s
+                """, (status, limit))
+                return [{"id": r[0], "title": r[1], "parties": r[2], "type": r[3],
+                         "value_pln": float(r[4]) if r[4] else None,
+                         "start": str(r[5]) if r[5] else None, "end": str(r[6]) if r[6] else None,
+                         "renewal": str(r[7]) if r[7] else None, "status": r[8],
+                         "created": str(r[9])} for r in cur.fetchall()]
+            except Exception:
+                return []
+
+@app.get("/contracts/expiring")
+def expiring_contracts(days: int = 30):
+    """List contracts expiring within N days."""
+    from app.analysis.contract_tracker import check_expiring_contracts
+    return {"expiring": check_expiring_contracts(days_ahead=days)}
+
+
+# =========================
+# Delegation endpoint
+# =========================
+
+@app.get("/delegation")
+def delegation_report():
+    """Get delegation effectiveness ranking."""
+    from app.analysis.delegation_tracker import run_delegation_report
+    return run_delegation_report()
+
+@app.get("/delegation/{person_slug}")
+def person_delegation(person_slug: str, months: int = 3):
+    """Get delegation score for a person."""
+    from app.analysis.delegation_tracker import calculate_delegation_score
+    name = person_slug.replace("-", " ").title()
+    return calculate_delegation_score(name, months=months)
+
+
+# =========================
+# Blind Spots endpoint
+# =========================
+
+@app.get("/blind-spots")
+def blind_spots():
+    """Detect knowledge gaps in Gilbertus's data."""
+    from app.analysis.blind_spot_detector import run_blind_spot_scan
+    return run_blind_spot_scan()
+
+
+# =========================
+# Network Graph endpoint
+# =========================
+
+@app.get("/network")
+def network_graph():
+    """Communication network analysis."""
+    from app.analysis.network_graph import run_network_analysis
+    return run_network_analysis()
+
+
+# =========================
+# Predictive Alerts endpoint
+# =========================
+
+@app.get("/predictions")
+def predictive_alerts():
+    """Get active predictive alerts."""
+    from app.analysis.predictive_alerts import run_predictive_scan
+    return run_predictive_scan()
+
+
+# =========================
+# Weekly Synthesis endpoint
+# =========================
+
+@app.get("/weekly-synthesis")
+def weekly_synthesis(date: str | None = None, force: bool = False):
+    """Get or generate weekly executive synthesis."""
+    from app.retrieval.weekly_synthesis import generate_weekly_synthesis
+    return generate_weekly_synthesis(date=date, force=force)
+
+
+# =========================
+# Response Drafter endpoint
+# =========================
+
+@app.post("/response-drafter/run")
+def run_drafter(minutes: int = 30):
+    """Run the smart response drafter."""
+    from app.orchestrator.response_drafter import run_response_drafter
+    return run_response_drafter(minutes=minutes)
+
+
+# =========================
+# Cron Registry endpoints
+# =========================
+
+@app.get("/crons")
+def cron_list(user: str | None = None, category: str | None = None):
+    """List cron jobs from registry, optionally filtered by user and category."""
+    from app.orchestrator.cron_registry import list_jobs
+    return {"jobs": list_jobs(username=user, category=category)}
+
+@app.get("/crons/summary")
+def cron_summary():
+    """Cron registry summary: jobs by category and user."""
+    from app.orchestrator.cron_registry import get_registry_summary
+    return get_registry_summary()
+
+@app.post("/crons/{job_name}/enable")
+def cron_enable(job_name: str, user: str = "sebastian"):
+    """Enable a cron job for a user."""
+    from app.orchestrator.cron_registry import enable_job
+    return enable_job(job_name, user)
+
+@app.post("/crons/{job_name}/disable")
+def cron_disable(job_name: str, user: str = "sebastian"):
+    """Disable a cron job for a user."""
+    from app.orchestrator.cron_registry import disable_job
+    return disable_job(job_name, user)
+
+@app.get("/crons/generate/{user}")
+def cron_generate(user: str = "sebastian"):
+    """Generate crontab file for a user from registry."""
+    from app.orchestrator.cron_registry import generate_crontab
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse(generate_crontab(user))
