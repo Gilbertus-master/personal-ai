@@ -1,18 +1,27 @@
 from __future__ import annotations
 
 import os
+import time
 from collections import Counter
 
+import structlog
 from anthropic import Anthropic, APIConnectionError, APITimeoutError
+from anthropic._exceptions import OverloadedError
 from dotenv import load_dotenv
 
 load_dotenv()
 
+log = structlog.get_logger("answering")
+
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
 ANTHROPIC_FAST_MODEL = os.getenv("ANTHROPIC_FAST_MODEL", "claude-haiku-4-5")
+ANTHROPIC_FALLBACK_MODEL = os.getenv("ANTHROPIC_FALLBACK_MODEL", "claude-haiku-4-5")
 
 client = Anthropic(api_key=ANTHROPIC_API_KEY, timeout=60.0)
+
+MAX_RETRIES = 2
+RETRY_DELAY_S = 3
 
 # Max characters per chunk text sent to the answer model.
 # Limits context window size without dropping matches entirely.
@@ -256,29 +265,20 @@ Materiał źródłowy:
 
     model = _select_model(question_type, analysis_depth, answer_length)
 
-    try:
-        response = client.messages.create(
-            model=model,
-            max_tokens=max_tokens,
-            temperature=0.2,
-            system=system_prompt,
-            messages=[
-                {
-                    "role": "user",
-                    "content": user_prompt,
-                }
-            ],
-        )
-    except (APIConnectionError, APITimeoutError) as e:
-        print(f"[answering] ERROR: Claude API connection/timeout error: {e}")
-        return "Błąd połączenia z modelem AI. Spróbuj ponownie za chwilę."
-    except Exception as e:
-        print(f"[answering] ERROR: Claude API call failed: {e}")
+    response = _call_with_fallback(
+        model=model,
+        max_tokens=max_tokens,
+        temperature=0.2,
+        system=system_prompt,
+        user_prompt=user_prompt,
+    )
+    if response is None:
         return "Wystąpił błąd podczas generowania odpowiedzi. Spróbuj ponownie."
 
     from app.db.cost_tracker import log_anthropic_cost
+    actual_model = getattr(response, "model", model)
     if hasattr(response, "usage"):
-        log_anthropic_cost(model, "retrieval.answering", response.usage)
+        log_anthropic_cost(actual_model, "retrieval.answering", response.usage)
 
     parts = []
     for block in response.content:
@@ -286,3 +286,51 @@ Materiał źródłowy:
             parts.append(block.text)
 
     return "\n".join(parts).strip()
+
+
+def _call_with_fallback(
+    *,
+    model: str,
+    max_tokens: int,
+    temperature: float,
+    system: str,
+    user_prompt: str,
+):
+    """Call Anthropic API with retry + fallback to ANTHROPIC_FALLBACK_MODEL on overload."""
+    models_to_try = [model]
+    if ANTHROPIC_FALLBACK_MODEL and ANTHROPIC_FALLBACK_MODEL != model:
+        models_to_try.append(ANTHROPIC_FALLBACK_MODEL)
+
+    for current_model in models_to_try:
+        for attempt in range(MAX_RETRIES + 1):
+            try:
+                response = client.messages.create(
+                    model=current_model,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    system=system,
+                    messages=[{"role": "user", "content": user_prompt}],
+                )
+                if current_model != model:
+                    log.info("answered_with_fallback", primary=model, fallback=current_model)
+                return response
+            except OverloadedError:
+                log.warning(
+                    "model_overloaded",
+                    model=current_model,
+                    attempt=attempt + 1,
+                    max_retries=MAX_RETRIES,
+                )
+                if attempt < MAX_RETRIES:
+                    time.sleep(RETRY_DELAY_S * (attempt + 1))
+                # After max retries, fall through to next model
+            except (APIConnectionError, APITimeoutError) as e:
+                log.error("api_connection_error", model=current_model, error=str(e))
+                if attempt < MAX_RETRIES:
+                    time.sleep(RETRY_DELAY_S)
+            except Exception as e:
+                log.error("api_call_failed", model=current_model, error=str(e))
+                return None
+
+    log.error("all_models_exhausted", models=models_to_try)
+    return None

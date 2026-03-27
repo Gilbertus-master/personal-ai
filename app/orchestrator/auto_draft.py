@@ -101,8 +101,8 @@ def _generate_draft(context: str, source: str = "auto") -> dict[str, Any] | None
         draft = json.loads(text)
         draft["source"] = source
         return draft
-    except Exception:
-        log.info("Draft generation failed: {e}")
+    except Exception as e:
+        log.error("draft_generation_failed", error=str(e))
         return None
 
 
@@ -161,6 +161,15 @@ def run_auto_drafts() -> list[dict[str, Any]]:
         if draft:
             result = process_draft(draft)
             result["trigger"] = f"opportunity #{oid}"
+            # Link action_item back to opportunity to prevent re-drafting
+            if result.get("action_id"):
+                with get_pg_connection() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "UPDATE opportunities SET action_item_id = %s WHERE id = %s",
+                            (result["action_id"], oid),
+                        )
+                    conn.commit()
             results.append(result)
 
     # 2. Draft for stale alerts (decisions without follow-up)

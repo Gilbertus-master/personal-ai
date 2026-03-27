@@ -1,1 +1,17 @@
-{"mcp":21,"cron":27,"tables":39,"lessons":17,"timestamp":"2026-03-27 06:00 CET"}
+{
+  "mcp": 21,
+  "cron": 28,
+  "tables": 40,
+  "lessons": 18,
+  "chunks": 96567,
+  "events": 92737,
+  "entities": 35467,
+  "documents": 30982,
+  "insights": 122,
+  "people": 17,
+  "app_modules": 96,
+  "scripts": 75,
+  "api_healthy": 1,
+  "qdrant_healthy": 1,
+  "timestamp": "2026-03-27 18:56:10 CET"
+}

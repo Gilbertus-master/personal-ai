@@ -133,8 +133,8 @@ def classify_opportunities(events: list, chunks: list) -> list[dict[str, Any]]:
             if text.startswith("json"):
                 text = text[4:]
         return json.loads(text)
-    except Exception:
-        log.info("Classification error: {e}")
+    except Exception as e:
+        log.error("classification_error", error=str(e))
         return []
 
 
@@ -148,13 +148,24 @@ def save_opportunities(items: list[dict[str, Any]]) -> list[int]:
                     continue
 
                 # Dedup: skip if similar opportunity exists in last 24h
-                cur.execute("""
-                    SELECT id FROM opportunities
-                    WHERE opportunity_type = %s
-                      AND description = %s
-                      AND created_at > NOW() - INTERVAL '24 hours'
-                    LIMIT 1
-                """, (item["type"], item.get("description", "")))
+                # Check by event_ids overlap OR same type (max 1 per type per 24h)
+                event_ids = [int(x) for x in item.get("event_ids", []) if str(x).isdigit()]
+                if event_ids:
+                    cur.execute("""
+                        SELECT id FROM opportunities
+                        WHERE opportunity_type = %s
+                          AND source_event_ids && %s
+                          AND created_at > NOW() - INTERVAL '24 hours'
+                        LIMIT 1
+                    """, (item["type"], event_ids))
+                else:
+                    # No event_ids — dedup by type (max 1 per type per 24h)
+                    cur.execute("""
+                        SELECT id FROM opportunities
+                        WHERE opportunity_type = %s
+                          AND created_at > NOW() - INTERVAL '24 hours'
+                        LIMIT 1
+                    """, (item["type"],))
                 if cur.fetchall():
                     continue
 
@@ -207,20 +218,20 @@ def notify_top_opportunities(limit: int = 5) -> str:
 
 def run_opportunity_scan(hours: int = 2, notify: bool = True) -> dict[str, Any]:
     """Full scan pipeline: fetch → classify → save → notify."""
-    log.info("Opportunity scan (last {hours}h)...")
+    log.info("opportunity_scan_start", hours=hours)
 
     events, chunks = scan_recent_data(hours)
-    log.info("Data: {len(events)} events, {len(chunks)} chunks")
+    log.info("scan_data", events=len(events), chunks=len(chunks))
 
     if not events and not chunks:
         return {"status": "no_data", "events": 0, "chunks": 0}
 
     items = classify_opportunities(events, chunks)
     actionable = [i for i in items if i.get("type") != "none"]
-    log.info("Classified: {len(items)} total, {len(actionable)} actionable")
+    log.info("classified", total=len(items), actionable=len(actionable))
 
     saved_ids = save_opportunities(actionable)
-    log.info("Saved: {len(saved_ids)} new opportunities")
+    log.info("saved_opportunities", count=len(saved_ids))
 
     notification = ""
     # Auto-draft actions for top opportunities
@@ -229,8 +240,8 @@ def run_opportunity_scan(hours: int = 2, notify: bool = True) -> dict[str, Any]:
             from app.orchestrator.auto_draft import run_auto_drafts
             drafts = run_auto_drafts()
             log.info("auto_drafted", count=len(drafts))
-        except Exception:
-            log.info("Auto-draft failed: {e}")
+        except Exception as e:
+            log.error("auto_draft_failed", error=str(e))
 
     if notify and saved_ids:
         notification = notify_top_opportunities()
@@ -244,8 +255,8 @@ def run_opportunity_scan(hours: int = 2, notify: bool = True) -> dict[str, Any]:
                     capture_output=True, text=True, timeout=30,
                 )
                 log.info("WhatsApp notification sent")
-            except Exception:
-                log.info("WhatsApp send failed")
+            except Exception as e:
+                log.error("whatsapp_send_failed", error=str(e))
 
     return {
         "status": "ok",

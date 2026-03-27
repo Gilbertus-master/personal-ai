@@ -20,10 +20,14 @@ Gilbertus Albans to prywatny mentat AI Sebastiana — system, który indeksuje d
 - **Źródła:** Teams (Graph API), email (Graph API + PST), WhatsApp (OpenClaw), Plaud (audio), dokumenty, ChatGPT
 - **Ekstrakcja:** Entities (5 typów) + Events (15 typów) via Claude Haiku, 24 workers, partycjonowane
 - **Delivery:** WhatsApp, Teams Bot, HTTP API (15 endpointów)
-- **Automatyzacja:** 17+ cron jobów (ingestion co 5 min, extraction co 30 min, backup co 4h, brief o 7:00)
+- **Automatyzacja:** 28 cron jobów (ingestion co 5 min, extraction co 30 min, backup co 4h, brief o 7:00, QC daily 6:00, arch review Sun 22:00)
 
-## MCP Tools
-Gilbertus API jest dostępne jako MCP server. Toole: `gilbertus_ask`, `gilbertus_timeline`, `gilbertus_summary`, `gilbertus_brief`, `gilbertus_alerts`, `gilbertus_status`, `gilbertus_db_stats`, `gilbertus_decide`, `gilbertus_people`, `gilbertus_lessons`.
+## MCP Tools (18)
+Gilbertus API jest dostępne jako MCP server (`mcp_gilbertus/server.py`).
+
+**Core (11):** `gilbertus_ask`, `gilbertus_timeline`, `gilbertus_summary`, `gilbertus_brief`, `gilbertus_alerts`, `gilbertus_status`, `gilbertus_db_stats`, `gilbertus_decide`, `gilbertus_people`, `gilbertus_lessons`, `gilbertus_costs`.
+
+**Extended (7):** `gilbertus_evaluate`, `gilbertus_propose_action`, `gilbertus_pending_actions`, `gilbertus_self_rules`, `gilbertus_opportunities`, `gilbertus_inefficiency`, `gilbertus_correlate`.
 
 ## Komendy statusowe (gdy MCP niedostępny)
 ```bash

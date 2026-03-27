@@ -62,4 +62,16 @@ API_STATUS=$(curl -sf http://127.0.0.1:8000/health 2>/dev/null | python3 -c "imp
 QDRANT_STATUS=$(curl -sf http://127.0.0.1:6333/collections 2>/dev/null && echo "OK" || echo "DOWN")
 echo "  SERVICES: API=${API_STATUS}, Qdrant=${QDRANT_STATUS}"
 
+# 7. Ingestion health monitor (alerts on stale sources)
+echo "  INGESTION HEALTH:"
+.venv/bin/python -c "
+from app.analysis.ingestion_health_monitor import run_ingestion_health_check
+r = run_ingestion_health_check(notify=True)
+if r['stale_count'] > 0:
+    for s in r['sources']:
+        print(f\"    WARNING: {s['source_type']} stale ({s['hours_ago']:.0f}h, limit {s['threshold_hours']}h)\")
+else:
+    print('    OK (all sources fresh)')
+" 2>&1
+
 echo "[$(date '+%F %T')] Verification complete."
