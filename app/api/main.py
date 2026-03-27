@@ -1444,3 +1444,124 @@ def authority_suggestions():
     """Get adaptive authority level change suggestions."""
     from app.orchestrator.adaptive_authority import run_adaptive_authority
     return run_adaptive_authority()
+
+
+# =========================
+# Financial Framework endpoints
+# =========================
+
+@app.get("/finance")
+def financial_dashboard(company: str | None = None):
+    """Financial dashboard: metrics, budgets, alerts, API costs."""
+    from app.analysis.financial_framework import get_financial_dashboard
+    return get_financial_dashboard(company=company)
+
+@app.post("/finance/metric")
+def record_metric(company: str, metric_type: str, value: float, period_start: str, period_end: str, source: str = "manual"):
+    """Record a financial metric."""
+    from app.analysis.financial_framework import record_metric
+    return record_metric(company, metric_type, value, period_start, period_end, source)
+
+@app.post("/finance/budget")
+def set_budget(company: str, category: str, planned_amount: float, period_start: str, period_end: str):
+    """Set budget for a category."""
+    from app.analysis.financial_framework import record_budget
+    return record_budget(company, category, planned_amount, period_start, period_end)
+
+@app.post("/finance/estimate-cost")
+def estimate_cost(description: str):
+    """Estimate cost of a proposed action."""
+    from app.analysis.cost_estimator import estimate_cost
+    return estimate_cost(description)
+
+
+# =========================
+# Calendar Manager endpoints
+# =========================
+
+@app.get("/calendar/events")
+def calendar_events(days: int = 7):
+    """Get calendar events for next N days."""
+    from app.orchestrator.calendar_manager import get_calendar_events
+    return {"events": get_calendar_events(days_ahead=days)}
+
+@app.get("/calendar/conflicts")
+def calendar_conflicts(days: int = 3):
+    """Detect calendar conflicts."""
+    from app.orchestrator.calendar_manager import detect_conflicts
+    return {"conflicts": detect_conflicts(days_ahead=days)}
+
+@app.get("/calendar/analytics")
+def calendar_analytics(days: int = 30):
+    """Calendar usage analytics."""
+    from app.orchestrator.calendar_manager import get_calendar_analytics
+    return get_calendar_analytics(days=days)
+
+@app.get("/calendar/suggestions")
+def calendar_suggestions():
+    """Suggest meetings based on relationship data."""
+    from app.orchestrator.calendar_manager import suggest_meetings
+    return {"suggestions": suggest_meetings()}
+
+@app.post("/calendar/block-deep-work")
+def block_deep_work(date: str | None = None, start_hour: int = 9, end_hour: int = 11):
+    """Block deep work time on calendar."""
+    from app.orchestrator.calendar_manager import block_deep_work
+    return block_deep_work(date=date, start_hour=start_hour, end_hour=end_hour)
+
+
+# =========================
+# Meeting ROI endpoint
+# =========================
+
+@app.get("/meeting-roi")
+def meeting_roi():
+    """Meeting ROI analysis: which meetings are productive."""
+    from app.analysis.meeting_roi import run_meeting_roi_analysis
+    return run_meeting_roi_analysis()
+
+
+# =========================
+# Strategic Goals endpoints
+# =========================
+
+@app.get("/goals")
+def list_goals():
+    """List strategic goals with status."""
+    from app.analysis.strategic_goals import get_goals_summary
+    return get_goals_summary()
+
+@app.get("/goals/{goal_id}")
+def get_goal(goal_id: int):
+    """Get goal tree with sub-goals, dependencies, progress."""
+    from app.analysis.strategic_goals import get_goal_tree
+    return get_goal_tree(goal_id=goal_id)
+
+@app.post("/goals")
+def create_goal(title: str, target_value: float, unit: str = "PLN", deadline: str | None = None, company: str | None = None, area: str = "business"):
+    """Create a strategic goal."""
+    from app.analysis.strategic_goals import create_goal
+    return create_goal(title=title, target_value=target_value, unit=unit, deadline=deadline, company=company, area=area)
+
+@app.post("/goals/{goal_id}/progress")
+def update_progress(goal_id: int, value: float, note: str = ""):
+    """Update goal progress."""
+    from app.analysis.strategic_goals import update_goal_progress
+    return update_goal_progress(goal_id=goal_id, value=value, note=note)
+
+
+# =========================
+# Org Health endpoint
+# =========================
+
+@app.get("/org-health")
+def org_health(weeks: int = 8):
+    """Organizational health score and trend."""
+    from app.analysis.org_health import get_health_trend
+    return get_health_trend(weeks=weeks)
+
+@app.post("/org-health/assess")
+def assess_health():
+    """Run health assessment for current week."""
+    from app.analysis.org_health import run_health_assessment
+    return run_health_assessment()

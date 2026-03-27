@@ -85,3 +85,12 @@ TZ=Europe/Warsaw
 
 # === NEW: Communication effectiveness (monthly 1st at 21:00 CET) ===
 0 21 1 * * cd /home/sebastian/personal-ai && bash scripts/communication_effectiveness.sh >> /home/sebastian/personal-ai/logs/communication_effectiveness.log 2>&1
+
+# === NEW: Financial check (daily 23:00 CET) ===
+0 23 * * * cd /home/sebastian/personal-ai && bash scripts/financial_check.sh >> /home/sebastian/personal-ai/logs/financial_check.log 2>&1
+
+# === NEW: Calendar check (every 30 min, 8-20 CET) ===
+*/30 8-20 * * * cd /home/sebastian/personal-ai && bash scripts/calendar_check.sh >> /home/sebastian/personal-ai/logs/calendar_check.log 2>&1
+
+# === NEW: Goal tracking (daily 22:30 CET) ===
+30 22 * * * cd /home/sebastian/personal-ai && bash scripts/goal_tracking.sh >> /home/sebastian/personal-ai/logs/goal_tracking.log 2>&1

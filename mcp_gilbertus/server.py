@@ -222,6 +222,41 @@ async def list_tools():
              inputSchema={"type": "object", "properties": {
                  "days": {"type": "integer", "default": 30},
              }}),
+        Tool(name="gilbertus_finance",
+             description="Financial dashboard: company metrics (revenue, costs, cash), budget utilization, API costs, alerts. Record metrics and budgets.",
+             inputSchema={"type": "object", "properties": {
+                 "action": {"type": "string", "enum": ["dashboard", "api_costs", "record_metric", "set_budget", "estimate_cost"], "default": "dashboard"},
+                 "company": {"type": "string", "description": "Company name (REH/REF)"},
+                 "metric_type": {"type": "string"},
+                 "value": {"type": "number"},
+                 "period_start": {"type": "string"},
+                 "period_end": {"type": "string"},
+                 "description": {"type": "string", "description": "Action description for cost estimation"},
+             }}),
+        Tool(name="gilbertus_calendar",
+             description="Calendar management: view events, detect conflicts, suggest meetings, block deep work, analytics.",
+             inputSchema={"type": "object", "properties": {
+                 "action": {"type": "string", "enum": ["events", "conflicts", "suggest", "analytics", "block_deep_work"], "default": "events"},
+                 "days": {"type": "integer", "default": 7},
+             }}),
+        Tool(name="gilbertus_goals",
+             description="Strategic goal tracking: create goals, update progress, view goal tree, analyze risks. Links strategy to operations.",
+             inputSchema={"type": "object", "properties": {
+                 "action": {"type": "string", "enum": ["summary", "tree", "create", "update", "risks"], "default": "summary"},
+                 "goal_id": {"type": "integer"},
+                 "title": {"type": "string"},
+                 "target_value": {"type": "number"},
+                 "value": {"type": "number", "description": "Progress value (for update)"},
+                 "unit": {"type": "string", "default": "PLN"},
+                 "deadline": {"type": "string"},
+                 "company": {"type": "string"},
+             }}),
+        Tool(name="gilbertus_org_health",
+             description="Organizational health score (1-100): commitment rate, sentiment, communication, delegation, decisions, deep work, blind spots, alerts. Weekly trend.",
+             inputSchema={"type": "object", "properties": {
+                 "action": {"type": "string", "enum": ["assess", "trend"], "default": "trend"},
+                 "weeks": {"type": "integer", "default": 8},
+             }}),
     ]
 
 
@@ -462,6 +497,81 @@ async def call_tool(name: str, arguments: dict):
     elif name == "gilbertus_response_stats":
         from app.analysis.response_tracker import get_response_stats
         r = json.dumps(get_response_stats(days=arguments.get("days", 30)), ensure_ascii=False, indent=2, default=str)
+    elif name == "gilbertus_finance":
+        action = arguments.get("action", "dashboard")
+        if action == "dashboard":
+            from app.analysis.financial_framework import get_financial_dashboard
+            result = get_financial_dashboard(company=arguments.get("company"))
+        elif action == "api_costs":
+            from app.analysis.financial_framework import get_api_cost_summary
+            result = get_api_cost_summary()
+        elif action == "record_metric" and arguments.get("company") and arguments.get("metric_type"):
+            from app.analysis.financial_framework import record_metric
+            result = record_metric(arguments["company"], arguments["metric_type"],
+                                   arguments.get("value", 0), arguments.get("period_start", ""),
+                                   arguments.get("period_end", ""))
+        elif action == "set_budget" and arguments.get("company"):
+            from app.analysis.financial_framework import record_budget
+            result = record_budget(arguments["company"], arguments.get("metric_type", "general"),
+                                   arguments.get("value", 0), arguments.get("period_start", ""),
+                                   arguments.get("period_end", ""))
+        elif action == "estimate_cost" and arguments.get("description"):
+            from app.analysis.cost_estimator import estimate_cost
+            result = estimate_cost(arguments["description"])
+        else:
+            result = {"error": "Specify action: dashboard, api_costs, record_metric, set_budget, estimate_cost"}
+        r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+    elif name == "gilbertus_calendar":
+        action = arguments.get("action", "events")
+        if action == "events":
+            from app.orchestrator.calendar_manager import get_calendar_events
+            result = get_calendar_events(days_ahead=arguments.get("days", 7))
+        elif action == "conflicts":
+            from app.orchestrator.calendar_manager import detect_conflicts
+            result = detect_conflicts(days_ahead=arguments.get("days", 3))
+        elif action == "suggest":
+            from app.orchestrator.calendar_manager import suggest_meetings
+            result = suggest_meetings()
+        elif action == "analytics":
+            from app.orchestrator.calendar_manager import get_calendar_analytics
+            result = get_calendar_analytics(days=arguments.get("days", 30))
+        elif action == "block_deep_work":
+            from app.orchestrator.calendar_manager import block_deep_work
+            result = block_deep_work()
+        else:
+            result = {"error": "Specify action: events, conflicts, suggest, analytics, block_deep_work"}
+        r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+    elif name == "gilbertus_goals":
+        action = arguments.get("action", "summary")
+        if action == "summary":
+            from app.analysis.strategic_goals import get_goals_summary
+            result = get_goals_summary()
+        elif action == "tree":
+            from app.analysis.strategic_goals import get_goal_tree
+            result = get_goal_tree(goal_id=arguments.get("goal_id"))
+        elif action == "create" and arguments.get("title"):
+            from app.analysis.strategic_goals import create_goal
+            result = create_goal(title=arguments["title"], target_value=arguments.get("target_value", 0),
+                                 unit=arguments.get("unit", "PLN"), deadline=arguments.get("deadline"),
+                                 company=arguments.get("company"))
+        elif action == "update" and arguments.get("goal_id") and arguments.get("value") is not None:
+            from app.analysis.strategic_goals import update_goal_progress
+            result = update_goal_progress(arguments["goal_id"], arguments["value"])
+        elif action == "risks":
+            from app.analysis.strategic_goals import analyze_goal_risks
+            result = analyze_goal_risks()
+        else:
+            result = {"error": "Specify action: summary, tree, create (title+target), update (goal_id+value), risks"}
+        r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+    elif name == "gilbertus_org_health":
+        action = arguments.get("action", "trend")
+        if action == "assess":
+            from app.analysis.org_health import run_health_assessment
+            result = run_health_assessment()
+        else:
+            from app.analysis.org_health import get_health_trend
+            result = get_health_trend(weeks=arguments.get("weeks", 8))
+        r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
     else:
         r = f"Unknown tool: {name}"
     return [TextContent(type="text", text=r)]
