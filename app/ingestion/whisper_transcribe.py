@@ -47,20 +47,42 @@ def transcribe_audio(audio_path: str, language: str = "pl") -> dict[str, Any]:
     return resp.json()
 
 
-def get_plaud_audio_url(token: str, file_id: str) -> str | None:
-    """Get presigned download URL for Plaud recording audio."""
+def get_plaud_audio_url(token: str, rec: dict) -> str | None:
+    """Get presigned S3 download URL for Plaud recording audio.
+
+    Plaud uses two IDs:
+    - rec['id']       = short 20-char ID  (used in list, trigger)
+    - rec['fullname'] = long MD5 filename  (used for /file/temp-url)
+
+    The /file/temp-url endpoint requires the fullname (without extension).
+    """
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
-    try:
-        resp = requests.get(
-            f"{PLAUD_API}/file/temp-url/{file_id}",
-            headers=headers,
-            timeout=30,
-        )
-        resp.raise_for_status()
-        return resp.json().get("temp_url")
-    except Exception as e:
-        print(f"  Error getting audio URL: {e}")
-        return None
+
+    # Derive long file ID from fullname (strip extension)
+    fullname = rec.get("fullname") or rec.get("ori_fullname") or rec.get("id", "")
+    long_id = fullname.rsplit(".", 1)[0] if "." in fullname else fullname
+
+    # Fall back to short id if no fullname
+    ids_to_try = [long_id, rec.get("id", "")]
+    for file_id in ids_to_try:
+        if not file_id:
+            continue
+        try:
+            resp = requests.get(
+                f"{PLAUD_API}/file/temp-url/{file_id}",
+                headers=headers,
+                timeout=30,
+                verify=False,
+            )
+            data = resp.json()
+            url = data.get("temp_url")
+            if url:
+                return url
+        except Exception as e:
+            print(f"  temp-url error for {file_id}: {e}")
+
+    print(f"  No audio URL found for {rec.get('filename','?')}")
+    return None
 
 
 def download_audio(url: str, suffix: str = ".opus") -> str:
@@ -90,19 +112,24 @@ def chunk_text(text: str) -> list[str]:
 
 
 def transcribe_plaud_recordings(limit: int = 10) -> tuple[int, int]:
-    """Find Plaud recordings with uploaded audio but no transcription, transcribe locally."""
+    """Find Plaud recordings with no transcription, transcribe locally via Whisper."""
     token = get_plaud_token()
-    recs = list_recordings(token, limit=100)
 
-    # Filter: audio uploaded (ori_ready=True) but not transcribed
-    candidates = [r for r in recs if r.get("ori_ready") and not r.get("is_trans")]
-    print(f"Recordings with audio but no transcription: {len(candidates)}")
+    # Paginate all recordings
+    recs: list = []
+    skip = 0
+    while True:
+        batch = list_recordings(token, limit=50, skip=skip)
+        if not batch:
+            break
+        recs.extend(batch)
+        if len(batch) < 50:
+            break
+        skip += len(batch)
 
-    if not candidates:
-        # Also try recordings that aren't uploaded — check if we have local audio
-        print("No candidates with uploaded audio. Checking all unprocessed...")
-        candidates = [r for r in recs if not r.get("is_trans")][:limit]
-
+    # Filter: not yet transcribed and not already imported (check DB by plaud://whisper/ path)
+    candidates = [r for r in recs if not r.get("is_trans")]
+    print(f"Recordings without transcription: {len(candidates)} / {len(recs)} total")
     candidates = candidates[:limit]
     source_id = insert_source(conn=None, source_type="audio_transcript", source_name="whisper_local")
 
@@ -119,8 +146,8 @@ def transcribe_plaud_recordings(limit: int = 10) -> tuple[int, int]:
 
         print(f"  Processing: {name}")
 
-        # Get audio URL
-        audio_url = get_plaud_audio_url(token, file_id)
+        # Get audio URL (pass full rec dict for ID resolution)
+        audio_url = get_plaud_audio_url(token, rec)
         if not audio_url:
             print("    Skip: no audio URL")
             continue

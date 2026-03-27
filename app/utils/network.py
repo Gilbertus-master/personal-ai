@@ -230,10 +230,28 @@ def ssl_safe_download(
             tmp_path.unlink(missing_ok=True)
             raise
 
-    # Exhausted retries
+    # Exhausted retries -- fall back to curl -k (works reliably in WSL2 with MTU issues)
+    log.warning("ssl_safe_download: Python requests exhausted, falling back to curl -k")
     tmp_path.unlink(missing_ok=True)
+    try:
+        header_args: list[str] = []
+        for k, v in (headers or {}).items():
+            header_args += ["-H", f"{k}: {v}"]
+        result = subprocess.run(
+            ["curl", "-k", "-L", "-s", "-o", str(output_path)] + header_args + [url],
+            capture_output=True,
+            timeout=timeout,
+        )
+        if result.returncode == 0 and output_path.exists() and output_path.stat().st_size > 0:
+            log.info("curl fallback succeeded: %s (%d bytes)", output_path.name, output_path.stat().st_size)
+            return output_path
+        else:
+            log.error("curl fallback failed: %s", result.stderr.decode()[:200])
+    except Exception as curl_exc:
+        log.error("curl fallback exception: %s", curl_exc)
+
     raise ConnectionError(
-        f"ssl_safe_download failed after {max_retries} attempts for {url}"
+        f"ssl_safe_download failed after {max_retries} attempts + curl fallback for {url}"
     ) from last_exc
 
 

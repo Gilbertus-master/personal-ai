@@ -79,12 +79,28 @@ for r in needs_transcription:
         else:
             msg = data.get('msg', '?')
             err = data.get('err_msg', '')
-            print(f'  Trigger result {name}: status={data.get("status")} msg={msg} err={err}')
+            status_code = data.get('status')
+            print(f'  Trigger result {name}: status={status_code} msg={msg} err={err}')
     except Exception as e:
         print(f'  Error triggering {name}: {e}')
 
 if triggered:
     print(f'  Triggered {triggered} new transcriptions')
+
+# --- Step 2c: Fallback to local Whisper for any still-untranscribed ---
+if needs_transcription:
+    import subprocess, sys
+    whisper_script = os.path.join(os.path.dirname(os.path.abspath('.')), 'personal-ai/app/ingestion/whisper_transcribe.py')
+    whisper_script = 'app/ingestion/whisper_transcribe.py'
+    print(f'  Running local Whisper fallback for {len(needs_transcription)} recordings...')
+    result = subprocess.run(
+        [sys.executable, whisper_script, str(len(needs_transcription))],
+        capture_output=True, text=True, timeout=3600
+    )
+    if result.stdout:
+        print(result.stdout)
+    if result.returncode != 0 and result.stderr:
+        print(f'  Whisper error: {result.stderr[:200]}')
 
 # --- Step 3: Import all transcribed recordings (paginate) ---
 imported, chunks, skipped = sync_plaud(limit=50, sync_all=True)
