@@ -84,7 +84,7 @@ def _get_next_finding(exclude_files: list[str] | None = None) -> dict | None:
             if exclude:
                 placeholders = ",".join(["%s"] * len(exclude))
                 where_excl = f"AND file_path NOT IN ({placeholders})"
-                params = tuple(exclude) + (max_total,)
+                params = (max_total,) + tuple(exclude)
             else:
                 where_excl = ""
                 params = (max_total,)
