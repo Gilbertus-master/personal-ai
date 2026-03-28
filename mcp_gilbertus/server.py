@@ -2,11 +2,14 @@
 """
 MCP server exposing Gilbertus Albans API as tools for Claude Code.
 
-11 tools: ask, timeline, summary, brief, alerts, status, db_stats,
-          decide, people, lessons, costs.
+Supports tiered profiles to reduce context window usage:
+  python mcp_gilbertus/server.py           # core (8 tools, default)
+  python mcp_gilbertus/server.py --full    # all tools
+  python mcp_gilbertus/server.py --group people  # core + people tools
 
 Uses official mcp Python SDK with stdio transport.
 """
+import argparse
 import asyncio
 import json
 import os
@@ -28,6 +31,80 @@ GILBERTUS_API = os.getenv("GILBERTUS_API_URL", "http://127.0.0.1:8000")
 API_TIMEOUT = 60
 
 server = Server("gilbertus")
+
+# ---------------------------------------------------------------------------
+# Tool groups for tiered loading
+# ---------------------------------------------------------------------------
+TOOL_GROUPS = {
+    "core": [
+        "gilbertus_ask",
+        "gilbertus_brief",
+        "gilbertus_decide",
+        "gilbertus_propose_action",
+        "gilbertus_pending_actions",
+        "gilbertus_timeline",
+        "gilbertus_alerts",
+        "gilbertus_router",
+    ],
+    "people": [
+        "gilbertus_people", "gilbertus_sentiment", "gilbertus_commitments",
+        "gilbertus_delegation", "gilbertus_delegation_chain",
+        "gilbertus_response_stats", "gilbertus_network",
+        "gilbertus_meeting_prep", "gilbertus_evaluate",
+    ],
+    "business": [
+        "gilbertus_opportunities", "gilbertus_inefficiency", "gilbertus_correlate",
+        "gilbertus_process_intel", "gilbertus_workforce_analysis",
+        "gilbertus_org_health", "gilbertus_scenarios", "gilbertus_goals",
+        "gilbertus_decision_patterns",
+    ],
+    "finance": [
+        "gilbertus_finance", "gilbertus_market", "gilbertus_competitors",
+    ],
+    "omnius": [
+        "omnius_ask", "omnius_command", "omnius_status", "omnius_bridge",
+    ],
+    "system": [
+        "gilbertus_status", "gilbertus_db_stats", "gilbertus_lessons",
+        "gilbertus_costs", "gilbertus_crons", "gilbertus_authority",
+        "gilbertus_self_rules", "gilbertus_wellbeing", "gilbertus_calendar",
+        "gilbertus_summary",
+    ],
+}
+TOOL_GROUPS["full"] = sorted({t for group in TOOL_GROUPS.values() for t in group})
+
+# ---------------------------------------------------------------------------
+# CLI: select active profile
+# ---------------------------------------------------------------------------
+_parser = argparse.ArgumentParser(description="Gilbertus MCP Server")
+_parser.add_argument("--full", action="store_true", help="Load all tools (default: core only)")
+_parser.add_argument("--group", type=str, help="Load core + specific group: people, business, finance, omnius, system")
+_args, _ = _parser.parse_known_args()
+
+if _args.full:
+    ACTIVE_PROFILE = "full"
+elif _args.group and _args.group in TOOL_GROUPS:
+    ACTIVE_PROFILE = _args.group
+else:
+    ACTIVE_PROFILE = "core"
+
+# ---------------------------------------------------------------------------
+# Router keyword map (used by gilbertus_router tool)
+# ---------------------------------------------------------------------------
+ROUTER_KEYWORD_MAP = {
+    "people": ["osoba", "person", "relacja", "sentiment", "zobowiazanie",
+               "delegacja", "roch", "krystian", "diana", "spotkanie",
+               "odpowiedz", "siec", "ocen", "evaluat", "commitment"],
+    "business": ["proces", "cel", "scenariusz", "organizacja", "optymalizacja",
+                 "automatyzacja", "pracownik", "szansa", "ryzyko", "kpi", "goal",
+                 "workforce", "zastepow"],
+    "finance": ["finanse", "pieniadz", "cashflow", "budzet", "rynek", "trading",
+                "konkurent", "tge", "cena", "koszt", "revenue", "zysk", "market"],
+    "omnius": ["reh", "ref", "email", "teams", "ticket", "zadanie firmowe",
+               "wyslij", "utworz", "omnius", "spolka"],
+    "system": ["status", "cron", "koszt api", "zasady", "calendar", "kalendarz",
+               "brief", "summary", "podsumowanie", "zdrowie", "wellbeing", "lesson"],
+}
 
 
 def _api(method: str, path: str, data: dict | None = None) -> str:
@@ -66,7 +143,20 @@ def _sql(query: str) -> str:
 
 @server.list_tools()
 async def list_tools():
-    return [
+    all_tools = [
+        Tool(name="gilbertus_router",
+             description=(
+                 "USE THIS FIRST when the task needs tools beyond core. "
+                 "Describe your task -> get recommended tool groups and names. "
+                 "Groups: people (relationships, delegation, sentiment), "
+                 "business (processes, scenarios, goals, workforce), "
+                 "finance (financial dashboard, market, competitors), "
+                 "omnius (REH/REF corporate ops), "
+                 "system (status, costs, crons, calendar, self-rules)."
+             ),
+             inputSchema={"type": "object", "properties": {
+                 "task": {"type": "string", "description": "What you want to do (e.g. 'check Roch sentiment', 'REH cashflow')"},
+             }, "required": ["task"]}),
         Tool(name="gilbertus_ask",
              description="Search Sebastian's archive (31k+ docs) and get AI answer. Use for any question about past events, conversations, people, decisions.",
              inputSchema={"type": "object", "properties": {
@@ -310,10 +400,50 @@ async def list_tools():
              }}),
     ]
 
+    if ACTIVE_PROFILE == "full":
+        return all_tools
+
+    active_names = set(TOOL_GROUPS.get(ACTIVE_PROFILE, TOOL_GROUPS["core"]))
+    active_names.update(TOOL_GROUPS["core"])
+    return [t for t in all_tools if t.name in active_names]
+
 
 @server.call_tool()
 async def call_tool(name: str, arguments: dict):
-    if name == "gilbertus_ask":
+    if name == "gilbertus_router":
+        task = arguments.get("task", "")
+        task_lower = task.lower()
+        relevant_groups = ["core"]
+        recommendations = []
+        for group, keywords in ROUTER_KEYWORD_MAP.items():
+            if any(kw in task_lower for kw in keywords):
+                relevant_groups.append(group)
+                recommendations.append({
+                    "group": group,
+                    "tools": TOOL_GROUPS.get(group, []),
+                    "reason": f"Matches task: '{task[:60]}'"
+                })
+        if not recommendations:
+            recommendations.append({
+                "group": "core",
+                "tools": TOOL_GROUPS["core"],
+                "reason": "Core tools are sufficient. If not, restart with --full."
+            })
+        result = {
+            "task": task,
+            "active_profile": ACTIVE_PROFILE,
+            "matched_groups": relevant_groups,
+            "recommendations": recommendations,
+            "note": (
+                "Tools outside core are only available in --full or --group mode. "
+                "Restart: python mcp_gilbertus/server.py --full"
+                if ACTIVE_PROFILE == "core" else
+                f"Currently loaded: {ACTIVE_PROFILE} profile."
+            ),
+            "all_groups": list(TOOL_GROUPS.keys()),
+        }
+        r = json.dumps(result, ensure_ascii=False, indent=2)
+    elif name == "gilbertus_ask":
         r = _api("POST", "/ask", {"query": arguments["query"], "answer_length": arguments.get("answer_length", "long")})
     elif name == "gilbertus_timeline":
         r = _api("POST", "/timeline", {k: v for k, v in arguments.items() if v is not None})
