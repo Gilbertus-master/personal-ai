@@ -104,3 +104,12 @@ if [ "$ISSUES" -eq 0 ]; then
 else
     log "=== $ISSUES issue(s) detected ==="
 fi
+
+# 11. Python-based deep health check (DB baseline, extraction, API costs, WhatsApp alerts)
+log "Running deep health check..."
+"$PROJECT/.venv/bin/python" -c "
+from app.analysis.health_monitor import run_health_check
+import json
+result = run_health_check(send_alerts=True)
+print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+" 2>&1 || log "Deep health check failed"
