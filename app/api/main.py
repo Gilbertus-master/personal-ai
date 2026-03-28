@@ -423,6 +423,29 @@ def _get_last_backup_timestamp() -> str | None:
         return raw
 
 
+@app.get("/code-fixes/manual-queue")
+def manual_fix_queue() -> list[dict]:
+    """Findings that exhausted auto-fix attempts and need manual review."""
+    from app.db.postgres import get_pg_connection
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, file_path, severity, category, title,
+                       LEFT(description, 300) as description,
+                       fix_attempt_count, fix_attempted_at
+                FROM code_review_findings
+                WHERE manual_review = TRUE AND resolved = FALSE
+                ORDER BY
+                    CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1
+                        WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 9 END,
+                    created_at ASC
+            """)
+            return [{"id": r[0], "file": r[1], "severity": r[2],
+                     "category": r[3], "title": r[4], "description": r[5],
+                     "attempts": r[6], "last_attempt": str(r[7])}
+                    for r in cur.fetchall()]
+
+
 @app.get("/conversation/windows")
 def list_conversation_windows() -> list[dict]:
     """Active conversation windows (last 24h)."""

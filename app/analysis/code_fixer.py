@@ -44,13 +44,25 @@ SEVERITY_ORDER = """
 """
 
 
+MAX_ATTEMPTS_PER_ROUND = 3   # max attempts before skipping to next round
+MAX_ROUNDS = 2               # after 2 rounds of failures → manual queue
+
+
 def _ensure_schema() -> None:
-    """Add fix_attempted_at column if missing (prevents infinite retry loops)."""
+    """Ensure retry tracking columns exist."""
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
                 ALTER TABLE code_review_findings
                 ADD COLUMN IF NOT EXISTS fix_attempted_at TIMESTAMPTZ
+            """)
+            cur.execute("""
+                ALTER TABLE code_review_findings
+                ADD COLUMN IF NOT EXISTS fix_attempt_count INTEGER NOT NULL DEFAULT 0
+            """)
+            cur.execute("""
+                ALTER TABLE code_review_findings
+                ADD COLUMN IF NOT EXISTS manual_review BOOLEAN NOT NULL DEFAULT FALSE
             """)
         conn.commit()
 
@@ -58,31 +70,37 @@ def _ensure_schema() -> None:
 def _get_next_finding(exclude_files: list[str] | None = None) -> dict | None:
     """Get the single highest-priority unresolved finding.
 
-    Args:
-        exclude_files: file paths currently being worked on by other workers.
-            Used in parallel mode to avoid conflicts.
+    Priority logic:
+    - Skip manual_review=true (exhausted all auto-fix attempts)
+    - Skip findings with MAX_ATTEMPTS_PER_ROUND * MAX_ROUNDS attempts
+    - Prefer unattempted findings, then least-attempted
+    - Exclude files currently being worked on by other workers
     """
     exclude = exclude_files or []
+    max_total = MAX_ATTEMPTS_PER_ROUND * MAX_ROUNDS
+
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             if exclude:
                 placeholders = ",".join(["%s"] * len(exclude))
                 where_excl = f"AND file_path NOT IN ({placeholders})"
-                params = tuple(exclude)
+                params = tuple(exclude) + (max_total,)
             else:
                 where_excl = ""
-                params = ()
+                params = (max_total,)
 
             cur.execute(f"""
                 SELECT id, file_path, severity, category, title, description,
-                       line_start, line_end, suggested_fix
+                       line_start, line_end, suggested_fix, fix_attempt_count
                 FROM code_review_findings
                 WHERE resolved = FALSE
+                  AND manual_review = FALSE
                   AND severity IN ('critical', 'high', 'medium', 'low')
+                  AND fix_attempt_count < %s
                   AND (fix_attempted_at IS NULL
-                       OR fix_attempted_at < NOW() - INTERVAL '6 hours')
+                       OR fix_attempted_at < NOW() - INTERVAL '2 hours')
                   {where_excl}
-                ORDER BY {SEVERITY_ORDER}, created_at ASC
+                ORDER BY fix_attempt_count ASC, {SEVERITY_ORDER}, created_at ASC
                 LIMIT 1
             """, params)
             rows = cur.fetchall()
@@ -93,6 +111,7 @@ def _get_next_finding(exclude_files: list[str] | None = None) -> dict | None:
                 "id": r[0], "file_path": r[1], "severity": r[2],
                 "category": r[3], "title": r[4], "description": r[5],
                 "line_start": r[6], "line_end": r[7], "suggested_fix": r[8],
+                "fix_attempt_count": r[9],
             }
 
 
@@ -142,12 +161,16 @@ def _build_user_prompt(finding: dict) -> str:
         f"**Description**:\n{finding['description']}\n"
         f"{lines_info}\n\n"
         f"**Suggested fix**:\n{suggested}\n\n"
+        f"**Attempt**: {finding.get('fix_attempt_count', 0) + 1} "
+        f"(previous attempts may have failed because the bug is in a DIFFERENT file than file_path)\n\n"
         f"Steps:\n"
         f"{read_instruction}\n"
-        f"2. Apply the fix using the Edit tool — minimal change only\n"
-        f"3. Run: ruff check {finding['file_path']}\n"
-        f"4. Run: git diff\n"
-        f"5. Output ONLY the JSON result (no markdown fences, no extra text)"
+        f"2. IMPORTANT: If the bug described is NOT in this file, use Grep to find where the actual "
+        f"code lives (e.g. the function mentioned in the description). Fix the actual source.\n"
+        f"3. Apply the fix using the Edit tool — minimal change only\n"
+        f"4. For Python: run `ruff check <modified_file>`\n"
+        f"5. Run: git diff\n"
+        f"6. Output ONLY the JSON result (no markdown fences, no extra text)"
     )
 
 
@@ -250,47 +273,74 @@ def _launch_fix_session(finding: dict, system_prompt: str) -> dict | None:
 
 
 def _verify_fix(file_path: str, ruff_baseline: int = 0) -> tuple[bool, str]:
-    """Post-fix verification: ruff (only new errors) + git diff."""
-    # Check ruff for Python files — only fail if NEW errors were introduced
-    if file_path.endswith(".py"):
-        try:
-            ruff_result = subprocess.run(
-                [".venv/bin/ruff", "check", file_path],
-                capture_output=True, text=True, timeout=30,
-                cwd=str(PROJECT_DIR),
-            )
-            current_errors = ruff_result.stdout.count("\n") if ruff_result.stdout.strip() else 0
-            if current_errors > ruff_baseline:
-                return False, f"ruff: {current_errors - ruff_baseline} new errors introduced: {ruff_result.stdout[:500]}"
-        except Exception as e:
-            log.warning("ruff_check_failed", error=str(e))
+    """Post-fix verification: ruff (only new errors) + git diff.
 
-    # Check git diff — ensure something actually changed
+    Checks git diff on ALL changed files (not just finding's file_path),
+    because the actual fix may be in an imported/related file.
+    """
+    # Check git diff — ensure something actually changed (ANY file)
     try:
         diff_result = subprocess.run(
-            ["git", "diff", "--stat", "--", file_path],
+            ["git", "diff", "--stat"],
             capture_output=True, text=True, timeout=10,
             cwd=str(PROJECT_DIR),
         )
         if not diff_result.stdout.strip():
-            return False, "no changes detected in file"
-        return True, diff_result.stdout.strip()
+            return False, "no changes detected in any file"
+        diff_stat = diff_result.stdout.strip()
     except Exception as e:
         return False, f"git diff failed: {e}"
 
+    # Extract actually modified files from diff
+    modified_files = []
+    for line in diff_stat.split("\n"):
+        if "|" in line:
+            fp = line.split("|")[0].strip()
+            if fp:
+                modified_files.append(fp)
 
-def _revert_files(file_paths: list[str]) -> None:
-    """Revert files to their git state."""
-    for fp in file_paths:
-        try:
+    # Check ruff for each modified Python file — only fail if NEW errors introduced
+    for mf in modified_files:
+        if mf.endswith(".py"):
+            try:
+                # Get baseline for this specific file (may not be the finding's file)
+                pre_baseline = ruff_baseline if mf == file_path else 0
+
+                ruff_result = subprocess.run(
+                    [".venv/bin/ruff", "check", mf],
+                    capture_output=True, text=True, timeout=30,
+                    cwd=str(PROJECT_DIR),
+                )
+                current_errors = ruff_result.stdout.count("\n") if ruff_result.stdout.strip() else 0
+                if current_errors > pre_baseline:
+                    return False, f"ruff: {current_errors - pre_baseline} new errors in {mf}: {ruff_result.stdout[:300]}"
+            except Exception as e:
+                log.warning("ruff_check_failed", file=mf, error=str(e))
+
+    return True, diff_stat
+
+
+def _revert_all_changes() -> None:
+    """Revert ALL uncommitted changes (safe: fixer never commits)."""
+    try:
+        # Get list of changed files
+        result = subprocess.run(
+            ["git", "diff", "--name-only"],
+            capture_output=True, text=True, timeout=10,
+            cwd=str(PROJECT_DIR),
+        )
+        changed = [f.strip() for f in result.stdout.strip().split("\n") if f.strip()]
+        if not changed:
+            return
+        for fp in changed:
             subprocess.run(
                 ["git", "checkout", "--", fp],
                 capture_output=True, text=True, timeout=10,
                 cwd=str(PROJECT_DIR),
             )
             log.warning("fix_reverted", file_path=fp)
-        except Exception:
-            log.error("revert_failed", file_path=fp)
+    except Exception as e:
+        log.error("revert_failed", error=str(e))
 
 
 def _mark_resolved(finding_id: int) -> None:
@@ -306,14 +356,29 @@ def _mark_resolved(finding_id: int) -> None:
 
 
 def _mark_attempted(finding_id: int) -> None:
-    """Mark finding as attempted (prevents retry for 24h)."""
+    """Increment attempt counter. If exhausted all rounds, move to manual queue."""
+    max_total = MAX_ATTEMPTS_PER_ROUND * MAX_ROUNDS
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
                 UPDATE code_review_findings
-                SET fix_attempted_at = NOW()
+                SET fix_attempted_at = NOW(),
+                    fix_attempt_count = fix_attempt_count + 1
                 WHERE id = %s
+                RETURNING fix_attempt_count
             """, (finding_id,))
+            rows = cur.fetchall()
+            new_count = rows[0][0] if rows else 0
+
+            if new_count >= max_total:
+                cur.execute("""
+                    UPDATE code_review_findings
+                    SET manual_review = TRUE
+                    WHERE id = %s
+                """, (finding_id,))
+                log.warning("moved_to_manual_queue",
+                            finding_id=finding_id,
+                            attempts=new_count)
         conn.commit()
 
 
@@ -351,8 +416,7 @@ def run() -> dict:
     if not result or not result.get("fixed"):
         error = result.get("error", "unknown") if result else "session_failed"
         log.error("fix_failed", finding_id=finding["id"], error=error)
-        files_to_revert = result.get("files_modified", [finding["file_path"]]) if result else [finding["file_path"]]
-        _revert_files(files_to_revert)
+        _revert_all_changes()
         _mark_attempted(finding["id"])
         return {"status": "failed", "fixed": False,
                 "finding_id": finding["id"], "error": error}
@@ -362,8 +426,7 @@ def run() -> dict:
     if not ok:
         log.error("fix_verification_failed",
                   finding_id=finding["id"], detail=detail)
-        files_to_revert = result.get("files_modified", [finding["file_path"]])
-        _revert_files(files_to_revert)
+        _revert_all_changes()
         _mark_attempted(finding["id"])
         return {"status": "verify_failed", "fixed": False,
                 "finding_id": finding["id"], "error": detail}
@@ -452,9 +515,8 @@ def run_parallel(workers: int = 3) -> list[dict]:
         if not result or not result.get("fixed"):
             error = result.get("error", "unknown") if result else "session_failed"
             log.error("fix_failed", finding_id=finding["id"], error=error)
-            files_to_revert = result.get("files_modified", [finding["file_path"]]) if result else [finding["file_path"]]
             with lock:
-                _revert_files(files_to_revert)
+                _revert_all_changes()
             _mark_attempted(finding["id"])
             return {"status": "failed", "fixed": False,
                     "finding_id": finding["id"], "error": error}
@@ -463,9 +525,8 @@ def run_parallel(workers: int = 3) -> list[dict]:
         if not ok:
             log.error("fix_verification_failed",
                       finding_id=finding["id"], detail=detail)
-            files_to_revert = result.get("files_modified", [finding["file_path"]])
             with lock:
-                _revert_files(files_to_revert)
+                _revert_all_changes()
             _mark_attempted(finding["id"])
             return {"status": "verify_failed", "fixed": False,
                     "finding_id": finding["id"], "error": detail}
