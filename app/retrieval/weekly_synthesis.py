@@ -658,7 +658,7 @@ Generujesz tygodniowa synteze wykonawcza — strategiczny przeglad tygodnia.
 
 Format (markdown):
 
-## Podsumowanie tygodnia {week_label}
+## Podsumowanie tygodnia
 2-3 zdania: najwazniejsze co sie wydarzylo, ton tygodnia.
 
 ## Top 5 wydarzen
@@ -721,8 +721,6 @@ Zasady:
 
 def generate_synthesis(context: str, week_label: str) -> str:
     """Call Claude Sonnet to generate the weekly synthesis."""
-    system_prompt = SYNTHESIS_SYSTEM_PROMPT.replace("{week_label}", week_label)
-
     user_prompt = (
         f"Tydzien: {week_label}\n\n"
         f"Dane zrodlowe z calego tygodnia:\n\n{context}"
@@ -733,7 +731,7 @@ def generate_synthesis(context: str, week_label: str) -> str:
             model=ANTHROPIC_MODEL,
             max_tokens=4000,
             temperature=0.2,
-            system=system_prompt,
+            system=[{"type": "text", "text": SYNTHESIS_SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": user_prompt}],
         )
     except (APIConnectionError, APITimeoutError) as e:

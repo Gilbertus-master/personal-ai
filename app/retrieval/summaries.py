@@ -20,6 +20,19 @@ ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
 
 client = Anthropic(api_key=ANTHROPIC_API_KEY, timeout=90.0)
 
+# Static part of summary system prompt — cacheable.
+SUMMARY_STATIC_SYSTEM_PROMPT = """
+Jesteś analitycznym asystentem pracującym na prywatnym archiwum danych użytkownika.
+
+Zasady:
+- Opieraj się wyłącznie na dostarczonym kontekście.
+- Nie zmyślaj faktów.
+- Pisz po polsku.
+- Bądź konkretny — podawaj nazwiska, daty, szczegóły.
+- Na końcu dodaj sekcję "Otwarte pętle" — rzeczy, które wymagają uwagi lub kontynuacji.
+- Format: markdown z nagłówkami ##.
+""".strip()
+
 SUMMARY_TYPES = ["daily", "weekly"]
 AREAS = ["general", "relationships", "business", "trading", "wellbeing"]
 
@@ -169,22 +182,13 @@ def generate_summary(
 
     length_instruction = "3-5 punktów" if summary_type == "daily" else "5-10 punktów"
 
-    system_prompt = f"""
-Jesteś analitycznym asystentem pracującym na prywatnym archiwum danych użytkownika.
-
+    dynamic_part = f"""
 Twoje zadanie: wygeneruj {summary_type} podsumowanie za okres: {period_label}.
 Obszar: {area}.
 
 {area_instruction}
 
-Zasady:
-- Opieraj się wyłącznie na dostarczonym kontekście.
-- Nie zmyślaj faktów.
-- Pisz po polsku.
-- Bądź konkretny — podawaj nazwiska, daty, szczegóły.
-- Wyodrębnij {length_instruction} najważniejszych obserwacji.
-- Na końcu dodaj sekcję "Otwarte pętle" — rzeczy, które wymagają uwagi lub kontynuacji.
-- Format: markdown z nagłówkami ##.
+Wyodrębnij {length_instruction} najważniejszych obserwacji.
 """
 
     user_prompt = f"Materiał źródłowy za okres {period_label}:\n\n{context}"
@@ -194,7 +198,10 @@ Zasady:
             model=ANTHROPIC_MODEL,
             max_tokens=2000,
             temperature=0.2,
-            system=system_prompt,
+            system=[
+                {"type": "text", "text": SUMMARY_STATIC_SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}},
+                {"type": "text", "text": dynamic_part.strip()},
+            ],
             messages=[{"role": "user", "content": user_prompt}],
         )
     except (APIConnectionError, APITimeoutError) as e:

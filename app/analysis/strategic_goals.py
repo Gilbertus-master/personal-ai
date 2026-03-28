@@ -596,7 +596,7 @@ Zidentyfikuj 1-3 kluczowe ryzyka."""
     resp = client.messages.create(
         model=ANTHROPIC_FAST,
         max_tokens=500,
-        system=RISK_ANALYSIS_PROMPT,
+        system=[{"type": "text", "text": RISK_ANALYSIS_PROMPT, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": prompt}],
     )
     log_anthropic_cost(ANTHROPIC_FAST, "strategic_goals", resp.usage)

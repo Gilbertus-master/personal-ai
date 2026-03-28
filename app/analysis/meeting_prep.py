@@ -294,7 +294,7 @@ Zobowiązania i decyzje:
         response = client.messages.create(
             model=ANTHROPIC_MODEL,
             max_tokens=2000,
-            system=system_prompt,
+            system=[{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": user_message}],
         )
 

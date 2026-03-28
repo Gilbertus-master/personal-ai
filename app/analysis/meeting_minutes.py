@@ -144,7 +144,7 @@ def generate_minutes_for_recording(document_id: int) -> dict[str, Any]:
         response = client.messages.create(
             model=ANTHROPIC_MODEL,
             max_tokens=4000,
-            system=MINUTES_PROMPT,
+            system=[{"type": "text", "text": MINUTES_PROMPT, "cache_control": {"type": "ephemeral"}}],
             messages=[{
                 "role": "user",
                 "content": f"Transkrypcja spotkania:\n\n{transcript}",

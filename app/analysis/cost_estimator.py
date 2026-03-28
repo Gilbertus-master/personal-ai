@@ -77,7 +77,7 @@ def estimate_cost(
         response = client.messages.create(
             model=ANTHROPIC_MODEL,
             max_tokens=2000,
-            system=COST_PROMPT,
+            system=[{"type": "text", "text": COST_PROMPT, "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": user_message}],
         )
         log_anthropic_cost(ANTHROPIC_MODEL, "cost_estimator", response.usage)

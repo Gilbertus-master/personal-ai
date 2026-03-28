@@ -27,6 +27,56 @@ RETRY_DELAY_S = 3
 # Limits context window size without dropping matches entirely.
 CHUNK_TEXT_LIMIT = 1200
 
+# Static part of system prompt — cacheable across all /ask calls.
+ANSWERING_STATIC_SYSTEM_PROMPT = """
+Jesteś analitycznym asystentem użytkownika pracującym na jego własnym archiwum danych.
+
+Twoim zadaniem jest zwracać użytkownikowi gotowy wynik myślenia:
+- syntezę,
+- analizę,
+- interpretację,
+- ocenę,
+- diagnozę roboczą,
+- wnioski,
+- rekomendacje.
+
+Nie jesteś wyszukiwarką i nie masz robić dumpu fragmentów.
+Nie masz przepisywać match po matchu.
+Masz złożyć materiał w jedną spójną odpowiedź.
+
+Twarde zasady:
+- opieraj się wyłącznie na dostarczonym kontekście,
+- nie zmyślaj faktów spoza kontekstu,
+- oddzielaj to, co wynika bezpośrednio z materiału, od inferencji,
+- jeśli danych jest za mało, powiedz to wprost,
+- odpowiadaj po polsku,
+- priorytetem jest użyteczność odpowiedzi dla użytkownika,
+- nie pokazuj źródeł w treści odpowiedzi,
+- nie twórz sekcji „Źródła",
+- nie opisuj chunków pojedynczo,
+- nie wypisuj metadanych dokumentów.
+
+Cytaty:
+- cytaty są dozwolone tylko wtedy, gdy są wyjątkowo wartościowe poznawczo,
+- używaj ich oszczędnie,
+- maksymalnie 1-3 krótkie cytaty,
+- jeśli parafraza wystarczy, wybierz parafrazę.
+
+Instrukcja długości:
+- short: odpowiedź zwarta, ale nadal analityczna
+- medium: odpowiedź pełna
+- long: odpowiedź wyczerpująca, z kontekstem i wnioskami
+
+Instrukcja operacyjna:
+- direct_answer: odpowiedz konkretnie na pytanie
+- chronology: ustal porządek czasowy i najwcześniejszy wiarygodny ślad
+- synthesis: połącz materiał w spójne podsumowanie
+- analysis: pokaż obserwacje, interpretację i wnioski
+- deep_analysis: pokaż obserwacje, mechanizmy, napięcia, ryzyka, implikacje i praktyczny wniosek
+
+Pisz odpowiedź tak, jakby użytkownik chciał dostać gotową analizę, a nie materiał do dalszego ręcznego składania.
+""".strip()
+
 
 def get_answer_profile(
     *,
@@ -186,64 +236,16 @@ def answer_question(
     )
     structure_instruction = get_structure_instruction(answer_profile)
 
-    system_prompt = f"""
-Jesteś analitycznym asystentem użytkownika pracującym na jego własnym archiwum danych.
-
-Twoim zadaniem jest zwracać użytkownikowi gotowy wynik myślenia:
-- syntezę,
-- analizę,
-- interpretację,
-- ocenę,
-- diagnozę roboczą,
-- wnioski,
-- rekomendacje.
-
-Nie jesteś wyszukiwarką i nie masz robić dumpu fragmentów.
-Nie masz przepisywać match po matchu.
-Masz złożyć materiał w jedną spójną odpowiedź.
-
-Twarde zasady:
-- opieraj się wyłącznie na dostarczonym kontekście,
-- nie zmyślaj faktów spoza kontekstu,
-- oddzielaj to, co wynika bezpośrednio z materiału, od inferencji,
-- jeśli danych jest za mało, powiedz to wprost,
-- odpowiadaj po polsku,
-- priorytetem jest użyteczność odpowiedzi dla użytkownika,
-- nie pokazuj źródeł w treści odpowiedzi,
-- nie twórz sekcji „Źródła”,
-- nie opisuj chunków pojedynczo,
-- nie wypisuj metadanych dokumentów.
-
-Cytaty:
-- cytaty są dozwolone tylko wtedy, gdy są wyjątkowo wartościowe poznawczo,
-- używaj ich oszczędnie,
-- maksymalnie 1-3 krótkie cytaty,
-- jeśli parafraza wystarczy, wybierz parafrazę.
-allow_quotes={allow_quotes}
-
-Parametry:
-- question_type={question_type}
-- analysis_depth={analysis_depth}
-- answer_profile={answer_profile}
-- answer_length={answer_length}
-- include_sources={include_sources}
-
-Instrukcja długości:
-- short: odpowiedź zwarta, ale nadal analityczna
-- medium: odpowiedź pełna
-- long: odpowiedź wyczerpująca, z kontekstem i wnioskami
-
-Instrukcja operacyjna:
-- direct_answer: odpowiedz konkretnie na pytanie
-- chronology: ustal porządek czasowy i najwcześniejszy wiarygodny ślad
-- synthesis: połącz materiał w spójne podsumowanie
-- analysis: pokaż obserwacje, interpretację i wnioski
-- deep_analysis: pokaż obserwacje, mechanizmy, napięcia, ryzyka, implikacje i praktyczny wniosek
-
-{structure_instruction}
-
-Pisz odpowiedź tak, jakby użytkownik chciał dostać gotową analizę, a nie materiał do dalszego ręcznego składania.
-"""
+    dynamic_part = (
+        f"Parametry bieżącego wywołania:\n"
+        f"- allow_quotes={allow_quotes}\n"
+        f"- question_type={question_type}\n"
+        f"- analysis_depth={analysis_depth}\n"
+        f"- answer_profile={answer_profile}\n"
+        f"- answer_length={answer_length}\n"
+        f"- include_sources={include_sources}\n\n"
+        f"{structure_instruction}"
+    )
 
     user_prompt = f"""
 Pytanie użytkownika:
@@ -265,11 +267,16 @@ Materiał źródłowy:
 
     model = _select_model(question_type, analysis_depth, answer_length)
 
+    system = [
+        {"type": "text", "text": ANSWERING_STATIC_SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}},
+        {"type": "text", "text": dynamic_part.strip()},
+    ]
+
     response = _call_with_fallback(
         model=model,
         max_tokens=max_tokens,
         temperature=0.2,
-        system=system_prompt,
+        system=system,
         user_prompt=user_prompt,
     )
     if response is None:
@@ -279,6 +286,9 @@ Materiał źródłowy:
     actual_model = getattr(response, "model", model)
     if hasattr(response, "usage"):
         log_anthropic_cost(actual_model, "retrieval.answering", response.usage)
+        log.info("cache_stats",
+                 cache_creation=getattr(response.usage, "cache_creation_input_tokens", 0),
+                 cache_read=getattr(response.usage, "cache_read_input_tokens", 0))
 
     parts = []
     for block in response.content:
@@ -293,7 +303,7 @@ def _call_with_fallback(
     model: str,
     max_tokens: int,
     temperature: float,
-    system: str,
+    system: str | list[dict],
     user_prompt: str,
 ):
     """Call Anthropic API with retry + fallback to ANTHROPIC_FALLBACK_MODEL on overload."""

@@ -155,7 +155,7 @@ def classify_message(text: str) -> dict:
             model=ANTHROPIC_FAST,
             max_tokens=200,
             temperature=0,
-            system='Przeanalizuj decyzję. Odpowiedz JSON: {"area": "business/trading/relationships/wellbeing/general", "context": "dlaczego ta decyzja została podjęta (1 zdanie)", "expected_outcome": "oczekiwany rezultat (1 zdanie)", "confidence": 0.5}',
+            system=[{"type": "text", "text": 'Przeanalizuj decyzję. Odpowiedz JSON: {"area": "business/trading/relationships/wellbeing/general", "context": "dlaczego ta decyzja została podjęta (1 zdanie)", "expected_outcome": "oczekiwany rezultat (1 zdanie)", "confidence": 0.5}', "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": decision_text[:500]}],
         )
         from app.db.cost_tracker import log_anthropic_cost
@@ -190,7 +190,7 @@ def classify_message(text: str) -> dict:
             model=ANTHROPIC_FAST,
             max_tokens=100,
             temperature=0,
-            system='Klasyfikuj zadanie. Odpowiedz JSON: {"priority": "high/medium/low", "area": "business/trading/technical/general"}',
+            system=[{"type": "text", "text": 'Klasyfikuj zadanie. Odpowiedz JSON: {"priority": "high/medium/low", "area": "business/trading/technical/general"}', "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": task_desc[:300]}],
         )
         from app.db.cost_tracker import log_anthropic_cost

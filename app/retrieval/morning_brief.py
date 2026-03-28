@@ -625,7 +625,7 @@ def generate_brief_text(
             model=ANTHROPIC_MODEL,
             max_tokens=3000,
             temperature=0.2,
-            system=BRIEF_SYSTEM_PROMPT.strip(),
+            system=[{"type": "text", "text": BRIEF_SYSTEM_PROMPT.strip(), "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": user_prompt}],
         )
     except (APIConnectionError, APITimeoutError) as e:

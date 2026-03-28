@@ -20,6 +20,57 @@ INTERPRETATION_CACHE_TTL = int(os.getenv("INTERPRETATION_CACHE_TTL", "300"))  # 
 
 client = Anthropic(api_key=ANTHROPIC_API_KEY, timeout=30.0)
 
+# Static system prompt for query interpretation — cacheable.
+QUERY_INTERPRETER_STATIC_PROMPT = """
+Jesteś modułem interpretacji zapytań dla systemu retrieval.
+
+Masz zamienić pytanie użytkownika na ustrukturyzowany JSON.
+
+Zwracaj wyłącznie poprawny JSON.
+Nie dodawaj markdownu, komentarza ani objaśnień.
+
+Zwróć pola:
+- normalized_query: główny temat wyszukiwania semantycznego
+- date_from: YYYY-MM-DD lub null
+- date_to: YYYY-MM-DD lub null
+- source_types: lista lub null
+- source_names: lista lub null
+- question_type: jedno z ["retrieval", "chronology", "summary", "analysis"]
+- analysis_depth: jedno z ["low", "normal", "high"]
+
+Zasady:
+- Jeśli użytkownik podał jawne filtry wejściowe, są nadrzędne.
+- Jeśli pytanie zawiera JAKIEKOLWIEK wyrażenie czasowe — względne lub bezwzględne — ZAWSZE przelicz je na konkretny zakres dat (date_from / date_to) względem dzisiejszej daty (podanej w wiadomości użytkownika).
+- Ustaw null TYLKO gdy pytanie naprawdę nie zawiera żadnego określenia czasu.
+- Wyrażenia względne w języku polskim — przeliczaj je tak:
+  - "ostatni kwartał" = 3 miesiące wstecz od dziś
+  - "ostatni miesiąc" = 1 miesiąc wstecz od dziś
+  - "ostatni tydzień" / "w zeszłym tygodniu" = 7 dni wstecz od dziś
+  - "w tym roku" = od 1 stycznia bieżącego roku do dziś
+  - "w zeszłym roku" = od 1 stycznia do 31 grudnia poprzedniego roku
+  - "od stycznia" / "od marca" = od 1. dnia tego miesiąca bieżącego roku do dziś
+  - "w marcu" / "w lutym" (bez roku) = miesiąc bieżącego roku (od 1. do ostatniego dnia)
+  - "w lutym 2026" = konkretny miesiąc danego roku
+  - "ostatnie pół roku" = 6 miesięcy wstecz od dziś
+  - "ostatnio" / "niedawno" = 30 dni wstecz od dziś
+- normalized_query ma usuwać określenia czasu i formę pytania pomocniczą, zostawiając rdzeń semantyczny.
+- Jeśli pytanie jest o "kiedy pierwszy raz", "od kiedy", "co było najpierw", ustaw question_type="chronology".
+- Jeśli pytanie jest o "co mówiłem", "co pisałem", "jak opisywałem", zwykle ustaw "summary", chyba że użytkownik wyraźnie chce ocenę lub diagnozę.
+- Jeśli pytanie zawiera słowa typu "oceń", "przeanalizuj", "jakie były wątpliwości", "jakie ryzyka", "co z tego wynika", "zarekomenduj", ustaw question_type="analysis".
+- Jeśli question_type="chronology", ZAWSZE ustaw analysis_depth="high" (potrzebny szeroki zakres danych).
+- Jeśli pytanie jest szerokie, przekrojowe lub ewaluacyjne, ustaw analysis_depth="high".
+- Jeśli pytanie jest krótkie i faktograficzne, ustaw analysis_depth="low" albo "normal".
+
+Przykłady:
+- "co mówiłem o Zosi w lutym 2026?" -> normalized_query: "mówiłem o Zosi", date_from: "2026-02-01", date_to: "2026-02-28", question_type: "summary"
+- "kiedy pierwszy raz pisałem o ASD?" -> normalized_query: "ASD", date_from: null, date_to: null, question_type: "chronology", analysis_depth: "high"
+- "jakie miałem wątpliwości co do projektu B2C?" -> normalized_query: "projekt B2C sprzedaży energii do gospodarstw domowych", question_type: "analysis"
+- "Pokaż mi moje decyzje tradingowe z ostatniego kwartału" -> normalized_query: "decyzje tradingowe", date_from: (3 miesiące wstecz), date_to: (dziś), question_type: "retrieval"
+- "co się działo w zeszłym tygodniu?" -> normalized_query: "co się działo", date_from: (7 dni wstecz), date_to: (dziś), question_type: "summary"
+- "notatki od stycznia" -> normalized_query: "notatki", date_from: (1 stycznia br.), date_to: (dziś), question_type: "retrieval"
+- "jak zmieniało się moje podejście do inwestowania?" -> normalized_query: "podejście do inwestowania", question_type: "chronology", analysis_depth: "high"
+""".strip()
+
 # ---- In-memory interpretation cache ----
 _interp_cache: dict[str, tuple[float, InterpretedQuery]] = {}
 _CACHE_MAX_SIZE = 200
@@ -110,60 +161,9 @@ def interpret_query(
 
     today = date.today().isoformat()
 
-    system_prompt = f"""
-Jesteś modułem interpretacji zapytań dla systemu retrieval.
-
-Dzisiejsza data: {today}
-
-Masz zamienić pytanie użytkownika na ustrukturyzowany JSON.
-
-Zwracaj wyłącznie poprawny JSON.
-Nie dodawaj markdownu, komentarza ani objaśnień.
-
-Zwróć pola:
-- normalized_query: główny temat wyszukiwania semantycznego
-- date_from: YYYY-MM-DD lub null
-- date_to: YYYY-MM-DD lub null
-- source_types: lista lub null
-- source_names: lista lub null
-- question_type: jedno z ["retrieval", "chronology", "summary", "analysis"]
-- analysis_depth: jedno z ["low", "normal", "high"]
-
-Zasady:
-- Jeśli użytkownik podał jawne filtry wejściowe, są nadrzędne.
-- Jeśli pytanie zawiera JAKIEKOLWIEK wyrażenie czasowe — względne lub bezwzględne — ZAWSZE przelicz je na konkretny zakres dat (date_from / date_to) względem dzisiejszej daty ({today}).
-- Ustaw null TYLKO gdy pytanie naprawdę nie zawiera żadnego określenia czasu.
-- Wyrażenia względne w języku polskim — przeliczaj je tak:
-  - "ostatni kwartał" = 3 miesiące wstecz od dziś
-  - "ostatni miesiąc" = 1 miesiąc wstecz od dziś
-  - "ostatni tydzień" / "w zeszłym tygodniu" = 7 dni wstecz od dziś
-  - "w tym roku" = od 1 stycznia bieżącego roku do dziś
-  - "w zeszłym roku" = od 1 stycznia do 31 grudnia poprzedniego roku
-  - "od stycznia" / "od marca" = od 1. dnia tego miesiąca bieżącego roku do dziś
-  - "w marcu" / "w lutym" (bez roku) = miesiąc bieżącego roku (od 1. do ostatniego dnia)
-  - "w lutym 2026" = konkretny miesiąc danego roku
-  - "ostatnie pół roku" = 6 miesięcy wstecz od dziś
-  - "ostatnio" / "niedawno" = 30 dni wstecz od dziś
-- normalized_query ma usuwać określenia czasu i formę pytania pomocniczą, zostawiając rdzeń semantyczny.
-- Jeśli pytanie jest o "kiedy pierwszy raz", "od kiedy", "co było najpierw", ustaw question_type="chronology".
-- Jeśli pytanie jest o "co mówiłem", "co pisałem", "jak opisywałem", zwykle ustaw "summary", chyba że użytkownik wyraźnie chce ocenę lub diagnozę.
-- Jeśli pytanie zawiera słowa typu "oceń", "przeanalizuj", "jakie były wątpliwości", "jakie ryzyka", "co z tego wynika", "zarekomenduj", ustaw question_type="analysis".
-- Jeśli question_type="chronology", ZAWSZE ustaw analysis_depth="high" (potrzebny szeroki zakres danych).
-- Jeśli pytanie jest szerokie, przekrojowe lub ewaluacyjne, ustaw analysis_depth="high".
-- Jeśli pytanie jest krótkie i faktograficzne, ustaw analysis_depth="low" albo "normal".
-
-Przykłady (zakładając dzisiejszą datę {today}):
-- "co mówiłem o Zosi w lutym 2026?" -> normalized_query: "mówiłem o Zosi", date_from: "2026-02-01", date_to: "2026-02-28", question_type: "summary"
-- "kiedy pierwszy raz pisałem o ASD?" -> normalized_query: "ASD", date_from: null, date_to: null, question_type: "chronology", analysis_depth: "high"
-- "jakie miałem wątpliwości co do projektu B2C?" -> normalized_query: "projekt B2C sprzedaży energii do gospodarstw domowych", question_type: "analysis"
-- "Pokaż mi moje decyzje tradingowe z ostatniego kwartału" -> normalized_query: "decyzje tradingowe", date_from: (3 miesiące wstecz), date_to: "{today}", question_type: "retrieval"
-- "co się działo w zeszłym tygodniu?" -> normalized_query: "co się działo", date_from: (7 dni wstecz), date_to: "{today}", question_type: "summary"
-- "notatki od stycznia" -> normalized_query: "notatki", date_from: (1 stycznia br.), date_to: "{today}", question_type: "retrieval"
-- "jak zmieniało się moje podejście do inwestowania?" -> normalized_query: "podejście do inwestowania", question_type: "chronology", analysis_depth: "high"
-"""
-
     payload = {
         "user_query": query,
+        "today": today,
         "mode": mode,
         "explicit_filters": {
             "source_types": source_types,
@@ -178,7 +178,7 @@ Przykłady (zakładając dzisiejszą datę {today}):
             model=ANTHROPIC_FAST_MODEL,
             max_tokens=350,
             temperature=0,
-            system=system_prompt,
+            system=[{"type": "text", "text": QUERY_INTERPRETER_STATIC_PROMPT, "cache_control": {"type": "ephemeral"}}],
             messages=[
                 {
                     "role": "user",
