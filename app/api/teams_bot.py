@@ -167,12 +167,20 @@ async def _send_reply(service_url: str, conversation_id: str, activity_id: str, 
 
 # ─── Business-only query engine (mirrors presentation_ask) ──────────────────
 
-def _business_ask(query: str) -> str:
+def _business_ask(query: str, conversation_id: str | None = None) -> str:
     """
     Run a business-only RAG query — identical filtering to /presentation/ask.
     Returns the answer text.
     """
     started_at = time.time()
+
+    # Conversation history
+    from app.db.conversation_store import get_store
+    conversation_context = ""
+    conv_store = None
+    if conversation_id:
+        conv_store = get_store("teams", conversation_id)
+        conversation_context = conv_store.as_context_string()
 
     safe_source_types = _enforce_source_filter(None)
 
@@ -239,7 +247,13 @@ def _business_ask(query: str) -> str:
         answer_style="auto",
         answer_length="medium",
         allow_quotes=True,
+        conversation_context=conversation_context,
     )
+
+    # Save to conversation window
+    if conv_store:
+        conv_store.add("user", query)
+        conv_store.add("assistant", answer)
 
     latency_ms = int((time.time() - started_at) * 1000)
     logger.info(
@@ -337,8 +351,9 @@ async def teams_webhook(request: Request) -> TeamsWebhookResponse:
         )
 
         # Run the business-only RAG pipeline
+        teams_conv_id = activity.conversation.get("id", "") if activity.conversation else None
         try:
-            answer = _business_ask(query)
+            answer = _business_ask(query, conversation_id=teams_conv_id)
         except Exception as e:
             logger.exception("Teams bot _business_ask failed: %s", e)
             answer = (

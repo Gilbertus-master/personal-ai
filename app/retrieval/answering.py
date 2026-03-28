@@ -224,6 +224,7 @@ def answer_question(
     answer_style: str | None = "auto",
     answer_length: str | None = "long",
     allow_quotes: bool = True,
+    conversation_context: str = "",
 ) -> str:
     # Shorter text limit for short answers to further reduce context
     text_limit = 800 if answer_length == "short" else CHUNK_TEXT_LIMIT
@@ -247,10 +248,14 @@ def answer_question(
         f"{structure_instruction}"
     )
 
+    conversation_section = ""
+    if conversation_context and conversation_context.strip():
+        conversation_section = f"\n{conversation_context}\n"
+
     user_prompt = f"""
 Pytanie użytkownika:
 {query}
-
+{conversation_section}
 Podsumowanie zestawu dopasowań:
 {match_summary}
 

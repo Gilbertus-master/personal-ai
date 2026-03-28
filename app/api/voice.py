@@ -84,7 +84,7 @@ async def transcribe(audio: UploadFile = File(...), language: str = Form(default
 
 
 @router.post("/ask")
-async def voice_ask(audio: UploadFile = File(...), language: str = Form(default="pl")):
+async def voice_ask(audio: UploadFile = File(...), language: str = Form(default="pl"), session_id: str = Form(default="anonymous")):
     """Transcribe audio → ask Gilbertus → return answer."""
     # Step 1: Transcribe
     content = await audio.read()
@@ -115,7 +115,7 @@ async def voice_ask(audio: UploadFile = File(...), language: str = Form(default=
     try:
         ask_resp = requests.post(
             os.getenv("GILBERTUS_API_URL", "http://127.0.0.1:8000") + "/ask",
-            json={"query": transcript, "answer_length": "medium", "channel": "voice"},
+            json={"query": transcript, "answer_length": "medium", "channel": "voice", "session_id": session_id},
             timeout=120,
         )
         ask_data = ask_resp.json()

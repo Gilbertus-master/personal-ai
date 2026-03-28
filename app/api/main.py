@@ -423,6 +423,24 @@ def _get_last_backup_timestamp() -> str | None:
         return raw
 
 
+@app.get("/conversation/windows")
+def list_conversation_windows() -> list[dict]:
+    """Active conversation windows (last 24h)."""
+    from app.db.postgres import get_pg_connection
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT channel_key, message_count, total_chars,
+                       last_active, created_at
+                FROM conversation_windows
+                WHERE last_active > NOW() - INTERVAL '24 hours'
+                ORDER BY last_active DESC
+            """)
+            return [{"channel": r[0], "messages": r[1], "chars": r[2],
+                     "last_active": str(r[3]), "created": str(r[4])}
+                    for r in cur.fetchall()]
+
+
 @app.get("/status")
 def system_status() -> dict[str, Any]:
     """
@@ -640,6 +658,14 @@ def ask(request: AskRequest) -> AskResponse:
     timer = StageTimer()
     request = _apply_channel_defaults(request)
 
+    # Conversation history (sliding window)
+    from app.db.conversation_store import get_store
+    conversation_context = ""
+    conv_store = None
+    if request.channel or request.session_id:
+        conv_store = get_store(request.channel, request.session_id)
+        conversation_context = conv_store.as_context_string()
+
     # Check cache
     cache_key = _cache_key_for_ask(request.query, request.source_types, request.date_from, request.date_to)
     cached = _check_answer_cache(cache_key)
@@ -788,8 +814,14 @@ def ask(request: AskRequest) -> AskResponse:
         answer_style=request.answer_style,
         answer_length=request.answer_length,
         allow_quotes=request.allow_quotes,
+        conversation_context=conversation_context,
     )
     timer.end("answer")
+
+    # Save to conversation window
+    if conv_store:
+        conv_store.add("user", request.query)
+        conv_store.add("assistant", answer)
 
     response_sources = build_sources_from_matches(redacted_matches_for_answer) if request.debug else None
     response_matches = build_debug_matches(redacted_matches_for_answer) if request.debug else None
