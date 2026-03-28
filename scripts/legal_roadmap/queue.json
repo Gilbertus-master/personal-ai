@@ -1,0 +1,87 @@
+{
+  "roadmap_version": "1.0",
+  "created_at": "2026-03-28",
+  "description": "Gilbertus Legal & Compliance Orchestrator — 8 kroków implementacji",
+  "tasks": [
+    {
+      "id": "L1",
+      "title": "Foundation — DB Schema + Main Orchestrator + Base API",
+      "file": "L1_foundation",
+      "status": "done",
+      "started_at": "2026-03-28T21:41:14.159333+00:00",
+      "completed_at": "2026-03-28T21:44:08.213767+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    },
+    {
+      "id": "L2",
+      "title": "Obligation Tracker + Deadline Monitor + Cron",
+      "file": "L2_obligations",
+      "status": "done",
+      "started_at": "2026-03-28T21:44:18.214611+00:00",
+      "completed_at": "2026-03-28T21:46:56.971480+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    },
+    {
+      "id": "L3",
+      "title": "AI Research + Analysis Engine + Risk Assessor",
+      "file": "L3_research",
+      "status": "done",
+      "started_at": "2026-03-28T21:47:06.114767+00:00",
+      "completed_at": "2026-03-28T21:54:21.456946+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    },
+    {
+      "id": "L4",
+      "title": "Document Generator + Versioning + Signatures",
+      "file": "L4_documents",
+      "status": "done",
+      "started_at": "2026-03-28T21:54:31.457775+00:00",
+      "completed_at": "2026-03-28T21:59:04.833157+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    },
+    {
+      "id": "L5",
+      "title": "Training Manager + Delegation Integration",
+      "file": "L5_training",
+      "status": "done",
+      "started_at": "2026-03-28T21:59:13.944272+00:00",
+      "completed_at": "2026-03-28T22:03:49.510635+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    },
+    {
+      "id": "L6",
+      "title": "Communication Planner + Reporter + Daily Updates",
+      "file": "L6_communication",
+      "status": "done",
+      "started_at": "2026-03-28T22:03:59.511751+00:00",
+      "completed_at": "2026-03-28T22:11:00.068421+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    },
+    {
+      "id": "L7",
+      "title": "MCP Tool + Authority Integration + Morning Brief",
+      "file": "L7_mcp_authority",
+      "status": "done",
+      "started_at": "2026-03-28T22:11:10.068932+00:00",
+      "completed_at": "2026-03-28T22:15:43.360838+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    },
+    {
+      "id": "L8",
+      "title": "Integration + Crons + E2E Test + Non-regression",
+      "file": "L8_integration",
+      "status": "done",
+      "started_at": "2026-03-28T22:15:53.364511+00:00",
+      "completed_at": "2026-03-28T22:25:31.802750+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    }
+  ]
+}

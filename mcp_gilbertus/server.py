@@ -59,7 +59,7 @@ TOOL_GROUPS = {
         "gilbertus_opportunities", "gilbertus_inefficiency", "gilbertus_correlate",
         "gilbertus_process_intel", "gilbertus_workforce_analysis",
         "gilbertus_org_health", "gilbertus_scenarios", "gilbertus_goals",
-        "gilbertus_decision_patterns",
+        "gilbertus_decision_patterns", "gilbertus_legal",
     ],
     "finance": [
         "gilbertus_finance", "gilbertus_market", "gilbertus_competitors",
@@ -100,7 +100,11 @@ ROUTER_KEYWORD_MAP = {
                "odpowiedz", "siec", "ocen", "evaluat", "commitment"],
     "business": ["proces", "cel", "scenariusz", "organizacja", "optymalizacja",
                  "automatyzacja", "pracownik", "szansa", "ryzyko", "kpi", "goal",
-                 "workforce", "zastepow"],
+                 "workforce", "zastepow", "compliance", "legal", "regulacja",
+                 "prawo", "prawny", "URE", "RODO", "GDPR", "AML", "ESG", "CSRD",
+                 "koncesja", "obowiązek", "termin compliance", "szkolenie compliance",
+                 "audyt", "ryzyko prawne", "regulamin", "procedura", "polityka",
+                 "kara", "sankcja", "KSH", "sprawozdanie"],
     "finance": ["finanse", "pieniadz", "cashflow", "budzet", "rynek", "trading",
                 "konkurent", "tge", "cena", "koszt", "revenue", "zysk", "market"],
     "omnius": ["reh", "ref", "email", "teams", "ticket", "zadanie firmowe",
@@ -266,6 +270,32 @@ async def list_tools():
         Tool(name="omnius_status",
              description="Check status of all Omnius tenants.",
              inputSchema={"type": "object", "properties": {}}),
+        Tool(name="gilbertus_legal",
+             description="Legal & Compliance Orchestrator: zarządzanie obowiązkami prawnymi, "
+                         "sprawami compliance, dokumentami, terminami, szkoleniami, ryzykami, "
+                         "komunikacją. Obszary: URE, RODO, AML, KSH, ESG, prawo pracy, podatki.",
+             inputSchema={"type": "object", "properties": {
+                 "action": {"type": "string", "enum": [
+                     "dashboard", "areas", "area_detail",
+                     "matters", "create_matter", "matter_detail", "advance",
+                     "research", "report",
+                     "obligations", "overdue",
+                     "deadlines", "deadlines_overdue",
+                     "documents", "stale_docs", "generate_doc",
+                     "trainings", "training_status",
+                     "risks", "risk_heatmap",
+                     "daily_report", "area_report",
+                     "raci", "verify",
+                 ], "default": "dashboard", "description": "Akcja do wykonania"},
+                 "matter_id": {"type": "integer", "description": "ID sprawy compliance"},
+                 "area_code": {"type": "string", "description": "Kod obszaru: URE, RODO, AML, KSH, ESG, LABOR, TAX, CONTRACT, INTERNAL_AUDIT"},
+                 "query": {"type": "string", "description": "Zapytanie prawne lub opis sprawy"},
+                 "matter_type": {"type": "string", "description": "Typ sprawy: new_regulation, regulation_change, audit_finding, incident, license_renewal, contract_review, policy_update, training_need"},
+                 "doc_type": {"type": "string", "description": "Typ dokumentu: policy, procedure, form, internal_regulation, training_material, report"},
+                 "priority": {"type": "string", "description": "Priorytet: low, medium, high, critical"},
+                 "days_ahead": {"type": "integer", "description": "Dni do przodu dla terminów (default: 30)"},
+                 "obligation_type": {"type": "string", "description": "Typ obowiązku: reporting, licensing, documentation, training, audit, notification"},
+             }, "required": ["action"]}),
         Tool(name="gilbertus_process_intel",
              description="Process Intelligence: business lines, processes, apps (deep analysis + costs + replacement ranking), data flows, optimization plans, tech radar (solutions + roadmap). Dynamic discovery.",
              inputSchema={"type": "object", "properties": {
@@ -1008,6 +1038,104 @@ async def _call_tool_impl(name: str, arguments: dict):
         else:
             result = {"error": "Specify action: landscape, add (name), scan, analyze (competitor_id), signals"}
         r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+    elif name == "gilbertus_legal":
+        action = arguments.get("action", "dashboard")
+        matter_id = arguments.get("matter_id")
+        area_code = arguments.get("area_code")
+        query = arguments.get("query", "")
+        priority = arguments.get("priority", "medium")
+
+        if action == "dashboard":
+            r = _api("GET", "/compliance/dashboard")
+        elif action == "areas":
+            r = _api("GET", "/compliance/areas")
+        elif action == "area_detail":
+            r = _api("GET", f"/compliance/areas/{area_code or 'URE'}")
+        elif action == "matters":
+            params = {}
+            if area_code:
+                params["area_code"] = area_code
+            if arguments.get("priority"):
+                params["priority"] = priority
+            r = _api("GET", "/compliance/matters", params)
+        elif action == "create_matter":
+            r = _api("POST", "/compliance/matters", {
+                "title": query or "New compliance matter",
+                "matter_type": arguments.get("matter_type", "other"),
+                "area_code": area_code,
+                "description": query,
+                "priority": priority,
+            })
+        elif action == "matter_detail":
+            r = _api("GET", f"/compliance/matters/{matter_id}")
+        elif action == "advance":
+            r = _api("POST", f"/compliance/matters/{matter_id}/advance")
+        elif action == "research":
+            r = _api("POST", f"/compliance/matters/{matter_id}/research",
+                     {"query": query} if query else {})
+        elif action == "report":
+            r = _api("POST", f"/compliance/matters/{matter_id}/report")
+        elif action == "obligations":
+            params = {}
+            if area_code:
+                params["area_code"] = area_code
+            r = _api("GET", "/compliance/obligations", params)
+        elif action == "overdue":
+            r = _api("GET", "/compliance/obligations/overdue")
+        elif action == "deadlines":
+            days = arguments.get("days_ahead", 30)
+            params = {"days_ahead": days}
+            if area_code:
+                params["area_code"] = area_code
+            r = _api("GET", "/compliance/deadlines", params)
+        elif action == "deadlines_overdue":
+            r = _api("GET", "/compliance/deadlines/overdue")
+        elif action == "documents":
+            params = {}
+            if area_code:
+                params["area_code"] = area_code
+            if arguments.get("doc_type"):
+                params["doc_type"] = arguments["doc_type"]
+            r = _api("GET", "/compliance/documents", params)
+        elif action == "stale_docs":
+            r = _api("GET", "/compliance/documents/stale")
+        elif action == "generate_doc":
+            r = _api("POST", "/compliance/documents/generate", {
+                "matter_id": matter_id,
+                "doc_type": arguments.get("doc_type", "policy"),
+                "title": query,
+            })
+        elif action == "trainings":
+            params = {}
+            if area_code:
+                params["area_code"] = area_code
+            r = _api("GET", "/compliance/trainings", params)
+        elif action == "training_status":
+            r = _api("GET", f"/compliance/trainings/{matter_id}/status")
+        elif action == "risks":
+            params = {}
+            if area_code:
+                params["area_code"] = area_code
+            r = _api("GET", "/compliance/risks", params)
+        elif action == "risk_heatmap":
+            r = _api("GET", "/compliance/risks/heatmap")
+        elif action == "daily_report":
+            r = _api("GET", "/compliance/report/daily")
+        elif action == "area_report":
+            r = _api("GET", f"/compliance/report/area/{area_code or 'URE'}")
+        elif action == "raci":
+            params = {}
+            if matter_id:
+                params["matter_id"] = matter_id
+            if area_code:
+                params["area_code"] = area_code
+            r = _api("GET", "/compliance/raci", params)
+        elif action == "verify":
+            from app.analysis.legal_compliance import advance_matter_phase
+            r = json.dumps(advance_matter_phase(matter_id, force_phase="verification"),
+                           ensure_ascii=False, default=str)
+        else:
+            r = json.dumps({"error": f"Unknown action: {action}"})
     else:
         r = f"Unknown tool: {name}"
     return [TextContent(type="text", text=r)]

@@ -1492,6 +1492,297 @@ def expiring_contracts(days: int = 30):
 
 
 # =========================
+# Compliance endpoints
+# =========================
+
+@app.get("/compliance/dashboard")
+def compliance_dashboard():
+    """Overall compliance status dashboard."""
+    from app.analysis.legal_compliance import get_compliance_dashboard
+    return get_compliance_dashboard()
+
+@app.get("/compliance/areas")
+def compliance_areas():
+    """List all compliance areas."""
+    from app.analysis.legal_compliance import list_areas
+    return {"areas": list_areas()}
+
+@app.get("/compliance/areas/{code}")
+def compliance_area_detail(code: str):
+    """Detail for specific compliance area."""
+    from app.analysis.legal_compliance import get_area_detail
+    return get_area_detail(code.upper())
+
+@app.get("/compliance/matters")
+def compliance_matters(status: str | None = None, area_code: str | None = None, priority: str | None = None, limit: int = 20):
+    """List compliance matters with filters."""
+    from app.analysis.legal_compliance import list_matters
+    return {"matters": list_matters(status=status, area_code=area_code, priority=priority, limit=limit)}
+
+@app.post("/compliance/matters")
+def create_compliance_matter(body: dict):
+    """Create new compliance matter."""
+    from app.analysis.legal_compliance import create_matter
+    return create_matter(
+        title=body.get("title", ""),
+        matter_type=body.get("matter_type", "other"),
+        area_code=body.get("area_code"),
+        description=body.get("description"),
+        priority=body.get("priority", "medium"),
+        contract_id=body.get("contract_id"),
+        source_regulation=body.get("source_regulation"),
+    )
+
+@app.get("/compliance/matters/{matter_id}")
+def compliance_matter_detail(matter_id: int):
+    """Full detail for compliance matter."""
+    from app.analysis.legal_compliance import get_matter_detail
+    return get_matter_detail(matter_id)
+
+
+@app.get("/compliance/obligations")
+def compliance_obligations(area_code: str | None = None, status: str | None = None, limit: int = 50):
+    """List compliance obligations."""
+    from app.analysis.legal_compliance import list_obligations
+    return {"obligations": list_obligations(area_code=area_code, compliance_status=status, limit=limit)}
+
+
+@app.get("/compliance/obligations/overdue")
+def compliance_obligations_overdue():
+    """List overdue obligations."""
+    from app.analysis.legal_compliance import get_overdue_obligations
+    return {"overdue": get_overdue_obligations()}
+
+
+@app.post("/compliance/obligations")
+def create_compliance_obligation(body: dict):
+    """Create new compliance obligation."""
+    from app.analysis.legal_compliance import create_obligation
+    return create_obligation(**{k: v for k, v in body.items() if v is not None})
+
+
+@app.post("/compliance/obligations/{obligation_id}/fulfill")
+def fulfill_compliance_obligation(obligation_id: int, body: dict = {}):
+    """Mark obligation as fulfilled."""
+    from app.analysis.legal_compliance import fulfill_obligation
+    return fulfill_obligation(obligation_id, body.get("evidence_description"))
+
+
+@app.get("/compliance/deadlines")
+def compliance_deadlines(days_ahead: int = 30, area_code: str | None = None):
+    """Upcoming compliance deadlines."""
+    from app.db.postgres import get_pg_connection
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            sql = """
+                SELECT d.id, d.title, d.deadline_date, d.deadline_type, d.status,
+                       d.recurrence, a.code as area_code, a.name_pl as area_name
+                FROM compliance_deadlines d
+                LEFT JOIN compliance_areas a ON a.id = d.area_id
+                WHERE d.deadline_date <= CURRENT_DATE + %s
+                  AND d.status IN ('pending','in_progress')
+            """
+            params: list = [days_ahead]
+            if area_code:
+                sql += " AND a.code = %s"
+                params.append(area_code.upper())
+            sql += " ORDER BY d.deadline_date ASC"
+            cur.execute(sql, params)
+            return {"deadlines": [
+                {"id": r[0], "title": r[1], "date": str(r[2]), "type": r[3],
+                 "status": r[4], "recurrence": r[5], "area_code": r[6], "area_name": r[7]}
+                for r in cur.fetchall()
+            ]}
+
+
+@app.get("/compliance/deadlines/overdue")
+def compliance_deadlines_overdue():
+    """Overdue compliance deadlines."""
+    from app.db.postgres import get_pg_connection
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT d.id, d.title, d.deadline_date, d.deadline_type,
+                       a.code, a.name_pl,
+                       CURRENT_DATE - d.deadline_date as days_overdue
+                FROM compliance_deadlines d
+                LEFT JOIN compliance_areas a ON a.id = d.area_id
+                WHERE d.status = 'overdue'
+                   OR (d.deadline_date < CURRENT_DATE AND d.status = 'pending')
+                ORDER BY d.deadline_date ASC
+            """)
+            return {"overdue": [
+                {"id": r[0], "title": r[1], "date": str(r[2]), "type": r[3],
+                 "area_code": r[4], "area_name": r[5], "days_overdue": r[6]}
+                for r in cur.fetchall()
+            ]}
+
+
+@app.post("/compliance/matters/{matter_id}/research")
+def compliance_research(matter_id: int, body: dict = {}):
+    """Trigger AI research on compliance matter."""
+    from app.analysis.legal_compliance import research_regulation
+    return research_regulation(matter_id, query=body.get("query"))
+
+
+@app.post("/compliance/matters/{matter_id}/advance")
+def compliance_advance(matter_id: int, body: dict = {}):
+    """Advance matter to next phase."""
+    from app.analysis.legal_compliance import advance_matter_phase
+    return advance_matter_phase(matter_id, force_phase=body.get("force_phase"))
+
+
+@app.post("/compliance/matters/{matter_id}/report")
+def compliance_report(matter_id: int):
+    """Generate compliance report for matter."""
+    from app.analysis.legal_compliance import generate_compliance_report
+    return generate_compliance_report(matter_id)
+
+
+@app.get("/compliance/risks")
+def compliance_risks(area_code: str | None = None, status: str = "open", limit: int = 50):
+    """List risk assessments."""
+    from app.analysis.legal.risk_assessor import list_risks
+    return {"risks": list_risks(area_code=area_code, status=status, limit=limit)}
+
+
+@app.get("/compliance/risks/heatmap")
+def compliance_risk_heatmap():
+    """Risk heatmap data."""
+    from app.analysis.legal.risk_assessor import get_risk_heatmap
+    return get_risk_heatmap()
+
+
+@app.post("/compliance/scan")
+def compliance_scan(hours: int = 24):
+    """Scan recent chunks for regulatory changes."""
+    from app.analysis.legal.regulatory_scanner import scan_for_regulatory_changes
+    return scan_for_regulatory_changes(hours=hours)
+
+
+@app.get("/compliance/documents")
+def compliance_documents(area_code: str | None = None, doc_type: str | None = None,
+                         status: str | None = None, limit: int = 50):
+    """List compliance documents with filters."""
+    from app.analysis.legal_compliance import list_documents
+    return {"documents": list_documents(area_code=area_code, doc_type=doc_type,
+                                        status=status, limit=limit)}
+
+
+@app.get("/compliance/documents/stale")
+def compliance_stale_documents(days: int = 0):
+    """Get documents overdue for review."""
+    from app.analysis.legal_compliance import get_stale_documents
+    return {"stale_documents": get_stale_documents(days)}
+
+
+@app.post("/compliance/documents/generate")
+def compliance_generate_document(body: dict):
+    """Generate a compliance document using AI."""
+    from app.analysis.legal_compliance import generate_document
+    return generate_document(
+        matter_id=body["matter_id"], doc_type=body["doc_type"],
+        title=body.get("title"), template_hint=body.get("template_hint"),
+        signers=body.get("signers"), valid_months=body.get("valid_months", 12))
+
+
+@app.post("/compliance/documents/{doc_id}/approve")
+def compliance_approve_document(doc_id: int, body: dict = {}):
+    """Approve a compliance document."""
+    from app.analysis.legal.document_generator import approve_document
+    return approve_document(doc_id, body.get("approved_by", "sebastian"))
+
+
+@app.post("/compliance/documents/{doc_id}/sign")
+def compliance_sign_document(doc_id: int, body: dict):
+    """Register electronic signature on a document."""
+    from app.analysis.legal.document_generator import sign_document
+    return sign_document(doc_id, body["signer_name"])
+
+
+# --- Training endpoints ---
+
+@app.get("/compliance/trainings")
+def compliance_trainings(status: str | None = None, area_code: str | None = None, limit: int = 20):
+    """List compliance trainings with filters."""
+    from app.analysis.legal_compliance import list_trainings
+    return {"trainings": list_trainings(status=status, area_code=area_code, limit=limit)}
+
+
+@app.get("/compliance/trainings/{training_id}/status")
+def compliance_training_status(training_id: int):
+    """Get training status with per-person breakdown."""
+    from app.analysis.legal_compliance import get_training_status
+    return get_training_status(training_id)
+
+
+@app.post("/compliance/trainings")
+def create_compliance_training(body: dict):
+    """Create a new compliance training."""
+    from app.analysis.legal_compliance import create_training
+    return create_training(**{k: v for k, v in body.items() if v is not None})
+
+
+@app.post("/compliance/trainings/{training_id}/complete")
+def complete_compliance_training(training_id: int, body: dict):
+    """Mark training as completed for a person."""
+    from app.analysis.legal.training_manager import complete_training
+    return complete_training(training_id, body["person_id"], body.get("score"))
+
+
+# --- Communication & Reporting endpoints ---
+
+@app.get("/compliance/report/daily")
+def compliance_daily_report():
+    """Generate daily compliance status update."""
+    from app.analysis.legal.compliance_reporter import generate_daily_update
+    update = generate_daily_update()
+    return {"report": update or "No compliance issues to report"}
+
+@app.get("/compliance/report/weekly")
+def compliance_weekly_report():
+    """Generate weekly compliance report."""
+    from app.analysis.legal.compliance_reporter import generate_weekly_report
+    return generate_weekly_report()
+
+@app.get("/compliance/report/area/{code}")
+def compliance_area_report(code: str):
+    """Detailed report for specific compliance area."""
+    from app.analysis.legal.compliance_reporter import generate_area_report
+    return generate_area_report(code.upper())
+
+@app.get("/compliance/raci")
+def compliance_raci(matter_id: int | None = None, area_code: str | None = None):
+    """Get RACI matrix entries."""
+    from app.analysis.legal.communication_planner import get_raci
+    return {"raci": get_raci(matter_id=matter_id, area_code=area_code)}
+
+@app.post("/compliance/raci")
+def compliance_set_raci(body: dict):
+    """Set RACI entry."""
+    from app.analysis.legal.communication_planner import set_raci
+    return set_raci(
+        area_code=body.get("area_code"),
+        matter_id=body.get("matter_id"),
+        person_id=body.get("person_id", 0),
+        role=body.get("role", "informed"),
+        notes=body.get("notes"),
+    )
+
+@app.post("/compliance/matters/{matter_id}/communication-plan")
+def compliance_comm_plan(matter_id: int):
+    """Generate communication plan for matter."""
+    from app.analysis.legal_compliance import generate_communication_plan
+    return generate_communication_plan(matter_id)
+
+@app.post("/compliance/matters/{matter_id}/execute-communication")
+def compliance_exec_comm(matter_id: int):
+    """Execute planned communications for matter."""
+    from app.analysis.legal_compliance import execute_communication_plan
+    return execute_communication_plan(matter_id)
+
+
+# =========================
 # Delegation endpoint
 # =========================
 

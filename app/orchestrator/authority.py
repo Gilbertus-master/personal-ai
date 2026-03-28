@@ -88,7 +88,14 @@ def _ensure_tables():
                     ('financial_decision', 4, 'Any financial decision', FALSE, TRUE),
                     ('personnel_decision', 4, 'Hire/fire/promote/demote', FALSE, TRUE),
                     ('trading_decision', 4, 'Trading strategy change', FALSE, TRUE),
-                    ('board_communication', 4, 'Communication with board/shareholders', FALSE, TRUE)
+                    ('board_communication', 4, 'Communication with board/shareholders', FALSE, TRUE),
+                    ('compliance_research', 0, 'Research regulations and analyze — auto', TRUE, FALSE),
+                    ('compliance_report', 1, 'Generate compliance report — auto + digest', TRUE, TRUE),
+                    ('compliance_action_plan', 3, 'Propose compliance action plan — full proposal', FALSE, TRUE),
+                    ('compliance_document', 3, 'Generate internal regulation/policy — full proposal', FALSE, TRUE),
+                    ('compliance_training', 1, 'Create and assign compliance training — auto + digest', TRUE, TRUE),
+                    ('compliance_communication', 2, 'Send compliance notifications — quick approval', FALSE, TRUE),
+                    ('compliance_escalation', 2, 'Escalate non-compliance finding — quick approval', FALSE, TRUE)
                 ON CONFLICT (action_category) DO NOTHING
             """)
 

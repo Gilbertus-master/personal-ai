@@ -132,6 +132,9 @@ def classify_message(text: str) -> dict:
         "status": "status", "stan systemu": "status", "gilbertus status": "status",
         "scenarios": "scenarios", "scenariusze": "scenarios",
         "alerts": "alerts", "alerty": "alerts",
+        "compliance": "compliance", "compliance status": "compliance",
+        "compliance deadlines": "compliance_deadlines", "compliance terminy": "compliance_deadlines",
+        "compliance overdue": "compliance_overdue", "compliance zaległe": "compliance_overdue",
     }
     for cmd_prefix, cmd_type in QUERY_COMMANDS.items():
         if text_lower == cmd_prefix or text_lower.startswith(cmd_prefix + " "):
@@ -563,6 +566,51 @@ def process_new_messages():
                     for ma in market_alerts[:5]:
                         lines.append(f"• [{ma['level']}] {ma['message'][:150]}")
                     send_whatsapp("\n".join(lines) if len(lines) > 1 else "🚨 Brak aktywnych alertów.")
+
+                elif cmd == "compliance":
+                    from app.analysis.legal_compliance import get_compliance_dashboard
+                    dash = get_compliance_dashboard()
+                    overdue = dash.get("overdue_count", 0)
+                    upcoming = dash.get("upcoming_deadlines", 0)
+                    open_m = dash.get("open_matters", 0)
+                    lines = ["⚖️ *Compliance Status*\n"]
+                    if overdue:
+                        lines.append(f"⚠️ Overdue terminów: {overdue}")
+                    if upcoming:
+                        lines.append(f"📅 Nadchodzące terminy (7d): {upcoming}")
+                    if open_m:
+                        lines.append(f"📂 Otwarte sprawy: {open_m}")
+                    areas = dash.get("areas", [])
+                    for a in areas[:5]:
+                        if a.get("open_matters", 0) > 0:
+                            lines.append(f"  • {a['code']}: {a['open_matters']} spraw")
+                    send_whatsapp("\n".join(lines) if len(lines) > 1 else "⚖️ Brak aktywnych spraw compliance.")
+
+                elif cmd == "compliance_deadlines":
+                    from app.db.postgres import get_pg_connection as _gc2
+                    with _gc2() as _conn:
+                        with _conn.cursor() as _cur:
+                            _cur.execute("""
+                                SELECT d.title, d.deadline_date, a.code
+                                FROM compliance_deadlines d
+                                LEFT JOIN compliance_areas a ON a.id = d.area_id
+                                WHERE d.deadline_date <= CURRENT_DATE + 14
+                                  AND d.status IN ('pending','in_progress')
+                                ORDER BY d.deadline_date ASC LIMIT 10
+                            """)
+                            dl_rows = _cur.fetchall()
+                    lines = ["📅 *Compliance Terminy (14d)*\n"]
+                    for dl in dl_rows:
+                        lines.append(f"• [{dl[2] or '?'}] {dl[0]} — {dl[1]}")
+                    send_whatsapp("\n".join(lines) if len(lines) > 1 else "📅 Brak terminów w najbliższych 14 dniach.")
+
+                elif cmd == "compliance_overdue":
+                    from app.analysis.legal_compliance import get_overdue_obligations
+                    overdue_list = get_overdue_obligations()
+                    lines = ["⚠️ *Compliance Zaległe*\n"]
+                    for ob in (overdue_list or [])[:10]:
+                        lines.append(f"• [{ob.get('area_code', '?')}] {ob.get('title', '?')} — overdue {ob.get('days_overdue', '?')}d")
+                    send_whatsapp("\n".join(lines) if len(lines) > 1 else "⚠️ Brak zaległych obowiązków.")
 
                 elif cmd == "status":
                     from app.db.postgres import get_pg_connection as _gc

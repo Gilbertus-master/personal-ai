@@ -369,6 +369,16 @@ def fetch_predictive_alerts(limit: int = 5) -> list[dict[str, Any]]:
         return []
 
 
+def fetch_compliance_status() -> dict[str, Any]:
+    """Fetch compliance data for morning brief."""
+    try:
+        from app.analysis.legal_compliance import get_compliance_dashboard
+        return get_compliance_dashboard()
+    except Exception as e:
+        logger.warning("Compliance dashboard fetch failed: %s", e)
+        return {}
+
+
 def fetch_recent_summaries(
     date_from: str,
     date_to: str,
@@ -454,6 +464,7 @@ def build_brief_context(
     market_insights: list[dict[str, Any]] | None = None,
     competitor_signals: list[dict[str, Any]] | None = None,
     predictive_alerts: list[dict[str, Any]] | None = None,
+    compliance_status: dict[str, Any] | None = None,
 ) -> str:
     """Assemble all data into a single context string for Claude."""
     all_parts: list[str] = []
@@ -487,6 +498,21 @@ def build_brief_context(
             lambda p: f"[{p['type']}] {p['prediction']} (prawdop. {p['probability']:.0%})\n  Zalecenie: {p['action']}",
             0.08, total_chars, max_chars)
         all_parts.extend(parts)
+
+    # Compliance
+    if compliance_status:
+        overdue = compliance_status.get("overdue_count", 0)
+        upcoming = compliance_status.get("upcoming_deadlines", 0)
+        open_matters = compliance_status.get("open_matters", 0)
+        if overdue or upcoming or open_matters:
+            all_parts.append("=== COMPLIANCE ===")
+            if overdue:
+                all_parts.append(f"OVERDUE terminów: {overdue}")
+            if upcoming:
+                all_parts.append(f"Nadchodzące terminy (7d): {upcoming}")
+            if open_matters:
+                all_parts.append(f"Otwarte sprawy: {open_matters}")
+            all_parts.append("")
 
     # Alerts
     if alerts:
@@ -598,6 +624,13 @@ Nietypowe wzorce, zmiany, odstepstwa od normy. Np.:
 - Temat, ktory wraca wielokrotnie
 - Zmiana tonu w komunikacji
 - Nietypowe godziny aktywnosci
+
+## Compliance
+Jezeli sa dane compliance — overdue terminy, nadchodzace obowiazki, otwarte sprawy.
+- Zaleglosci wymagajace natychmiastowej uwagi
+- Najblizsze terminy (7 dni)
+- Otwarte sprawy compliance (URE, RODO, AML, ESG, etc.)
+Jezeli brak danych, pomin ta sekcje.
 
 Zasady:
 - Opieraj sie WYLACZNIE na dostarczonym kontekscie. Nie zmyslaj.
@@ -785,6 +818,7 @@ def generate_morning_brief(
     market = fetch_market_insights()
     competitors = fetch_competitor_signals()
     predictions = fetch_predictive_alerts()
+    compliance = fetch_compliance_status()
 
     total_data = len(events) + len(open_loops) + len(entities) + len(summaries) + len(calendar) + len(market) + len(competitors)
 
@@ -810,7 +844,7 @@ def generate_morning_brief(
         events, open_loops, entities, summaries,
         alerts=active_alerts, calendar=calendar,
         market_insights=market, competitor_signals=competitors,
-        predictive_alerts=predictions,
+        predictive_alerts=predictions, compliance_status=compliance,
     )
     date_label = datetime.fromisoformat(date).strftime("%A, %d %B %Y")
     brief_text = generate_brief_text(context, date_label)
@@ -838,6 +872,7 @@ def generate_morning_brief(
         "competitor_count": len(competitors),
         "predictions_count": len(predictions),
         "alerts_count": alerts_result["total_detected"] if alerts_result else 0,
+        "compliance_overdue": compliance.get("overdue_count", 0) if compliance else 0,
         "text": brief_text,
     }
 

@@ -1,7 +1,7 @@
 # Gilbertus Albans — Projekt AI Mentat
 
 ## ZASADA ZERO: NON-REGRESSION
-**Nowe developmenty NIE MOGĄ pogorszyć dotychczasowych osiągnięć.** Przed deploy: sprawdź czy 39 cronów działa, 43 MCP tools odpowiada, QC 0 errors, extraction coverage nie spadło, latency nie wzrosło. Jeśli nowy feature łamie cokolwiek → REVERT natychmiast.
+**Nowe developmenty NIE MOGĄ pogorszyć dotychczasowych osiągnięć.** Przed deploy: sprawdź czy 42 cronów działa, 44 MCP tools odpowiada, QC 0 errors, extraction coverage nie spadło, latency nie wzrosło. Jeśli nowy feature łamie cokolwiek → REVERT natychmiast.
 
 ## Kto to jest
 Sebastian Jabłoński — właściciel REH (Respect Energy Holding) i REF (Respect Energy Fuels), trader energetyczny, ojciec. Myśli systemowo, ceni kontrolę i efektywność.
@@ -19,10 +19,10 @@ Gilbertus Albans to prywatny mentat AI Sebastiana — system, który indeksuje d
 - **Stack:** Python, FastAPI, PostgreSQL 16, Qdrant, Claude (Anthropic), OpenAI embeddings, Docker
 - **Źródła:** Teams (Graph API), email (Graph API + PST), WhatsApp (OpenClaw), Plaud (audio), dokumenty, ChatGPT
 - **Ekstrakcja:** Entities (5 typów) + Events (15 typów) via Claude Haiku, 24 workers, partycjonowane
-- **Delivery:** WhatsApp, Teams Bot, HTTP API (110+ endpointów)
-- **Automatyzacja:** 39 cron jobów (ingestion co 5 min, extraction co 30 min, commitment extract co 30 min, meeting prep co 15 min 8-20, response drafter co 15 min 8-20, backup co 4h, brief o 7:00, weekly synthesis Sun 20:00, weekly analysis Fri 21:00, intelligence scan daily 22:00, QC daily 6:00, workforce analysis monthly 1st, tech radar monthly 2nd)
+- **Delivery:** WhatsApp, Teams Bot, HTTP API (116 endpointów)
+- **Automatyzacja:** 42 cron jobów (ingestion co 5 min, extraction co 30 min, commitment extract co 30 min, meeting prep co 15 min 8-20, response drafter co 15 min 8-20, backup co 4h, brief o 7:00, weekly synthesis Sun 20:00, weekly analysis Fri 21:00, intelligence scan daily 22:00, QC daily 6:00, security scan weekly Mon 8:00, compliance daily 6:15, regulatory scan co 6h, compliance weekly Sun 19:00, compliance monthly 1st 8:00, training check Mon-Fri 9:00)
 
-## MCP Tools (43)
+## MCP Tools (44)
 Gilbertus API jest dostępne jako MCP server (`mcp_gilbertus/server.py`).
 
 **Core (11):** `gilbertus_ask`, `gilbertus_timeline`, `gilbertus_summary`, `gilbertus_brief`, `gilbertus_alerts`, `gilbertus_status`, `gilbertus_db_stats`, `gilbertus_decide`, `gilbertus_people`, `gilbertus_lessons`, `gilbertus_costs`.
@@ -34,6 +34,8 @@ Gilbertus API jest dostępne jako MCP server (`mcp_gilbertus/server.py`).
 **Process Intel (1+):** `gilbertus_process_intel` (18 akcji: dashboard, discover, processes, mine, apps, scan_apps, flows, map_flows, optimize, scan_apps_deep, app_analysis, app_costs, app_ranking, tech_radar, tech_discover, tech_roadmap, tech_solution, tech_alignment).
 
 **Workforce (1):** `gilbertus_workforce_analysis` (CEO-only: overview, analyze, profile, roadmap, analyze_all).
+
+**Legal (1):** `gilbertus_legal` (24 akcje: dashboard, areas, matters, create_matter, research, report, obligations, deadlines, documents, generate_doc, trainings, risks, raci, verify, ...).
 
 **Operations (1):** `gilbertus_crons`.
 
