@@ -410,6 +410,12 @@ SEED_JOBS = [
      "log_file": "/home/sebastian/personal-ai/logs/competitor_scan.log",
      "users": ["sebastian"]},
     # Etap 1: Smart Alert Delivery
+    # Process Intelligence
+    {"job_name": "process_discovery", "schedule": "0 16 * * 0",
+     "command": "cd /home/sebastian/personal-ai && bash scripts/process_discovery.sh",
+     "description": "Process Intelligence: full discovery cycle (Sunday 17:00 CET)", "category": "intelligence",
+     "log_file": "/home/sebastian/personal-ai/logs/process_discovery.log",
+     "users": ["sebastian"]},
     {"job_name": "health_check_deep", "schedule": "0 6,12,18 * * *",
      "command": "cd /home/sebastian/personal-ai && .venv/bin/python -c \"from app.analysis.health_monitor import run_health_check; run_health_check()\"",
      "description": "Deep health check with WhatsApp alerts (3x/day)", "category": "qc",

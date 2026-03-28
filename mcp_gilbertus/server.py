@@ -138,6 +138,12 @@ async def list_tools():
         Tool(name="omnius_status",
              description="Check status of all Omnius tenants.",
              inputSchema={"type": "object", "properties": {}}),
+        Tool(name="gilbertus_process_intel",
+             description="Process Intelligence: discover business lines, mine processes, inventory apps, map data flows, generate optimization plans. Dynamic — discovers from data, not hardcoded.",
+             inputSchema={"type": "object", "properties": {
+                 "action": {"type": "string", "enum": ["dashboard", "discover", "processes", "apps", "flows", "optimize", "mine", "scan_apps", "map_flows"], "default": "dashboard"},
+                 "process_type": {"type": "string", "description": "Filter processes by type (decision/approval/reporting/trading/compliance/communication/operational)"},
+             }}),
         Tool(name="omnius_bridge",
              description="Cross-tenant Omnius operations: search both REH+REF at once, aggregated dashboard, cross-company audit, operator tasks, sync all. Sebastian's god-view across all companies.",
              inputSchema={"type": "object", "properties": {
@@ -609,6 +615,39 @@ async def call_tool(name: str, arguments: dict):
             from app.analysis.org_health import get_health_trend
             result = get_health_trend(weeks=arguments.get("weeks", 8))
         r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+    elif name == "gilbertus_process_intel":
+        action = arguments.get("action", "dashboard")
+        if action == "dashboard":
+            r = _api("GET", "/process-intel/dashboard")
+        elif action == "discover":
+            from app.analysis.business_lines import discover_business_lines
+            result = discover_business_lines(force=True)
+            r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+        elif action == "processes":
+            from app.analysis.process_mining import get_processes
+            result = get_processes(process_type=arguments.get("process_type"))
+            r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+        elif action == "mine":
+            from app.analysis.process_mining import mine_processes
+            result = mine_processes(force=True)
+            r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+        elif action == "apps":
+            from app.analysis.app_inventory import get_app_inventory
+            r = json.dumps(get_app_inventory(), ensure_ascii=False, indent=2, default=str)
+        elif action == "scan_apps":
+            from app.analysis.app_inventory import scan_applications
+            r = json.dumps(scan_applications(), ensure_ascii=False, indent=2, default=str)
+        elif action == "flows":
+            from app.analysis.data_flow_mapper import get_data_flows
+            r = json.dumps(get_data_flows(), ensure_ascii=False, indent=2, default=str)
+        elif action == "map_flows":
+            from app.analysis.data_flow_mapper import map_data_flows
+            r = json.dumps(map_data_flows(), ensure_ascii=False, indent=2, default=str)
+        elif action == "optimize":
+            from app.analysis.optimization_planner import generate_plans
+            r = json.dumps(generate_plans(), ensure_ascii=False, indent=2, default=str)
+        else:
+            r = json.dumps({"error": "Actions: dashboard, discover, processes, mine, apps, scan_apps, flows, map_flows, optimize"})
     elif name == "omnius_bridge":
         action = arguments.get("action", "dashboard")
         from app.omnius.bridge import (

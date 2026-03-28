@@ -1659,3 +1659,69 @@ def competitor_analysis(competitor_id: int):
 def competitor_signals(competitor_id: int | None = None, signal_type: str | None = None, days: int = 30):
     from app.analysis.competitor_intelligence import get_competitor_signals
     return get_competitor_signals(competitor_id=competitor_id, signal_type=signal_type, days=days)
+
+
+# =========================
+# Process Intelligence endpoints
+# =========================
+
+@app.get("/process-intel/dashboard")
+def process_intel_dashboard():
+    from app.analysis.business_lines import get_business_lines
+    from app.analysis.app_inventory import get_app_inventory
+    from app.analysis.optimization_planner import get_optimization_dashboard
+    return {
+        "business_lines": get_business_lines(),
+        "apps": get_app_inventory(),
+        "optimizations": get_optimization_dashboard(),
+    }
+
+@app.get("/process-intel/business-lines")
+def business_lines_endpoint():
+    from app.analysis.business_lines import get_business_lines
+    return get_business_lines()
+
+@app.post("/process-intel/discover")
+def discover_business_lines_endpoint():
+    from app.analysis.business_lines import discover_business_lines
+    return discover_business_lines(force=True)
+
+@app.get("/process-intel/processes")
+def discovered_processes(process_type: str | None = None):
+    from app.analysis.process_mining import get_processes
+    return get_processes(process_type=process_type)
+
+@app.post("/process-intel/mine")
+def mine_processes_endpoint():
+    from app.analysis.process_mining import mine_processes
+    return mine_processes(force=True)
+
+@app.get("/process-intel/apps")
+def app_inventory_endpoint():
+    from app.analysis.app_inventory import get_app_inventory
+    return get_app_inventory()
+
+@app.post("/process-intel/scan-apps")
+def scan_apps_endpoint():
+    from app.analysis.app_inventory import scan_applications
+    return scan_applications()
+
+@app.get("/process-intel/flows")
+def data_flows_endpoint():
+    from app.analysis.data_flow_mapper import get_data_flows
+    return get_data_flows()
+
+@app.post("/process-intel/map-flows")
+def map_flows_endpoint():
+    from app.analysis.data_flow_mapper import map_data_flows
+    return map_data_flows()
+
+@app.get("/process-intel/optimizations")
+def optimizations_endpoint():
+    from app.analysis.optimization_planner import get_optimization_dashboard
+    return get_optimization_dashboard()
+
+@app.post("/process-intel/plan")
+def generate_plans_endpoint():
+    from app.analysis.optimization_planner import generate_plans
+    return generate_plans()

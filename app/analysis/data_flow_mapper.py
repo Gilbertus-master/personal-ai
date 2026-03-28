@@ -1,0 +1,145 @@
+"""
+Data Flow Mapper — map information flows across the organization.
+
+Who sends what to whom, via which channel, how often.
+Identifies bottlenecks, single points of failure, manual handoffs.
+
+Cron: part of process_discovery (Sunday weekly)
+"""
+from __future__ import annotations
+
+import structlog
+
+log = structlog.get_logger(__name__)
+
+from datetime import datetime, timezone
+from typing import Any
+
+from app.db.postgres import get_pg_connection
+
+
+def _ensure_tables():
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS data_flows (
+                    id BIGSERIAL PRIMARY KEY,
+                    flow_name TEXT NOT NULL,
+                    source_role TEXT,
+                    target_role TEXT,
+                    data_type TEXT,
+                    channel TEXT,
+                    frequency TEXT,
+                    volume_per_month INTEGER DEFAULT 0,
+                    business_line_id BIGINT REFERENCES business_lines(id) ON DELETE SET NULL,
+                    automation_status TEXT DEFAULT 'manual'
+                        CHECK (automation_status IN ('manual', 'semi_auto', 'automated', 'gilbertus')),
+                    bottleneck_risk TEXT DEFAULT 'low'
+                        CHECK (bottleneck_risk IN ('low', 'medium', 'high')),
+                    notes TEXT,
+                    discovered_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+                CREATE INDEX IF NOT EXISTS idx_df_channel ON data_flows(channel);
+                CREATE INDEX IF NOT EXISTS idx_df_automation ON data_flows(automation_status);
+            """)
+            conn.commit()
+
+
+def map_data_flows(days: int = 30) -> dict[str, Any]:
+    """Map data flows from communication patterns."""
+    _ensure_tables()
+    started = datetime.now(tz=timezone.utc)
+    flows = []
+
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            # Email flows: sender → receiver patterns
+            cur.execute("""
+                SELECT d.author as sender,
+                       s.source_type as channel,
+                       COUNT(*) as volume,
+                       COUNT(DISTINCT DATE(d.created_at)) as active_days
+                FROM documents d
+                JOIN sources s ON d.source_id = s.id
+                WHERE d.created_at > NOW() - INTERVAL '%s days'
+                AND d.author IS NOT NULL AND d.author != ''
+                GROUP BY d.author, s.source_type
+                HAVING COUNT(*) >= 3
+                ORDER BY volume DESC LIMIT 30
+            """, (days,))
+            for r in cur.fetchall():
+                flows.append({
+                    "source_role": r[0][:60],
+                    "channel": r[1],
+                    "volume": r[2],
+                    "active_days": r[3],
+                    "frequency": "daily" if r[3] > days * 0.5 else "weekly" if r[3] > 4 else "occasional",
+                })
+
+            # Channel volume distribution
+            cur.execute("""
+                SELECT s.source_type, COUNT(d.id) as docs, COUNT(DISTINCT d.author) as senders
+                FROM documents d JOIN sources s ON d.source_id = s.id
+                WHERE d.created_at > NOW() - INTERVAL '%s days'
+                GROUP BY s.source_type ORDER BY docs DESC
+            """, (days,))
+            channel_stats = [
+                {"channel": r[0], "documents": r[1], "unique_senders": r[2]}
+                for r in cur.fetchall()
+            ]
+
+            # Entity communication hub (who is central)
+            cur.execute("""
+                SELECT en.canonical_name,
+                       COUNT(DISTINCT ee.event_id) as events,
+                       COUNT(DISTINCT ce.chunk_id) as chunks
+                FROM entities en
+                LEFT JOIN event_entities ee ON ee.entity_id = en.id
+                LEFT JOIN chunk_entities ce ON ce.entity_id = en.id
+                WHERE en.entity_type = 'person'
+                GROUP BY en.id, en.canonical_name
+                HAVING COUNT(DISTINCT ee.event_id) >= 10
+                ORDER BY COUNT(DISTINCT ee.event_id) DESC LIMIT 10
+            """)
+            hubs = [
+                {"person": r[0], "events": r[1], "chunks": r[2],
+                 "bottleneck_risk": "high" if r[1] > 50 else "medium" if r[1] > 20 else "low"}
+                for r in cur.fetchall()
+            ]
+
+    # Store notable flows
+    stored = 0
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            for f in flows[:20]:
+                cur.execute("""
+                    INSERT INTO data_flows (flow_name, source_role, channel, frequency, volume_per_month)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (
+                    f"{f['source_role']} via {f['channel']}",
+                    f["source_role"],
+                    f["channel"],
+                    f["frequency"],
+                    f["volume"],
+                ))
+                stored += 1
+            conn.commit()
+
+    latency_ms = int((datetime.now(tz=timezone.utc) - started).total_seconds() * 1000)
+    log.info("data_flows_mapped", flows=stored, hubs=len(hubs), latency_ms=latency_ms)
+
+    return {
+        "flows_mapped": stored,
+        "channel_stats": channel_stats,
+        "communication_hubs": hubs,
+        "bottleneck_risks": [h for h in hubs if h["bottleneck_risk"] in ("medium", "high")],
+        "latency_ms": latency_ms,
+    }
+
+
+def get_data_flows() -> list[dict]:
+    _ensure_tables()
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT flow_name, source_role, channel, frequency, volume_per_month, automation_status, bottleneck_risk FROM data_flows ORDER BY volume_per_month DESC")
+            return [{"flow": r[0], "source": r[1], "channel": r[2], "frequency": r[3], "volume": r[4], "automation": r[5], "bottleneck": r[6]} for r in cur.fetchall()]
