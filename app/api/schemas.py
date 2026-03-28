@@ -1,15 +1,20 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 from app.models.query import InterpretedQuery  # noqa: F401 — re-export for backward compat
 
+ALLOWED_SOURCE_TYPES = {"email", "teams", "whatsapp", "chatgpt", "plaud", "document", "calendar", "whatsapp_live", "pdf"}
+ALLOWED_ANSWER_LENGTHS = {"short", "medium", "long", "auto"}
+
 
 class AskRequest(BaseModel):
-    query: str = Field(..., min_length=1)
+    query: str = Field(..., min_length=1, max_length=4000,
+                       description="Max 4000 znaków")
     top_k: int = Field(default=8, ge=1, le=50)
-    source_types: list[str] | None = None
+    source_types: list[str] | None = Field(default=None,
+        description="Allowed: email, teams, whatsapp, chatgpt, plaud, document, calendar, whatsapp_live, pdf")
     source_names: list[str] | None = None
     date_from: str | None = None
     date_to: str | None = None
@@ -22,6 +27,25 @@ class AskRequest(BaseModel):
     debug: bool = False
     channel: str | None = None  # "whatsapp", "api", etc. — affects defaults
     session_id: str | None = None  # conversation session key, e.g. "+48505441635"
+
+    @field_validator("source_types")
+    @classmethod
+    def validate_source_types(cls, v):
+        if v is None:
+            return v
+        invalid = set(v) - ALLOWED_SOURCE_TYPES
+        if invalid:
+            raise ValueError(f"Invalid source_types: {invalid}. Allowed: {ALLOWED_SOURCE_TYPES}")
+        return v
+
+    @field_validator("answer_length")
+    @classmethod
+    def validate_answer_length(cls, v):
+        if v is None:
+            return v
+        if v not in ALLOWED_ANSWER_LENGTHS:
+            raise ValueError(f"Invalid answer_length: {v}. Allowed: {ALLOWED_ANSWER_LENGTHS}")
+        return v
 
 
 

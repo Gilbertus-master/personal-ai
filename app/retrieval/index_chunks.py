@@ -20,6 +20,7 @@ load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 QDRANT_URL = os.getenv("QDRANT_URL", "http://127.0.0.1:6333")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
 QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "gilbertus_chunks")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-large")
 
@@ -37,7 +38,7 @@ if not OPENAI_API_KEY:
     raise RuntimeError("Brak OPENAI_API_KEY w .env")
 
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
-qdrant = QdrantClient(url=QDRANT_URL)
+qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY if QDRANT_API_KEY else None)
 
 
 def ensure_collection() -> None:

@@ -77,7 +77,7 @@ def check_db_counts() -> dict[str, Any]:
                 ("events", BASELINE["min_events"]),
                 ("entities", BASELINE["min_entities"]),
             ]:
-                cur.execute(f"SELECT COUNT(*) FROM {table}")
+                cur.execute(f"SELECT COUNT(*) FROM {table}")  # safe: table from hardcoded list above
                 count = cur.fetchone()[0]
                 counts[table] = count
                 if count < min_count:

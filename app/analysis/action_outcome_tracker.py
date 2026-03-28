@@ -37,7 +37,12 @@ ANTHROPIC_MODEL = os.getenv("ANTHROPIC_FAST_MODEL", "claude-haiku-4-5")
 client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"), timeout=60.0)
 
 OPENCLAW_BIN = os.getenv("OPENCLAW_BIN", "openclaw")
-WA_TARGET = os.getenv("WA_TARGET", "+48505441635")
+WA_TARGET = os.getenv("WA_TARGET", "")
+if not WA_TARGET:
+    structlog.get_logger("config").warning(
+        "WA_TARGET_not_set",
+        hint="Set WA_TARGET in .env to enable WhatsApp notifications",
+    )
 
 TOPIC_CHECK_PROMPT = """You analyze whether recent events/communications are related to an executed action.
 
@@ -694,6 +699,8 @@ def notify_failures(actions_with_no_response: list[dict]) -> None:
             f"na {count} akcji z rzadu. Rozważ eskalację lub zmianę kanału."
         )
         log.warning("repeated_no_response", person=person, count=count)
+        if not WA_TARGET:
+            continue
         try:
             subprocess.run(
                 [OPENCLAW_BIN, "message", "send", "--channel", "whatsapp",

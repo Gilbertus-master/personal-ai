@@ -123,6 +123,8 @@ def create_ask_run(
     error_flag: bool = False,
     error_message: Optional[str] = None,
     cache_hit: bool = False,
+    caller_ip: Optional[str] = None,
+    channel_key: Optional[str] = None,
 ) -> int:
     meta = (response_payload or {}).get("meta") or {}
     answer_text = (response_payload or {}).get("answer") or ""
@@ -159,6 +161,9 @@ def create_ask_run(
         error_message,
         json.dumps(stage_ms) if stage_ms else None,
         cache_hit,
+        # audit trail
+        caller_ip,
+        channel_key,
     )
 
     with get_pg_connection() as conn:
@@ -173,14 +178,16 @@ def create_ask_run(
                     allow_quotes, debug, latency_ms,
                     raw_request_json, raw_response_json,
                     model_used, input_tokens, output_tokens,
-                    cost_usd, error_flag, error_message, stage_ms, cache_hit
+                    cost_usd, error_flag, error_message, stage_ms, cache_hit,
+                    caller_ip, channel_key
                 )
                 VALUES (
                     %s, %s, %s, %s, %s, %s, %s, %s,
                     %s::jsonb, %s::jsonb, %s, %s,
                     %s, %s, %s, %s, %s, %s, %s,
                     %s::jsonb, %s::jsonb,
-                    %s, %s, %s, %s, %s, %s, %s::jsonb, %s
+                    %s, %s, %s, %s, %s, %s, %s::jsonb, %s,
+                    %s, %s
                 )
                 RETURNING id
                 """,
@@ -238,6 +245,8 @@ def persist_ask_run_best_effort(
     error_flag: bool = False,
     error_message: Optional[str] = None,
     cache_hit: bool = False,
+    caller_ip: Optional[str] = None,
+    channel_key: Optional[str] = None,
 ) -> Optional[int]:
     """
     Best effort:
@@ -259,6 +268,8 @@ def persist_ask_run_best_effort(
             error_flag=error_flag,
             error_message=error_message,
             cache_hit=cache_hit,
+            caller_ip=caller_ip,
+            channel_key=channel_key,
         )
         insert_ask_run_matches(ask_run_id, matches or [])
         return ask_run_id

@@ -14,11 +14,12 @@ load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 QDRANT_URL = os.getenv("QDRANT_URL", "http://127.0.0.1:6333")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
 QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "gilbertus_chunks")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-large")
 
 client = OpenAI(api_key=OPENAI_API_KEY, timeout=30.0)
-qdrant = QdrantClient(url=QDRANT_URL, timeout=15.0)
+qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY if QDRANT_API_KEY else None, timeout=15.0)
 
 
 def resolve_person_aliases(query: str) -> str:

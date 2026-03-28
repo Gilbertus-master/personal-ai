@@ -451,8 +451,14 @@ def get_delegation_dashboard() -> dict[str, Any]:
 # WhatsApp command handler
 # ================================================================
 
-def handle_delegation_command(text: str) -> dict[str, Any] | None:
+def handle_delegation_command(text: str, sender_phone: str = "") -> dict[str, Any] | None:
     """Handle WhatsApp commands: remind #ID, cancel #ID, extend #ID [days]."""
+    from app.orchestrator.task_monitor import AUTHORIZED_SENDERS
+    if AUTHORIZED_SENDERS and sender_phone not in AUTHORIZED_SENDERS:
+        log.warning("delegation_unauthorized_sender",
+                     sender=sender_phone, text=text[:50])
+        return None
+
     text = text.strip().lower()
 
     # remind #ID

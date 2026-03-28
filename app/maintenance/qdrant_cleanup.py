@@ -10,9 +10,10 @@ from qdrant_client.models import Filter, FieldCondition, MatchAny
 load_dotenv()
 
 QDRANT_URL = os.getenv("QDRANT_URL", "http://127.0.0.1:6333")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
 QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "gilbertus_chunks")
 
-qdrant = QdrantClient(url=QDRANT_URL, timeout=180)
+qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY if QDRANT_API_KEY else None, timeout=180)
 
 
 def delete_points_for_document_ids(document_ids: list[int], batch_size: int = 3) -> None:

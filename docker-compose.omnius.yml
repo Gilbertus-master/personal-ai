@@ -9,6 +9,8 @@ services:
     image: postgres:16
     container_name: omnius-db
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     environment:
       POSTGRES_USER: omnius
       POSTGRES_PASSWORD: ${OMNIUS_DB_PASSWORD:-omnius_secure_pw}
@@ -31,6 +33,8 @@ services:
     image: qdrant/qdrant:latest
     container_name: omnius-qdrant
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "127.0.0.1:6335:6333"
     volumes:
@@ -42,6 +46,8 @@ services:
       dockerfile: ../Dockerfile.omnius
     container_name: omnius-reh
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     env_file: omnius/.env.reh
     environment:
       - OMNIUS_POSTGRES_HOST=omnius-db
@@ -63,6 +69,8 @@ services:
       dockerfile: ../Dockerfile.omnius
     container_name: omnius-ref
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     env_file: omnius/.env.ref
     environment:
       - OMNIUS_POSTGRES_HOST=omnius-db

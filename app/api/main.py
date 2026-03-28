@@ -1,13 +1,18 @@
 from pathlib import Path
 import os
+import random
 import time
 import logging
 from datetime import datetime, timezone
 from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from app.api.schemas import AskRequest, AskResponse, MatchItem, SourceItem
 from app.retrieval.query_interpreter import interpret_query
@@ -51,6 +56,41 @@ app = FastAPI(
     version=APP_VERSION,
 )
 
+# --- CORS policy ---
+CORS_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+CORS_ORIGINS = [o.strip() for o in CORS_ORIGINS if o.strip()]
+if not CORS_ORIGINS:
+    CORS_ORIGINS = ["http://localhost:3000", "http://localhost:8080",
+                    "http://127.0.0.1:3000", "http://127.0.0.1:8080"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "X-API-Key", "Authorization"],
+    max_age=3600,
+)
+
+# --- Rate limiting ---
+TRUSTED_IPS = {"127.0.0.1", "localhost", "::1"}
+
+
+def get_rate_limit_key(request: Request) -> str | None:
+    """Skip rate limiting for local/internal calls."""
+    if request.client and request.client.host in TRUSTED_IPS:
+        return None
+    return get_remote_address(request)
+
+
+limiter = Limiter(key_func=get_rate_limit_key)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from app.api.auth import api_key_middleware
+app.add_middleware(BaseHTTPMiddleware, dispatch=api_key_middleware)
+
 app.include_router(plaud_router)
 app.include_router(decisions_router)
 app.include_router(insights_router)
@@ -74,7 +114,8 @@ class EvaluateRequest(BaseModel):
     date_to: str | None = Field(default=None, description="YYYY-MM-DD")
 
 @app.post("/evaluate")
-def evaluate(req: EvaluateRequest):
+@limiter.limit("5/minute")
+def evaluate(request: Request, req: EvaluateRequest):
     started = time.time()
     data = collect_person_data(
         person_slug=req.person_slug,
@@ -94,7 +135,8 @@ def evaluate(req: EvaluateRequest):
 # =========================
 
 @app.get("/scorecard/{person_slug}")
-def scorecard(person_slug: str):
+@limiter.limit("5/minute")
+def scorecard(request: Request, person_slug: str):
     """Employee scorecard — aggregated view of a person's data, events, anomalies."""
     from app.db.postgres import get_pg_connection
 
@@ -194,7 +236,8 @@ class CorrelationRequest(BaseModel):
     window: str = "week"
 
 @app.post("/correlate")
-def correlate(req: CorrelationRequest):
+@limiter.limit("5/minute")
+def correlate(request: Request, req: CorrelationRequest):
     result = run_correlation(
         correlation_type=req.correlation_type,
         event_type_a=req.event_type_a,
@@ -351,11 +394,8 @@ def run_timeline_query(
 # =========================
 
 @app.get("/health")
-def health() -> dict[str, Any]:
-    return {
-        "status": "ok",
-        "env": APP_ENV,
-    }
+def health() -> dict[str, str]:
+    return {"status": "ok", "service": "gilbertus-api"}
 
 
 @app.get("/version")
@@ -465,12 +505,19 @@ def list_conversation_windows() -> list[dict]:
 
 
 @app.get("/status")
-def system_status() -> dict[str, Any]:
+@limiter.limit("10/minute")
+def system_status(request: Request) -> dict[str, Any]:
     """
-    System status dashboard — no auth required.
+    System status dashboard — protected by API key when GILBERTUS_API_KEY is set.
     Returns DB stats, embedding status, source breakdown,
     last backup, service health, and cron jobs.
     """
+    api_key = os.getenv("GILBERTUS_API_KEY", "")
+    if api_key:
+        provided = request.headers.get("X-API-Key", "")
+        client_ip = request.client.host if request.client else ""
+        if client_ip not in {"127.0.0.1", "localhost", "::1"} and provided != api_key:
+            raise HTTPException(status_code=401, detail="X-API-Key required for /status")
     started_at = time.time()
     result: dict[str, Any] = {}
 
@@ -675,11 +722,27 @@ def _save_answer_cache(cache_key: str, query: str, answer: str, meta: dict, ttl_
 
 
 @app.post("/ask", response_model=AskResponse)
-def ask(request: AskRequest) -> AskResponse:
+@limiter.limit("30/minute")
+def ask(body: AskRequest, request: Request) -> AskResponse:
     started_at = time.time()
     from app.db.stage_timer import StageTimer
     timer = StageTimer()
-    request = _apply_channel_defaults(request)
+    caller_ip = request.client.host if request.client else None
+    channel_key = f"{body.channel or 'api'}:{body.session_id or 'anonymous'}"
+    ask_req = _apply_channel_defaults(body)
+
+    # Prompt injection detection
+    from app.utils.input_sanitizer import sanitize_query
+    sanitized = sanitize_query(ask_req.query)
+    if sanitized.suspicious:
+        import structlog
+        structlog.get_logger("security").warning(
+            "prompt_injection_detected",
+            flags=sanitized.flags,
+            channel=ask_req.channel,
+            query_preview=ask_req.query[:100],
+        )
+    ask_req = ask_req.model_copy(update={"query": sanitized.text})
 
     # Feature flags (read once per request)
     from dotenv import dotenv_values
@@ -690,31 +753,31 @@ def ask(request: AskRequest) -> AskResponse:
     conversation_context = ""
     conv_store = None
     previous_answer_summary = ""
-    if request.channel or request.session_id:
-        conv_store = get_store(request.channel, request.session_id)
+    if ask_req.channel or ask_req.session_id:
+        conv_store = get_store(ask_req.channel, ask_req.session_id)
         conversation_context = conv_store.as_context_string()
         previous_answer_summary = conv_store.get_last_answer_summary()
 
     # Check cache
-    cache_key = _cache_key_for_ask(request.query, request.source_types, request.date_from, request.date_to)
+    cache_key = _cache_key_for_ask(ask_req.query, ask_req.source_types, ask_req.date_from, ask_req.date_to)
     cached = _check_answer_cache(cache_key)
-    if cached and not request.debug:
+    if cached and not ask_req.debug:
         import json
         answer_text, meta_json = cached
         meta = json.loads(meta_json) if isinstance(meta_json, str) else (meta_json or {})
         meta["cache_hit"] = True
         meta["latency_ms"] = int((time.time() - started_at) * 1000)
         return AskResponse(answer=answer_text, meta=meta)
-    request_payload = model_to_dict(request)
+    request_payload = model_to_dict(ask_req)
 
     timer.start("interpret")
     interpreted = interpret_query(
-        query=request.query,
-        source_types=request.source_types,
-        source_names=request.source_names,
-        date_from=request.date_from,
-        date_to=request.date_to,
-        mode=request.mode,
+        query=ask_req.query,
+        source_types=ask_req.source_types,
+        source_names=ask_req.source_names,
+        date_from=ask_req.date_from,
+        date_to=ask_req.date_to,
+        mode=ask_req.mode,
         previous_answer_summary=previous_answer_summary,
     )
 
@@ -728,7 +791,7 @@ def ask(request: AskRequest) -> AskResponse:
         interpreted.analysis_depth,
     )
 
-    final_match_limit = max(request.top_k, min(answer_match_limit, request.top_k * 3))
+    final_match_limit = max(ask_req.top_k, min(answer_match_limit, ask_req.top_k * 3))
     timer.end("interpret")
 
     # Orchestrator-Workers: decompose complex queries into sub-questions
@@ -737,7 +800,7 @@ def ask(request: AskRequest) -> AskResponse:
         timer.start("orchestrator")
         from app.retrieval.orchestrator import decompose_and_synthesize
         answer = decompose_and_synthesize(
-            query=request.query,
+            query=ask_req.query,
             sub_questions=interpreted.sub_questions,
             source_types=interpreted.source_types,
             source_names=interpreted.source_names,
@@ -745,14 +808,14 @@ def ask(request: AskRequest) -> AskResponse:
             date_to=interpreted.date_to,
             question_type=interpreted.question_type,
             analysis_depth=interpreted.analysis_depth,
-            answer_length=request.answer_length,
+            answer_length=ask_req.answer_length,
             conversation_context=conversation_context,
         )
         timer.end("orchestrator")
 
         # Save to conversation window
         if conv_store:
-            conv_store.add("user", request.query)
+            conv_store.add("user", ask_req.query)
             conv_store.add("assistant", answer)
 
         latency_ms = int((time.time() - started_at) * 1000)
@@ -762,11 +825,11 @@ def ask(request: AskRequest) -> AskResponse:
             "orchestrator": True,
             "sub_questions": len(interpreted.sub_questions),
             "normalized_query": interpreted.normalized_query,
-            "channel": request.channel,
+            "channel": ask_req.channel,
         }
         run_id = persist_ask_run_best_effort(
             session_id=None,
-            request_payload=model_to_dict(request),
+            request_payload=model_to_dict(ask_req),
             response_payload={"answer": answer, "meta": response_meta},
             interpretation={
                 "normalized_query": interpreted.normalized_query,
@@ -778,6 +841,8 @@ def ask(request: AskRequest) -> AskResponse:
             latency_ms=latency_ms,
             stage_ms=timer.to_dict(),
             cache_hit=False,
+            caller_ip=caller_ip,
+            channel_key=channel_key,
         )
         return AskResponse(answer=answer, meta=response_meta, run_id=run_id)
 
@@ -810,12 +875,12 @@ def ask(request: AskRequest) -> AskResponse:
     if not matches:
         used_fallback = True
         matches = search_chunks(
-            query=request.query,
+            query=ask_req.query,
             top_k=answer_match_limit,
-            source_types=request.source_types,
-            source_names=request.source_names,
-            date_from=request.date_from,
-            date_to=request.date_to,
+            source_types=ask_req.source_types,
+            source_names=ask_req.source_names,
+            date_from=ask_req.date_from,
+            date_to=ask_req.date_to,
             prefetch_k=prefetch_k,
             question_type=interpreted.question_type,
         )
@@ -841,17 +906,17 @@ def ask(request: AskRequest) -> AskResponse:
             "normalized_query": interpreted.normalized_query,
             "date_from": interpreted.date_from,
             "date_to": interpreted.date_to,
-            "answer_style": request.answer_style,
-            "answer_length": request.answer_length,
-            "allow_quotes": request.allow_quotes,
-            "channel": request.channel,
-            "debug": request.debug,
+            "answer_style": ask_req.answer_style,
+            "answer_length": ask_req.answer_length,
+            "allow_quotes": ask_req.allow_quotes,
+            "channel": ask_req.channel,
+            "debug": ask_req.debug,
         }
 
         response_payload = {
             "answer": "Nie znalazłem wystarczająco trafnego kontekstu dla tego pytania.",
-            "sources": [] if request.debug else None,
-            "matches": [] if request.debug else None,
+            "sources": [] if ask_req.debug else None,
+            "matches": [] if ask_req.debug else None,
             "meta": response_meta,
         }
 
@@ -870,6 +935,8 @@ def ask(request: AskRequest) -> AskResponse:
             latency_ms=latency_ms,
             stage_ms=timer.to_dict(),
             cache_hit=False,
+            caller_ip=caller_ip,
+            channel_key=channel_key,
         )
 
         return AskResponse(
@@ -898,50 +965,65 @@ def ask(request: AskRequest) -> AskResponse:
 
     timer.start("answer")
     answer = answer_question(
-        query=request.query,
+        query=ask_req.query,
         matches=redacted_matches_for_answer,
         question_type=interpreted.question_type,
         analysis_depth=interpreted.analysis_depth,
-        include_sources=request.include_sources,
-        answer_style=request.answer_style,
-        answer_length=request.answer_length,
-        allow_quotes=request.allow_quotes,
+        include_sources=ask_req.include_sources,
+        answer_style=ask_req.answer_style,
+        answer_length=ask_req.answer_length,
+        allow_quotes=ask_req.allow_quotes,
         conversation_context=conversation_context,
     )
     timer.end("answer")
 
-    # Answer self-evaluation gate (Evaluator-Optimizer pattern)
+    # Answer self-evaluation gate (Evaluator-Optimizer pattern) — sampled
+    EVAL_SAMPLE_RATE = float(os.getenv("ANSWER_EVAL_SAMPLE_RATE", "0.1"))
     eval_result = None
-    if _env_flags.get("ENABLE_ANSWER_EVAL", "false").lower() == "true":
-        timer.start("evaluate")
-        from app.retrieval.answer_evaluator import evaluate_answer
-        eval_result = evaluate_answer(
-            query=request.query,
-            answer=answer,
-            question_type=interpreted.question_type,
-        )
-        if eval_result and eval_result.should_retry and eval_result.feedback:
-            # Regenerate with evaluator feedback
-            answer = answer_question(
-                query=f"{request.query}\n\n[FEEDBACK EWALUATORA: {eval_result.feedback}]",
-                matches=redacted_matches_for_answer,
+    if (_env_flags.get("ENABLE_ANSWER_EVAL", "false").lower() == "true"
+            and EVAL_SAMPLE_RATE > 0
+            and random.random() < EVAL_SAMPLE_RATE):
+        try:
+            timer.start("evaluate")
+            from app.retrieval.answer_evaluator import evaluate_answer
+            eval_result = evaluate_answer(
+                query=ask_req.query,
+                answer=answer,
                 question_type=interpreted.question_type,
-                analysis_depth=interpreted.analysis_depth,
-                include_sources=request.include_sources,
-                answer_style=request.answer_style,
-                answer_length=request.answer_length,
-                allow_quotes=request.allow_quotes,
-                conversation_context=conversation_context,
             )
-        timer.end("evaluate")
+            if eval_result and eval_result.should_retry and eval_result.feedback:
+                # Regenerate with evaluator feedback
+                answer = answer_question(
+                    query=f"{ask_req.query}\n\n[FEEDBACK EWALUATORA: {eval_result.feedback}]",
+                    matches=redacted_matches_for_answer,
+                    question_type=interpreted.question_type,
+                    analysis_depth=interpreted.analysis_depth,
+                    include_sources=ask_req.include_sources,
+                    answer_style=ask_req.answer_style,
+                    answer_length=ask_req.answer_length,
+                    allow_quotes=ask_req.allow_quotes,
+                    conversation_context=conversation_context,
+                )
+            # Log low-quality answers
+            if eval_result and eval_result.avg_score < 0.6:
+                import structlog
+                structlog.get_logger("quality").warning(
+                    "low_quality_answer",
+                    score=eval_result.avg_score,
+                    feedback=eval_result.feedback,
+                    query=ask_req.query[:100],
+                )
+            timer.end("evaluate")
+        except Exception:
+            pass  # evaluator jest opcjonalny — nie blokuj głównego flow
 
     # Save to conversation window
     if conv_store:
-        conv_store.add("user", request.query)
+        conv_store.add("user", ask_req.query)
         conv_store.add("assistant", answer)
 
-    response_sources = build_sources_from_matches(redacted_matches_for_answer) if request.debug else None
-    response_matches = build_debug_matches(redacted_matches_for_answer) if request.debug else None
+    response_sources = build_sources_from_matches(redacted_matches_for_answer) if ask_req.debug else None
+    response_matches = build_debug_matches(redacted_matches_for_answer) if ask_req.debug else None
 
     response_meta = {
         "question_type": interpreted.question_type,
@@ -960,11 +1042,11 @@ def ask(request: AskRequest) -> AskResponse:
         "normalized_query": interpreted.normalized_query,
         "date_from": interpreted.date_from,
         "date_to": interpreted.date_to,
-        "answer_style": request.answer_style,
-        "answer_length": request.answer_length,
-        "allow_quotes": request.allow_quotes,
-        "channel": request.channel,
-        "debug": request.debug,
+        "answer_style": ask_req.answer_style,
+        "answer_length": ask_req.answer_length,
+        "allow_quotes": ask_req.allow_quotes,
+        "channel": ask_req.channel,
+        "debug": ask_req.debug,
         "eval_score": eval_result.avg_score if eval_result else None,
         "eval_retried": eval_result.should_retry if eval_result else None,
     }
@@ -1009,10 +1091,12 @@ def ask(request: AskRequest) -> AskResponse:
         error_flag=error_flag,
         error_message=answer[:200] if error_flag else None,
         cache_hit=bool(cached),
+        caller_ip=caller_ip,
+        channel_key=channel_key,
     )
 
     # Save to cache (1h TTL)
-    _save_answer_cache(cache_key, request.query, answer, response_meta)
+    _save_answer_cache(cache_key, ask_req.query, answer, response_meta)
 
     return AskResponse(
         answer=answer,
@@ -1110,13 +1194,14 @@ class SummaryQueryResponse(BaseModel):
 
 
 @app.post("/summary/generate", response_model=SummaryGenerateResponse)
-def summary_generate(request: SummaryGenerateRequest) -> SummaryGenerateResponse:
+@limiter.limit("30/minute")
+def summary_generate(request: Request, body: SummaryGenerateRequest) -> SummaryGenerateResponse:
     started_at = time.time()
 
-    if request.summary_type == "weekly":
-        results = generate_weekly_summaries(request.date, areas=request.areas)
+    if body.summary_type == "weekly":
+        results = generate_weekly_summaries(body.date, areas=body.areas)
     else:
-        results = generate_daily_summaries(request.date, areas=request.areas)
+        results = generate_daily_summaries(body.date, areas=body.areas)
 
     items = [SummaryItem(**r) for r in results]
     latency_ms = int((time.time() - started_at) * 1000)
@@ -1124,9 +1209,9 @@ def summary_generate(request: SummaryGenerateRequest) -> SummaryGenerateResponse
     return SummaryGenerateResponse(
         results=items,
         meta={
-            "summary_type": request.summary_type,
-            "date": request.date,
-            "areas": request.areas or AREAS,
+            "summary_type": body.summary_type,
+            "date": body.date,
+            "areas": body.areas or AREAS,
             "generated_count": sum(1 for r in results if r.get("status") == "generated"),
             "no_data_count": sum(1 for r in results if r.get("status") == "no_data"),
             "latency_ms": latency_ms,
@@ -1177,7 +1262,9 @@ class MorningBriefResponse(BaseModel):
 
 
 @app.get("/brief/today", response_model=MorningBriefResponse)
+@limiter.limit("30/minute")
 def brief_today(
+    request: Request,
     force: bool = False,
     days: int = 14,
     date: str | None = None,

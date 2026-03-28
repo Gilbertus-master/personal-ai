@@ -13,6 +13,7 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -126,7 +127,39 @@ def _api(method: str, path: str, data: dict | None = None) -> str:
         return f"ERROR: {e}"
 
 
+ALLOWED_SQL_TABLES = {
+    "api_costs", "ask_runs", "ask_run_matches", "sessions",
+    "action_items", "delegation_tasks", "wa_tasks",
+    "events", "entities", "documents", "chunks", "summaries",
+    "alerts", "insights", "decisions", "opportunities",
+    "relationships", "people", "commitments",
+    "conversation_windows", "code_executions",
+    "response_feedback", "cost_budgets",
+}
+
+
 def _sql(query: str, params: tuple = ()) -> str:
+    # Only allow SELECT/WITH queries
+    query_stripped = query.strip().upper()
+    if not query_stripped.startswith("SELECT") and not query_stripped.startswith("WITH"):
+        raise ValueError("_sql() allows only SELECT/WITH queries")
+
+    # Extract table names and check against whitelist
+    table_names = set(re.findall(
+        r'\bFROM\s+(\w+)|\bJOIN\s+(\w+)|\bINTO\s+(\w+)|\bUPDATE\s+(\w+)',
+        query, re.IGNORECASE
+    ))
+    table_names = {t for group in table_names for t in group if t}
+
+    # Exclude CTE aliases defined in WITH clauses
+    cte_names = set(re.findall(r'\bWITH\s+(\w+)\s+AS\b|,\s*(\w+)\s+AS\s*\(', query, re.IGNORECASE))
+    cte_names = {t for group in cte_names for t in group if t}
+    table_names -= cte_names
+
+    unknown = table_names - ALLOWED_SQL_TABLES
+    if unknown:
+        raise ValueError(f"SQL access denied: unknown tables {unknown}")
+
     try:
         from app.db.postgres import get_pg_connection
         with get_pg_connection() as conn:

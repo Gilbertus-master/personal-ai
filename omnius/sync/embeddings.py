@@ -19,6 +19,7 @@ from omnius.db.postgres import get_pg_connection
 log = structlog.get_logger(__name__)
 
 QDRANT_URL = os.getenv("OMNIUS_QDRANT_URL", "http://localhost:6333")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
 QDRANT_COLLECTION = os.getenv("OMNIUS_QDRANT_COLLECTION", "omnius_ref")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 EMBEDDING_MODEL = os.getenv("OMNIUS_EMBEDDING_MODEL", "text-embedding-3-small")
@@ -31,7 +32,7 @@ def get_qdrant() -> QdrantClient:
     """Get or create Qdrant client."""
     global _qdrant
     if _qdrant is None:
-        _qdrant = QdrantClient(url=QDRANT_URL, timeout=30)
+        _qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY if QDRANT_API_KEY else None, timeout=30)
         # Ensure collection exists
         collections = [c.name for c in _qdrant.get_collections().collections]
         if QDRANT_COLLECTION not in collections:

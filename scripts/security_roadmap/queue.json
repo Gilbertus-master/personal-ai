@@ -1,0 +1,172 @@
+{
+  "roadmap_version": "1.0",
+  "created_at": "2026-03-28",
+  "description": "Gilbertus Security Roadmap — Poziom 1 (Wysokie) + Poziom 2 (Średnie)",
+  "tasks": [
+    {
+      "id": "H1",
+      "level": "HIGH",
+      "title": "Walidacja inputu w AskRequest",
+      "file": "schemas_validation",
+      "status": "done",
+      "started_at": "2026-03-28T18:36:32.462970+00:00",
+      "completed_at": "2026-03-28T18:37:24.167553+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    },
+    {
+      "id": "H2",
+      "level": "HIGH",
+      "title": "Budget check fail-open → fail-safe",
+      "file": "budget_failsafe",
+      "status": "done",
+      "started_at": "2026-03-28T18:37:34.169508+00:00",
+      "completed_at": "2026-03-28T18:38:45.817353+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    },
+    {
+      "id": "H3",
+      "level": "HIGH",
+      "title": "Dev docker-compose porty na 127.0.0.1",
+      "file": "docker_ports",
+      "status": "done",
+      "started_at": "2026-03-28T18:38:55.819261+00:00",
+      "completed_at": "2026-03-28T18:39:28.223423+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    },
+    {
+      "id": "H4",
+      "level": "HIGH",
+      "title": "WhatsApp approval — weryfikacja nadawcy",
+      "file": "wa_sender_verify",
+      "status": "done",
+      "started_at": "2026-03-28T20:21:44.471373+00:00",
+      "completed_at": "2026-03-28T20:25:00.737207+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    },
+    {
+      "id": "H5",
+      "level": "HIGH",
+      "title": "Audit trail z tożsamością (caller_ip, channel)",
+      "file": "audit_trail_identity",
+      "status": "done",
+      "started_at": "2026-03-28T18:41:04.341098+00:00",
+      "completed_at": "2026-03-28T18:44:54.122847+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    },
+    {
+      "id": "H6",
+      "level": "HIGH",
+      "title": "Rate limiting w app layer (slowapi)",
+      "file": "rate_limiting",
+      "status": "done",
+      "started_at": "2026-03-28T18:45:04.125767+00:00",
+      "completed_at": "2026-03-28T18:49:44.842880+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    },
+    {
+      "id": "H7",
+      "level": "HIGH",
+      "title": "MCP _sql() whitelist tabel",
+      "file": "mcp_sql_whitelist",
+      "status": "done",
+      "started_at": "2026-03-28T18:49:54.844309+00:00",
+      "completed_at": "2026-03-28T18:51:27.691065+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    },
+    {
+      "id": "M1",
+      "level": "MEDIUM",
+      "title": "CORS policy middleware",
+      "file": "cors_policy",
+      "status": "done",
+      "started_at": "2026-03-28T18:51:37.691958+00:00",
+      "completed_at": "2026-03-28T18:52:29.964055+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    },
+    {
+      "id": "M2",
+      "level": "MEDIUM",
+      "title": "Rozdzielenie /health od /status (auth wymagana)",
+      "file": "status_split",
+      "status": "done",
+      "started_at": "2026-03-28T18:52:39.965940+00:00",
+      "completed_at": "2026-03-28T18:53:57.805897+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    },
+    {
+      "id": "M3",
+      "level": "MEDIUM",
+      "title": "Truncate danych w notyfikacjach WhatsApp",
+      "file": "notification_truncate",
+      "status": "done",
+      "started_at": "2026-03-28T18:54:07.807758+00:00",
+      "completed_at": "2026-03-28T18:54:54.953090+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    },
+    {
+      "id": "M4",
+      "level": "MEDIUM",
+      "title": "Dependency scanning — pip-audit cron tygodniowy",
+      "file": "pip_audit",
+      "status": "done",
+      "started_at": "2026-03-28T18:55:04.954386+00:00",
+      "completed_at": "2026-03-28T18:56:29.173017+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    },
+    {
+      "id": "M5",
+      "level": "MEDIUM",
+      "title": "Qdrant API key auth",
+      "file": "qdrant_auth",
+      "status": "done",
+      "started_at": "2026-03-28T18:56:39.175298+00:00",
+      "completed_at": "2026-03-28T18:58:13.922876+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    },
+    {
+      "id": "M6",
+      "level": "MEDIUM",
+      "title": "Secrets scanning — gitleaks pre-commit hook",
+      "file": "gitleaks_precommit",
+      "status": "done",
+      "started_at": null,
+      "completed_at": "2026-03-28T20:25:38.120162+00:00",
+      "session_cost_usd": null,
+      "notes": "Files created, hook integrated, timed out on verification docker scan only"
+    },
+    {
+      "id": "M7",
+      "level": "MEDIUM",
+      "title": "Answer Evaluator sampling (10% zapytań)",
+      "file": "answer_evaluator",
+      "status": "done",
+      "started_at": "2026-03-28T19:08:31.542967+00:00",
+      "completed_at": "2026-03-28T19:10:51.921339+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    },
+    {
+      "id": "M8",
+      "level": "MEDIUM",
+      "title": "Container security hardening (no-new-privileges)",
+      "file": "container_hardening",
+      "status": "done",
+      "started_at": "2026-03-28T19:11:01.931388+00:00",
+      "completed_at": "2026-03-28T19:13:03.480280+00:00",
+      "session_cost_usd": null,
+      "notes": ""
+    }
+  ]
+}

@@ -27,6 +27,7 @@ load_dotenv()
 
 # ===== ENV =====
 QDRANT_URL = os.getenv("QDRANT_URL", "http://127.0.0.1:6333")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
 QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "gilbertus_chunks")
 
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "127.0.0.1")
@@ -69,7 +70,7 @@ def get_pg_connection():
     return _pool_conn()
 
 
-qdrant = QDRANTClient = QdrantClient(url=QDRANT_URL)
+qdrant = QDRANTClient = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY if QDRANT_API_KEY else None)
 
 
 def count_tokens(text: str) -> int:

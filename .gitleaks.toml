@@ -1,0 +1,17 @@
+[extend]
+useDefault = true
+
+[[rules]]
+description = "Anthropic API Key"
+regex = '''sk-ant-[a-zA-Z0-9\-_]{93}'''
+id = "anthropic-api-key"
+
+[[rules]]
+description = "Polish Phone Number"
+regex = '''\+48\d{9}'''
+id = "polish-phone"
+[rules.allowlist]
+regexes = ["WA_TARGET", "AUTHORIZED_WA_SENDERS", "# example", "# Config"]
+
+[allowlist]
+paths = ['''.env\.example''', '''.*\.md$''', '''logs/''', '''data/''']

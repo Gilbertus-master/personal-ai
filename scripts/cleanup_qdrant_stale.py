@@ -25,9 +25,10 @@ sys.path.insert(0, str(BASE_DIR))
 DRY_RUN = "--dry-run" in sys.argv
 
 QDRANT_URL = os.getenv("QDRANT_URL", "http://127.0.0.1:6333")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
 COLLECTION = os.getenv("QDRANT_COLLECTION", "gilbertus_chunks")
 
-qdrant = QdrantClient(url=QDRANT_URL, timeout=60.0)
+qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY if QDRANT_API_KEY else None, timeout=60.0)
 
 
 def get_valid_chunk_ids() -> set[int]:

@@ -1,6 +1,7 @@
 """Centralized API cost tracking. Fire-and-forget — never breaks callers."""
 from __future__ import annotations
 
+import time
 import threading
 import structlog
 
@@ -74,18 +75,22 @@ def log_openai_cost(model: str, module: str, token_count: int) -> None:
 
 
 # ================================================================
-# Budget checks & alerts — fail-open: ok=True on any error
+# Budget checks & alerts — fail-CLOSED: ok=False on any error
 # ================================================================
+
+_BUDGET_CHECK_TIMEOUT_S = 2.0
+
 
 def check_budget(module: str) -> dict:
     """Check if module or daily total budget is exceeded.
 
     Returns dict: {ok: bool, reason: str|None, daily_total: float, daily_limit: float}
-    NEVER raises — always returns ok=True on error (fail-open).
+    NEVER raises — returns ok=False on error (fail-closed).
     """
     try:
         from app.db.postgres import get_pg_connection
 
+        t_start = time.monotonic()
         with get_pg_connection() as conn:
             with conn.cursor() as cur:
                 # Today's total spend
@@ -102,6 +107,11 @@ def check_budget(module: str) -> dict:
                 # Load budget limits
                 cur.execute("SELECT scope, limit_usd, alert_threshold_pct, hard_limit FROM cost_budgets")
                 budgets = {row[0]: {"limit": float(row[1]), "alert_pct": row[2], "hard": row[3]} for row in cur.fetchall()}
+
+        elapsed = time.monotonic() - t_start
+        if elapsed > _BUDGET_CHECK_TIMEOUT_S:
+            log.error("budget_check_timeout", elapsed_s=round(elapsed, 2))
+            return {"ok": False, "reason": "budget check timeout", "daily_total": 0.0, "daily_limit": 0.0}
 
         result = {"ok": True, "reason": None, "daily_total": daily_total, "daily_limit": 0.0}
 
@@ -143,8 +153,8 @@ def check_budget(module: str) -> dict:
         return result
 
     except Exception as e:
-        log.warning("check_budget_failed", error=str(e))
-        return {"ok": True, "reason": None, "daily_total": 0.0, "daily_limit": 0.0}
+        log.error("budget_check_db_error", error=str(e))
+        return {"ok": False, "reason": f"budget check failed: {str(e)[:50]}", "daily_total": 0.0, "daily_limit": 0.0}
 
 
 def get_budget_status() -> dict:
@@ -227,7 +237,10 @@ def _send_cost_alert(message: str, alert_type: str, scope: str = "daily_total") 
             import os
             import subprocess
             openclaw = os.getenv("OPENCLAW_BIN", "/home/sebastian/personal-ai/app/ingestion/whatsapp_live/openclaw")
-            wa_target = os.getenv("WA_TARGET", "+48505441635")
+            wa_target = os.getenv("WA_TARGET", "")
+            if not wa_target:
+                log.warning("whatsapp_skipped", reason="WA_TARGET not configured")
+                return
             prefix = "\U0001f6a8" if alert_type == "hard_limit" else "\u26a0\ufe0f"
             subprocess.run(
                 [openclaw, "message", "send", "--channel", "whatsapp",
@@ -238,3 +251,18 @@ def _send_cost_alert(message: str, alert_type: str, scope: str = "daily_total") 
             log.warning("cost_alert_failed", error=str(e))
 
     threading.Thread(target=_do, daemon=True).start()
+
+
+def is_budget_check_healthy() -> bool:
+    """Quick DB connectivity check for /health endpoint."""
+    try:
+        from app.db.postgres import get_pg_connection
+
+        t_start = time.monotonic()
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+                cur.fetchone()
+        return (time.monotonic() - t_start) <= _BUDGET_CHECK_TIMEOUT_S
+    except Exception:
+        return False

@@ -14,6 +14,7 @@ log = structlog.get_logger(__name__)
 
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -26,6 +27,13 @@ load_dotenv()
 
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
 ANTHROPIC_FAST = os.getenv("ANTHROPIC_FAST_MODEL", "claude-haiku-4-5")
+
+# Whitelist of phone numbers authorized to approve actions via WhatsApp
+AUTHORIZED_SENDERS = set(
+    s.strip() for s in
+    os.getenv("AUTHORIZED_WA_SENDERS", os.getenv("WA_TARGET", "")).split(",")
+    if s.strip()
+)
 OPENCLAW_BIN = os.path.expanduser("~/.npm-global/bin/openclaw")
 SESSIONS_DIR = Path(os.path.expanduser("~/.openclaw/agents/main/sessions"))
 STATE_FILE = Path("/home/sebastian/personal-ai/.task_monitor_state.json")
@@ -87,14 +95,25 @@ def get_new_messages(session_file: Path, last_line: int) -> list[dict]:
                 except Exception:
                     pass
 
+            # Extract sender_phone from OpenClaw metadata if available
+            sender_phone = ""
+            sender_match = re.search(r'"sender_id"\s*:\s*"(\+?\d+)"', content if isinstance(content, str) else str(content))
+            if sender_match:
+                sender_phone = sender_match.group(1)
+
             if text.strip():
-                messages.append({"line": i, "text": text.strip(), "timestamp": entry.get("timestamp")})
+                messages.append({"line": i, "text": text.strip(), "timestamp": entry.get("timestamp"), "sender_phone": sender_phone})
 
     return messages
 
 
 def classify_message(text: str) -> dict:
     """Classify message. Tasks require explicit keyword 'Gilbertusie task:'."""
+    from app.utils.input_sanitizer import sanitize_query, MAX_COMMAND_LEN
+    sanitized = sanitize_query(text, max_len=MAX_COMMAND_LEN)
+    if sanitized.suspicious:
+        log.warning("prompt_injection_wa", flags=sanitized.flags, preview=text[:80])
+    text = sanitized.text
     text_lower = text.lower().strip()
 
     # Explicit keywords:
@@ -266,10 +285,14 @@ def execute_task(task_id: int, description: str, area: str) -> str:
 
 def send_whatsapp(message: str):
     """Send message to Sebastian via WhatsApp."""
+    wa_target = os.getenv("WA_TARGET", "")
+    if not wa_target:
+        log.warning("whatsapp_skipped", reason="WA_TARGET not configured")
+        return
     try:
         subprocess.run(
             [OPENCLAW_BIN, "message", "send", "--channel", "whatsapp",
-             "--target", os.getenv("WA_TARGET", "+48505441635"), "--message", message],
+             "--target", wa_target, "--message", message],
             capture_output=True, text=True, timeout=30,
         )
     except Exception:
@@ -288,9 +311,13 @@ def update_task_status(task_id: int, status: str, result: str):
         conn.commit()
 
 
-def _handle_approval_with_graph(text: str) -> dict | None:
+def _handle_approval_with_graph(text: str, sender_phone: str = "") -> dict | None:
     """Try LangGraph resume first, fallback to legacy pipeline."""
-    import re
+    if AUTHORIZED_SENDERS and sender_phone not in AUTHORIZED_SENDERS:
+        log.warning("approval_unauthorized_sender",
+                     sender=sender_phone, text=text[:50])
+        return None
+
     text_lower = text.lower().strip()
 
     # Parse approval patterns
@@ -327,7 +354,7 @@ def _handle_approval_with_graph(text: str) -> dict | None:
 
     # Fallback to legacy parser
     from app.orchestrator.action_pipeline import handle_approval_message
-    return handle_approval_message(text)
+    return handle_approval_message(text, sender_phone=sender_phone)
 
 
 def process_new_messages():
@@ -349,6 +376,7 @@ def process_new_messages():
 
     for msg in messages:
         text = msg["text"]
+        sender_phone = msg.get("sender_phone", "")
         classification = classify_message(text)
         msg_type = classification.get("type", "chat")
 
@@ -469,7 +497,7 @@ def process_new_messages():
             # Delegation commands
             elif any(text_cmd_lower.startswith(p) for p in ["remind #", "cancel #", "extend #"]):
                 from app.orchestrator.delegation_chain import handle_delegation_command
-                result = handle_delegation_command(text_cmd)
+                result = handle_delegation_command(text_cmd, sender_phone=sender_phone)
                 if result:
                     send_whatsapp(result.get("response", json.dumps(result, ensure_ascii=False, default=str)))
                     log.info("Delegation command processed")
@@ -560,7 +588,7 @@ def process_new_messages():
                 send_whatsapp(f"❌ Błąd: {str(e)[:200]}")
 
         elif msg_type == "approval":
-            result = _handle_approval_with_graph(classification["text"])
+            result = _handle_approval_with_graph(classification["text"], sender_phone=sender_phone)
             if result:
                 log.info("action_approval", status=result.get("status", result.get("error", "?")))
             else:
