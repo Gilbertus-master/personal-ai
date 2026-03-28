@@ -1,0 +1,23 @@
+# Caddy reverse proxy config for Gilbertus
+# Auto-SSL via Let's Encrypt
+# Usage: docker compose -f docker-compose.prod.yml --profile with-ssl up -d
+
+{$GILBERTUS_DOMAIN:gilbertus.localhost} {
+    reverse_proxy api:8000
+
+    # Rate limiting
+    @api path /ask /evaluate /correlate
+    rate_limit @api {
+        zone api_zone 10r/m
+    }
+
+    # Health check endpoint (no auth)
+    @health path /health /version
+    handle @health {
+        reverse_proxy api:8000
+    }
+
+    log {
+        output file /var/log/caddy/access.log
+    }
+}

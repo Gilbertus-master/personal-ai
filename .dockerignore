@@ -1,0 +1,10 @@
+.venv/
+.git/
+__pycache__/
+*.pyc
+backups/
+logs/*.log
+.task_monitor_state.json
+*.dump
+node_modules/
+.env.local
