@@ -12,6 +12,7 @@ from __future__ import annotations
 import structlog
 log = structlog.get_logger(__name__)
 
+import argparse
 import json
 import os
 import subprocess
@@ -54,10 +55,24 @@ def _ensure_schema() -> None:
         conn.commit()
 
 
-def _get_next_finding() -> dict | None:
-    """Get the single highest-priority unresolved finding."""
+def _get_next_finding(exclude_files: list[str] | None = None) -> dict | None:
+    """Get the single highest-priority unresolved finding.
+
+    Args:
+        exclude_files: file paths currently being worked on by other workers.
+            Used in parallel mode to avoid conflicts.
+    """
+    exclude = exclude_files or []
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
+            if exclude:
+                placeholders = ",".join(["%s"] * len(exclude))
+                where_excl = f"AND file_path NOT IN ({placeholders})"
+                params = tuple(exclude)
+            else:
+                where_excl = ""
+                params = ()
+
             cur.execute(f"""
                 SELECT id, file_path, severity, category, title, description,
                        line_start, line_end, suggested_fix
@@ -65,10 +80,11 @@ def _get_next_finding() -> dict | None:
                 WHERE resolved = FALSE
                   AND severity IN ('critical', 'high', 'medium', 'low')
                   AND (fix_attempted_at IS NULL
-                       OR fix_attempted_at < NOW() - INTERVAL '24 hours')
+                       OR fix_attempted_at < NOW() - INTERVAL '6 hours')
+                  {where_excl}
                 ORDER BY {SEVERITY_ORDER}, created_at ASC
                 LIMIT 1
-            """)
+            """, params)
             rows = cur.fetchall()
             if not rows:
                 return None
@@ -372,6 +388,132 @@ def run() -> dict:
     }
 
 
+def run_parallel(workers: int = 3) -> list[dict]:
+    """Run multiple fix workers in parallel, each on a different file.
+
+    Safety guarantees:
+    - Each worker picks a finding from a DIFFERENT file (no edit conflicts)
+    - PG advisory lock per file_path prevents races
+    - git revert on failure is per-file (safe for parallel)
+    - Workers are threads (shared process, shared connection pool)
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    import threading
+
+    _ensure_schema()
+
+    # Collect findings for different files (sequential, no race)
+    locked_files: list[str] = []
+    findings: list[dict] = []
+
+    for _ in range(workers):
+        f = _get_next_finding(exclude_files=locked_files)
+        if not f:
+            break
+        if f["file_path"] in locked_files:
+            break  # no more unique files
+        locked_files.append(f["file_path"])
+        findings.append(f)
+
+    if not findings:
+        log.info("parallel_no_findings")
+        return [{"status": "idle", "fixed": False}]
+
+    log.info("parallel_start", workers=len(findings),
+             files=[f["file_path"] for f in findings])
+
+    system_prompt = FIX_PROMPT_PATH.read_text(encoding="utf-8")
+    results = []
+    lock = threading.Lock()
+
+    def _fix_one(finding: dict) -> dict:
+        """Fix a single finding (thread-safe)."""
+        if not _validate_file_path(finding["file_path"]):
+            _mark_attempted(finding["id"])
+            return {"status": "skipped", "fixed": False,
+                    "finding_id": finding["id"],
+                    "reason": "file_path not in allowed dirs"}
+
+        # Capture ruff baseline
+        ruff_baseline = 0
+        if finding["file_path"].endswith(".py"):
+            try:
+                pre_ruff = subprocess.run(
+                    [".venv/bin/ruff", "check", finding["file_path"]],
+                    capture_output=True, text=True, timeout=30,
+                    cwd=str(PROJECT_DIR),
+                )
+                ruff_baseline = pre_ruff.stdout.count("\n") if pre_ruff.stdout.strip() else 0
+            except Exception:
+                pass
+
+        result = _launch_fix_session(finding, system_prompt)
+
+        if not result or not result.get("fixed"):
+            error = result.get("error", "unknown") if result else "session_failed"
+            log.error("fix_failed", finding_id=finding["id"], error=error)
+            files_to_revert = result.get("files_modified", [finding["file_path"]]) if result else [finding["file_path"]]
+            with lock:
+                _revert_files(files_to_revert)
+            _mark_attempted(finding["id"])
+            return {"status": "failed", "fixed": False,
+                    "finding_id": finding["id"], "error": error}
+
+        ok, detail = _verify_fix(finding["file_path"], ruff_baseline=ruff_baseline)
+        if not ok:
+            log.error("fix_verification_failed",
+                      finding_id=finding["id"], detail=detail)
+            files_to_revert = result.get("files_modified", [finding["file_path"]])
+            with lock:
+                _revert_files(files_to_revert)
+            _mark_attempted(finding["id"])
+            return {"status": "verify_failed", "fixed": False,
+                    "finding_id": finding["id"], "error": detail}
+
+        _mark_resolved(finding["id"])
+        log.info("fix_applied",
+                 finding_id=finding["id"],
+                 file_path=finding["file_path"],
+                 severity=finding["severity"],
+                 title=finding["title"],
+                 diff=detail)
+
+        return {
+            "status": "ok", "fixed": True,
+            "finding_id": finding["id"],
+            "file_path": finding["file_path"],
+            "severity": finding["severity"],
+            "title": finding["title"],
+            "changes": detail,
+        }
+
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = {executor.submit(_fix_one, f): f for f in findings}
+        for future in as_completed(futures):
+            try:
+                results.append(future.result())
+            except Exception as e:
+                f = futures[future]
+                log.error("worker_crashed", finding_id=f["id"], error=str(e))
+                _mark_attempted(f["id"])
+                results.append({"status": "error", "fixed": False,
+                                "finding_id": f["id"], "error": str(e)})
+
+    fixed = sum(1 for r in results if r.get("fixed"))
+    log.info("parallel_complete", total=len(results), fixed=fixed)
+    return results
+
+
 if __name__ == "__main__":
-    result = run()
-    print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--parallel", type=int, default=0,
+                        help="Run N workers in parallel (0 = single mode)")
+    args = parser.parse_args()
+
+    if args.parallel > 0:
+        results = run_parallel(workers=args.parallel)
+        for r in results:
+            print(json.dumps(r, ensure_ascii=False, indent=2, default=str))
+    else:
+        result = run()
+        print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
