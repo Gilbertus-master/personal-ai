@@ -28,7 +28,13 @@ from app.db.postgres import get_pg_connection
 load_dotenv()
 
 OPENCLAW_BIN = os.getenv("OPENCLAW_BIN", "openclaw")
-WA_TARGET = os.getenv("WA_TARGET", "+48505441635")
+WA_TARGET = os.getenv("WA_TARGET", "")
+if not WA_TARGET:
+    import structlog
+    structlog.get_logger("config").warning(
+        "WA_TARGET_not_set",
+        hint="Set WA_TARGET in .env to enable WhatsApp notifications",
+    )
 
 
 # ================================================================
@@ -56,18 +62,67 @@ def _ensure_table():
         conn.commit()
 
 
+import structlog as _structlog
+_log = _structlog.get_logger("action_pipeline")
+
+
+def _find_duplicate_action(
+    cur,
+    action_type: str,
+    description: str,
+    window_hours: int = 48,
+) -> int | None:
+    """
+    Check if an identical pending action already exists in the last `window_hours`.
+    Dedup strategy: exact match on action_type + normalized description.
+    Returns existing action_id or None.
+    """
+    # Normalize: lowercase, strip whitespace
+    normalized = " ".join(description.lower().split())
+    cur.execute(
+        """
+        SELECT id FROM action_items
+        WHERE action_type = %s
+          AND LOWER(REGEXP_REPLACE(description, '\\s+', ' ', 'g')) = %s
+          AND status IN ('pending', 'approved')
+          AND proposed_at >= NOW() - (%s || ' hours')::interval
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (action_type, normalized, str(window_hours)),
+    )
+    row = cur.fetchone()
+    return row[0] if row else None
+
+
 def propose_action(
     action_type: str,
     description: str,
     draft_params: dict | None = None,
     source: str = "gilbertus",
     notify: bool = True,
+    dedup_window_hours: int = 48,
 ) -> int:
-    """Create a proposed action and optionally notify Sebastian."""
+    """
+    Create a proposed action and optionally notify Sebastian.
+    Dedup: if identical action already pending in last `dedup_window_hours`, skip silently.
+    Returns existing action_id if duplicate, new action_id otherwise.
+    """
     _ensure_table()
 
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
+            # --- DEDUP CHECK ---
+            existing_id = _find_duplicate_action(cur, action_type, description, dedup_window_hours)
+            if existing_id is not None:
+                _log.info(
+                    "action_dedup_skipped",
+                    existing_id=existing_id,
+                    action_type=action_type,
+                    description=description[:80],
+                )
+                return existing_id
+
             cur.execute(
                 """INSERT INTO action_items (action_type, description, draft_params, source)
                    VALUES (%s, %s, %s::jsonb, %s) RETURNING id""",
@@ -83,7 +138,9 @@ def propose_action(
 
 
 def _notify_proposal(action_id: int, action_type: str, description: str, params: dict | None):
-    """Send action proposal to WhatsApp."""
+    """Send action proposal to WhatsApp (truncated for data safety)."""
+    MAX_WA_LENGTH = 800
+
     msg_parts = [
         f"🔔 *Propozycja akcji #{action_id}*",
         f"Typ: {action_type}",
@@ -93,11 +150,18 @@ def _notify_proposal(action_id: int, action_type: str, description: str, params:
 
     if params:
         if params.get("to"):
-            msg_parts.append(f"\nDo: {params['to']}")
+            to_display = params["to"]
+            if "@" in to_display:
+                user, domain = to_display.split("@", 1)
+                to_display = f"{user[:3]}***@{domain}"
+            msg_parts.append(f"\nDo: {to_display}")
         if params.get("subject"):
             msg_parts.append(f"Temat: {params['subject']}")
         if params.get("body"):
-            msg_parts.append(f"\n---\n{params['body'][:300]}\n---")
+            body_preview = params["body"][:150]
+            if len(params["body"]) > 150:
+                body_preview += "...[pełna treść po zatwierdzeniu]"
+            msg_parts.append(f"\n---\n{body_preview}\n---")
 
     msg_parts.extend([
         "",
@@ -107,7 +171,10 @@ def _notify_proposal(action_id: int, action_type: str, description: str, params:
         f"  *edit #{action_id}: [zmiany]* — zmień i zatwierdź",
     ])
 
-    _send_whatsapp("\n".join(msg_parts))
+    msg = "\n".join(msg_parts)
+    if len(msg) > MAX_WA_LENGTH:
+        msg = msg[:MAX_WA_LENGTH - 3] + "..."
+    _send_whatsapp(msg)
 
 
 def approve_action(action_id: int, edit_text: str | None = None) -> dict[str, Any]:
@@ -284,6 +351,8 @@ def _exec_omnius_command(params: dict) -> dict:
 # ================================================================
 
 def _send_whatsapp(message: str):
+    if not WA_TARGET:
+        return
     try:
         subprocess.run(
             [OPENCLAW_BIN, "message", "send", "--channel", "whatsapp",
@@ -298,9 +367,17 @@ def _send_whatsapp(message: str):
 # Message handler (called by task_monitor when approval keywords detected)
 # ================================================================
 
-def handle_approval_message(text: str) -> dict[str, Any] | None:
+def handle_approval_message(text: str, sender_phone: str = "") -> dict[str, Any] | None:
     """Parse approval/rejection from WhatsApp message."""
     import re
+    import structlog as _sl
+    _log = _sl.get_logger(__name__)
+
+    from app.orchestrator.task_monitor import AUTHORIZED_SENDERS
+    if AUTHORIZED_SENDERS and sender_phone not in AUTHORIZED_SENDERS:
+        _log.warning("approval_unauthorized_sender",
+                     sender=sender_phone, text=text[:50])
+        return None
 
     text_lower = text.lower().strip()
 

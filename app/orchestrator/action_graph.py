@@ -45,6 +45,22 @@ def node_propose(state: ActionState) -> dict:
 
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
+            # --- DEDUP CHECK ---
+            from app.orchestrator.action_pipeline import _find_duplicate_action
+            existing_id = _find_duplicate_action(cur, state["action_type"], state["description"])
+            if existing_id is not None:
+                log.info(
+                    "action_graph_dedup_skipped",
+                    existing_id=existing_id,
+                    action_type=state["action_type"],
+                    description=state["description"][:80],
+                )
+                return {
+                    "action_id": existing_id,
+                    "status": "pending",
+                    "proposed_at": datetime.now(timezone.utc).isoformat(),
+                }
+
             cur.execute(
                 """INSERT INTO action_items
                    (action_type, description, draft_params, source, status)
