@@ -38,6 +38,7 @@ Zwróć pola:
 - question_type: jedno z ["retrieval", "chronology", "summary", "analysis"]
 - analysis_depth: jedno z ["low", "normal", "high"]
 - alternate_queries: lista 1-2 alternatywnych sformułowań query (TYLKO gdy analysis_depth="high"). Użyj synonimów, innej perspektywy, lub bardziej szczegółowego/ogólnego ujęcia. Pusta lista [] dla analysis_depth="low"/"normal".
+- sub_questions: lista 2-4 sub-pytań (TYLKO gdy analysis_depth="high" I pytanie dotyczy wielu osób, encji lub tematów do porównania). Każde sub-pytanie powinno być self-contained. Pusta lista [] gdy pytanie dotyczy jednego tematu.
 
 Zasady:
 - Jeśli użytkownik podał jawne filtry wejściowe, są nadrzędne.

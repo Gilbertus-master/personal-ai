@@ -708,6 +708,56 @@ def ask(request: AskRequest) -> AskResponse:
     final_match_limit = max(request.top_k, min(answer_match_limit, request.top_k * 3))
     timer.end("interpret")
 
+    # Orchestrator-Workers: decompose complex queries into sub-questions
+    if (interpreted.sub_questions
+            and _env_flags.get("ENABLE_ORCHESTRATOR", "false").lower() == "true"):
+        timer.start("orchestrator")
+        from app.retrieval.orchestrator import decompose_and_synthesize
+        answer = decompose_and_synthesize(
+            query=request.query,
+            sub_questions=interpreted.sub_questions,
+            source_types=interpreted.source_types,
+            source_names=interpreted.source_names,
+            date_from=interpreted.date_from,
+            date_to=interpreted.date_to,
+            question_type=interpreted.question_type,
+            analysis_depth=interpreted.analysis_depth,
+            answer_length=request.answer_length,
+            conversation_context=conversation_context,
+        )
+        timer.end("orchestrator")
+
+        # Save to conversation window
+        if conv_store:
+            conv_store.add("user", request.query)
+            conv_store.add("assistant", answer)
+
+        latency_ms = int((time.time() - started_at) * 1000)
+        response_meta = {
+            "question_type": interpreted.question_type,
+            "analysis_depth": interpreted.analysis_depth,
+            "orchestrator": True,
+            "sub_questions": len(interpreted.sub_questions),
+            "normalized_query": interpreted.normalized_query,
+            "channel": request.channel,
+        }
+        run_id = persist_ask_run_best_effort(
+            session_id=None,
+            request_payload=model_to_dict(request),
+            response_payload={"answer": answer, "meta": response_meta},
+            interpretation={
+                "normalized_query": interpreted.normalized_query,
+                "question_type": interpreted.question_type,
+                "analysis_depth": interpreted.analysis_depth,
+                "sub_questions": interpreted.sub_questions,
+            },
+            matches=[],
+            latency_ms=latency_ms,
+            stage_ms=timer.to_dict(),
+            cache_hit=False,
+        )
+        return AskResponse(answer=answer, meta=response_meta, run_id=run_id)
+
     timer.start("retrieve")
     # Deep routing: specialized retrieval per question_type
     _enable_routing = _env_flags.get("ENABLE_DEEP_ROUTING", "false").lower() == "true"
