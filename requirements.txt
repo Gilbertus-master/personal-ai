@@ -25,12 +25,24 @@ hyperframe==6.1.0
 idna==3.11
 iniconfig==2.3.0
 jiter==0.13.0
+jsonpatch==1.33
+jsonpointer==3.1.1
 jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
+langchain-core==1.2.23
+langgraph==0.3.34
+langgraph-checkpoint==2.0.18
+langgraph-checkpoint-postgres==2.0.9
+# Note: checkpoint tables created manually due to psycopg-binary compat issue with setup()
+langgraph-prebuilt==0.1.8
+langgraph-sdk==0.1.60
+langsmith==0.7.22
 lxml==6.0.2
 mcp @ file:///tmp/mcp-1.26.0-py3-none-any.whl#sha256=904a21c33c25aa98ddbeb47273033c435e595bbacfdb177f4bd87f6dceebe1ca
+msgpack==1.1.2
 numpy==2.4.3
 openai==2.28.0
+orjson==3.11.7
 openpyxl==3.1.5
 packaging==26.0
 pillow==12.1.1
@@ -38,7 +50,7 @@ pluggy==1.6.0
 portalocker==2.10.1
 protobuf==6.33.6
 psycopg==3.2.1
-psycopg-binary==3.3.3
+psycopg-binary==3.2.1
 psycopg-pool==3.3.0
 pycparser==3.0
 pydantic==2.12.5
@@ -57,6 +69,7 @@ qdrant-client==1.11.3
 referencing==0.37.0
 regex==2026.2.28
 requests==2.33.0
+requests-toolbelt==1.0.0
 rpds-py==0.30.0
 ruff==0.15.7
 setuptools==82.0.0
@@ -70,7 +83,10 @@ tiktoken==0.12.0
 tqdm==4.67.3
 typing-inspection==0.4.2
 typing_extensions==4.15.0
+tenacity==9.1.4
 urllib3==2.6.3
+uuid-utils==0.14.1
 uvicorn==0.42.0
 wheel==0.46.3
 xlsxwriter==3.2.9
+xxhash==3.6.0

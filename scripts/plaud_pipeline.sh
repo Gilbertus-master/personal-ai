@@ -50,6 +50,7 @@ print(f"Untranscribed: {len(needs)} / {len(all_recs)}")
 
 # Step 2: Try Plaud cloud trigger
 triggered = 0
+plaud_triggered_ids = set()
 for r in needs:
     fid = r["id"]
     fname = r.get("filename", "?")
@@ -66,6 +67,7 @@ for r in needs:
         msg = resp.json().get("msg", "")
         if status_code == 0:
             triggered += 1
+            plaud_triggered_ids.add(fid)
             print(f"  Plaud triggered: {fname}")
         else:
             print(f"  Plaud cloud rejected: {fname} (status={status_code}, {msg}) — audio may not be synced from device")
@@ -80,7 +82,7 @@ if triggered:
 source_id = insert_source(conn=None, source_type="audio_transcript", source_name="whisper_local")
 whisper_imported = 0
 
-for r in needs:
+for r in [x for x in needs if x['id'] not in plaud_triggered_ids]:
     fid = r["id"]
     fname = r.get("filename", "?")
     fullname = (r.get("fullname") or r.get("id", "")).rsplit(".", 1)[0]

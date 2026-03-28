@@ -12,7 +12,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 .venv/bin/python -c "
-import requests, json, os, subprocess, time
+import requests, json, os, subprocess, sys, time
 from datetime import datetime
 from app.ingestion.plaud_sync import get_plaud_token, list_recordings, get_recording_details, sync_plaud
 
@@ -120,8 +120,8 @@ if imported:
             for line in result.stdout.strip().splitlines():
                 if 'indeksowano' in line.lower() or 'indexed' in line.lower():
                     print(f'  {line}')
-    except Exception:
-        pass
+    except Exception as e:
+        print(f'  ERROR embed step: {e}', file=sys.stderr)
 
     # Extract entities
     try:
@@ -131,8 +131,8 @@ if imported:
             env={**os.environ, 'ANTHROPIC_EXTRACTION_MODEL': 'claude-haiku-4-5'},
         )
         print(f'  Extracted entities from audio data')
-    except Exception:
-        pass
+    except Exception as e:
+        print(f'  ERROR entity extraction step: {e}', file=sys.stderr)
 
 remaining = len(needs_transcription) - triggered
 if remaining > 0:

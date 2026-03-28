@@ -210,3 +210,58 @@ def run_alert_check():
         threading.Thread(target=_send, daemon=True).start()
 
     return {"alerts_sent": len(alerts), "alerts": alerts}
+
+
+@router.get("/graph/action/{action_id}")
+def get_action_graph_state(action_id: int):
+    """Inspect current state of an action in the LangGraph pipeline."""
+    import json as _json
+
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT status, result, proposed_at, decided_at, executed_at "
+                    "FROM action_items WHERE id = %s",
+                    (action_id,),
+                )
+                row = cur.fetchone()
+        if not row:
+            return {"error": f"Action #{action_id} not found"}
+
+        status, result_raw, proposed_at, decided_at, executed_at = row
+        result_data = {}
+        try:
+            result_data = _json.loads(result_raw) if result_raw else {}
+        except Exception:
+            pass
+
+        thread_id = result_data.get("graph_thread_id")
+
+        graph_state = {}
+        if thread_id:
+            try:
+                from app.orchestrator.action_graph import get_action_graph
+                graph = get_action_graph()
+                config = {"configurable": {"thread_id": thread_id}}
+                snapshot = graph.get_state(config)
+                graph_state = {
+                    "current_node": snapshot.next,
+                    "values": {k: v for k, v in snapshot.values.items()
+                               if k not in ("execution_result",)},
+                    "checkpoints": len(list(graph.get_state_history(config))),
+                }
+            except Exception as e:
+                graph_state = {"error": str(e)}
+
+        return {
+            "action_id": action_id,
+            "db_status": status,
+            "thread_id": thread_id,
+            "proposed_at": str(proposed_at) if proposed_at else None,
+            "decided_at": str(decided_at) if decided_at else None,
+            "executed_at": str(executed_at) if executed_at else None,
+            "graph_state": graph_state,
+        }
+    except Exception as e:
+        return {"error": str(e)}

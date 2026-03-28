@@ -288,6 +288,48 @@ def update_task_status(task_id: int, status: str, result: str):
         conn.commit()
 
 
+def _handle_approval_with_graph(text: str) -> dict | None:
+    """Try LangGraph resume first, fallback to legacy pipeline."""
+    import re
+    text_lower = text.lower().strip()
+
+    # Parse approval patterns
+    match = re.match(r"(?:tak|approve|yes)\s+#?(\d+)", text_lower)
+    if match:
+        action_id = int(match.group(1))
+        try:
+            from app.orchestrator.action_graph import graph_resume_action
+            return graph_resume_action(action_id, "approve")
+        except Exception as e:
+            log.warning("graph_resume_failed", error=str(e), fallback=True)
+            from app.orchestrator.action_pipeline import approve_action
+            return approve_action(action_id)
+
+    match = re.match(r"(?:nie|reject|no)\s+#?(\d+)", text_lower)
+    if match:
+        action_id = int(match.group(1))
+        try:
+            from app.orchestrator.action_graph import graph_resume_action
+            return graph_resume_action(action_id, "reject")
+        except Exception:
+            from app.orchestrator.action_pipeline import reject_action
+            return reject_action(action_id)
+
+    match = re.match(r"(?:edit|zmien|zmień)\s+#?(\d+):\s*(.+)", text_lower, re.DOTALL)
+    if match:
+        action_id, edit_text = int(match.group(1)), match.group(2).strip()
+        try:
+            from app.orchestrator.action_graph import graph_resume_action
+            return graph_resume_action(action_id, "edit", edit_text)
+        except Exception:
+            from app.orchestrator.action_pipeline import approve_action
+            return approve_action(action_id, edit_text)
+
+    # Fallback to legacy parser
+    from app.orchestrator.action_pipeline import handle_approval_message
+    return handle_approval_message(text)
+
+
 def process_new_messages():
     """Main loop: check for new messages, classify, execute tasks."""
     state = load_state()
@@ -518,12 +560,11 @@ def process_new_messages():
                 send_whatsapp(f"❌ Błąd: {str(e)[:200]}")
 
         elif msg_type == "approval":
-            from app.orchestrator.action_pipeline import handle_approval_message
-            result = handle_approval_message(classification["text"])
+            result = _handle_approval_with_graph(classification["text"])
             if result:
-                log.info("Action approval: {result.get('status', result.get('error', '?'))}")
+                log.info("action_approval", status=result.get("status", result.get("error", "?")))
             else:
-                log.info("Approval parse failed: {text[:50]}")
+                log.info("approval_parse_failed", text=text[:50])
 
         elif msg_type == "feedback_rating":
             rating = classification.get("rating", 0)
