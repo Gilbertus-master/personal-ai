@@ -658,6 +658,10 @@ def ask(request: AskRequest) -> AskResponse:
     timer = StageTimer()
     request = _apply_channel_defaults(request)
 
+    # Feature flags (read once per request)
+    from dotenv import dotenv_values
+    _env_flags = dotenv_values(BASE_DIR / ".env")
+
     # Conversation history (sliding window)
     from app.db.conversation_store import get_store
     conversation_context = ""
@@ -705,16 +709,28 @@ def ask(request: AskRequest) -> AskResponse:
     timer.end("interpret")
 
     timer.start("retrieve")
-    matches = search_chunks(
-        query=interpreted.normalized_query,
-        top_k=answer_match_limit,
-        source_types=interpreted.source_types,
-        source_names=interpreted.source_names,
-        date_from=interpreted.date_from,
-        date_to=interpreted.date_to,
-        prefetch_k=prefetch_k,
-        question_type=interpreted.question_type,
-    )
+    # Deep routing: specialized retrieval per question_type
+    _enable_routing = _env_flags.get("ENABLE_DEEP_ROUTING", "false").lower() == "true"
+    _enable_parallel = _env_flags.get("ENABLE_PARALLEL_RETRIEVAL", "false").lower() == "true"
+    if _enable_routing:
+        from app.retrieval.query_router import route_retrieval
+        matches = route_retrieval(
+            interpreted,
+            top_k=answer_match_limit,
+            prefetch_k=prefetch_k,
+            enable_parallel=_enable_parallel,
+        )
+    else:
+        matches = search_chunks(
+            query=interpreted.normalized_query,
+            top_k=answer_match_limit,
+            source_types=interpreted.source_types,
+            source_names=interpreted.source_names,
+            date_from=interpreted.date_from,
+            date_to=interpreted.date_to,
+            prefetch_k=prefetch_k,
+            question_type=interpreted.question_type,
+        )
 
     used_fallback = False
 
@@ -823,8 +839,6 @@ def ask(request: AskRequest) -> AskResponse:
 
     # Answer self-evaluation gate (Evaluator-Optimizer pattern)
     eval_result = None
-    from dotenv import dotenv_values
-    _env_flags = dotenv_values(BASE_DIR / ".env")
     if _env_flags.get("ENABLE_ANSWER_EVAL", "false").lower() == "true":
         timer.start("evaluate")
         from app.retrieval.answer_evaluator import evaluate_answer

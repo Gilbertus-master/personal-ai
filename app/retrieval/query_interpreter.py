@@ -37,6 +37,7 @@ Zwróć pola:
 - source_names: lista lub null
 - question_type: jedno z ["retrieval", "chronology", "summary", "analysis"]
 - analysis_depth: jedno z ["low", "normal", "high"]
+- alternate_queries: lista 1-2 alternatywnych sformułowań query (TYLKO gdy analysis_depth="high"). Użyj synonimów, innej perspektywy, lub bardziej szczegółowego/ogólnego ujęcia. Pusta lista [] dla analysis_depth="low"/"normal".
 
 Zasady:
 - Jeśli użytkownik podał jawne filtry wejściowe, są nadrzędne.

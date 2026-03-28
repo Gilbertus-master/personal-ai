@@ -11,3 +11,5 @@ class InterpretedQuery(BaseModel):
     source_names: list[str] | None = None
     question_type: str = "retrieval"
     analysis_depth: str = "normal"
+    alternate_queries: list[str] = []
+    sub_questions: list[str] = []
