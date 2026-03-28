@@ -446,6 +446,30 @@ SEED_JOBS = [
      "description": "Smart alert delivery: market/competitor/predictive (every 30min 8-22 CET)", "category": "communication",
      "log_file": "/home/sebastian/personal-ai/logs/smart_alert_delivery.log",
      "users": ["sebastian"]},
+    # Data Quality Calibrator (daily 5:30 CET / 4:30 UTC, before morning brief)
+    {"job_name": "data_quality_calibrator", "schedule": "30 4 * * *",
+     "command": "cd /home/sebastian/personal-ai && .venv/bin/python -c \"from app.analysis.data_quality_calibrator import run_calibration; import json; print(json.dumps(run_calibration(), ensure_ascii=False, indent=2, default=str))\"",
+     "description": "Data Quality Calibrator: auto-fix timestamps, orphans, dupes + alert on stale sources", "category": "qc",
+     "log_file": "/home/sebastian/personal-ai/logs/data_quality_calibrator.log",
+     "users": ["sebastian"]},
+    # Plaud audio sync (every 15 min)
+    {"job_name": "plaud_sync", "schedule": "*/15 * * * *",
+     "command": "cd /home/sebastian/personal-ai && bash scripts/plaud_sync.sh",
+     "description": "Plaud Pin S audio sync: pull latest recordings (every 15 min)", "category": "ingestion",
+     "log_file": "/home/sebastian/personal-ai/logs/plaud_sync.log",
+     "users": ["sebastian"]},
+    # F2: Monthly Workforce Automation Analysis (CEO-only, 1st of month 3:00 CET / 2:00 UTC)
+    {"job_name": "workforce_analysis", "schedule": "0 2 1 * *",
+     "command": "cd /home/sebastian/personal-ai && .venv/bin/python -c \"from app.analysis.employee_automation import analyze_all_employees; import json; print(json.dumps(analyze_all_employees(), ensure_ascii=False, indent=2, default=str))\"",
+     "description": "Monthly workforce automation analysis: employee work profiles + replaceability scores (CEO-only)", "category": "intelligence",
+     "log_file": "/home/sebastian/personal-ai/logs/workforce_analysis.log",
+     "users": ["sebastian"]},
+    # F3: Monthly Tech Radar Discovery (2nd of month 5:00 CET / 4:00 UTC — after F2)
+    {"job_name": "tech_radar_discovery", "schedule": "0 4 2 * *",
+     "command": "cd /home/sebastian/personal-ai && .venv/bin/python -c \"from app.analysis.tech_radar import discover_solutions, calculate_priority_scores, generate_roadmap, link_to_strategic_goals; discover_solutions(force=True); calculate_priority_scores(); link_to_strategic_goals(); import json; print(json.dumps(generate_roadmap(), ensure_ascii=False, indent=2, default=str))\"",
+     "description": "Monthly Tech Radar: discover solutions, rank by ROI, generate roadmap (after workforce analysis)", "category": "intelligence",
+     "log_file": "/home/sebastian/personal-ai/logs/tech_radar.log",
+     "users": ["sebastian"]},
 ]
 
 

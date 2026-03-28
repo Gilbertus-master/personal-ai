@@ -72,14 +72,17 @@ def import_one_spreadsheet(file_path: str | Path) -> bool:
 
     chunks = chunk_text(parsed.text)
 
+    # Use document created_at as chunk timestamp (critical for event extraction)
+    doc_timestamp = parsed.created_at
+
     for idx, chunk in enumerate(chunks):
         insert_chunk(
             conn=conn,
             document_id=document_id,
             chunk_index=idx,
             text=chunk,
-            timestamp_start=None,
-            timestamp_end=None,
+            timestamp_start=doc_timestamp,
+            timestamp_end=doc_timestamp,
             embedding_id=None,
         )
 

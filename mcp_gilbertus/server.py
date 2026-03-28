@@ -139,10 +139,18 @@ async def list_tools():
              description="Check status of all Omnius tenants.",
              inputSchema={"type": "object", "properties": {}}),
         Tool(name="gilbertus_process_intel",
-             description="Process Intelligence: discover business lines, mine processes, inventory apps, map data flows, generate optimization plans. Dynamic — discovers from data, not hardcoded.",
+             description="Process Intelligence: business lines, processes, apps (deep analysis + costs + replacement ranking), data flows, optimization plans, tech radar (solutions + roadmap). Dynamic discovery.",
              inputSchema={"type": "object", "properties": {
-                 "action": {"type": "string", "enum": ["dashboard", "discover", "processes", "apps", "flows", "optimize", "mine", "scan_apps", "map_flows"], "default": "dashboard"},
+                 "action": {"type": "string", "enum": ["dashboard", "discover", "processes", "apps", "flows", "optimize", "mine", "scan_apps", "map_flows", "scan_apps_deep", "app_analysis", "app_costs", "app_ranking", "tech_radar", "tech_discover", "tech_roadmap", "tech_solution", "tech_alignment"], "default": "dashboard"},
                  "process_type": {"type": "string", "description": "Filter processes by type (decision/approval/reporting/trading/compliance/communication/operational)"},
+                 "solution_id": {"type": "integer", "description": "Tech solution ID (for tech_solution action)"},
+             }}),
+        Tool(name="gilbertus_workforce_analysis",
+             description="[CEO-ONLY] Analyze employee work profiles for automation potential. Maps activities to routine/judgment/relationship/creative/supervisory categories. Calculates replaceability score, savings, automation roadmap.",
+             inputSchema={"type": "object", "properties": {
+                 "action": {"type": "string", "enum": ["analyze", "profile", "overview", "roadmap", "analyze_all"], "default": "overview"},
+                 "person_slug": {"type": "string", "description": "Person slug for individual analysis (e.g. 'marcin-kulpa')"},
+                 "organization": {"type": "string", "description": "Filter by org for analyze_all (e.g. 'REH', 'REF')"},
              }}),
         Tool(name="omnius_bridge",
              description="Cross-tenant Omnius operations: search both REH+REF at once, aggregated dashboard, cross-company audit, operator tasks, sync all. Sebastian's god-view across all companies.",
@@ -646,8 +654,54 @@ async def call_tool(name: str, arguments: dict):
         elif action == "optimize":
             from app.analysis.optimization_planner import generate_plans
             r = json.dumps(generate_plans(), ensure_ascii=False, indent=2, default=str)
+        elif action == "scan_apps_deep":
+            from app.analysis.app_inventory import scan_applications_deep
+            r = json.dumps(scan_applications_deep(), ensure_ascii=False, indent=2, default=str)
+        elif action == "app_analysis":
+            from app.analysis.app_inventory import get_app_deep_analysis
+            r = json.dumps(get_app_deep_analysis(), ensure_ascii=False, indent=2, default=str)
+        elif action == "app_costs":
+            from app.analysis.app_inventory import analyze_app_costs
+            r = json.dumps(analyze_app_costs(), ensure_ascii=False, indent=2, default=str)
+        elif action == "app_ranking":
+            from app.analysis.app_inventory import get_app_replacement_ranking
+            r = json.dumps(get_app_replacement_ranking(), ensure_ascii=False, indent=2, default=str)
+        elif action == "tech_radar":
+            from app.analysis.tech_radar import get_tech_radar_dashboard
+            r = json.dumps(get_tech_radar_dashboard(), ensure_ascii=False, indent=2, default=str)
+        elif action == "tech_discover":
+            from app.analysis.tech_radar import discover_solutions
+            r = json.dumps(discover_solutions(force=True), ensure_ascii=False, indent=2, default=str)
+        elif action == "tech_roadmap":
+            from app.analysis.tech_radar import generate_roadmap
+            r = json.dumps(generate_roadmap(), ensure_ascii=False, indent=2, default=str)
+        elif action == "tech_solution":
+            from app.analysis.tech_radar import get_solution_detail
+            r = json.dumps(get_solution_detail(arguments.get("solution_id", 0)), ensure_ascii=False, indent=2, default=str)
+        elif action == "tech_alignment":
+            from app.analysis.tech_radar import get_tech_strategic_alignment
+            r = json.dumps(get_tech_strategic_alignment(), ensure_ascii=False, indent=2, default=str)
         else:
-            r = json.dumps({"error": "Actions: dashboard, discover, processes, mine, apps, scan_apps, flows, map_flows, optimize"})
+            r = json.dumps({"error": "Actions: dashboard, discover, processes, mine, apps, scan_apps, flows, map_flows, optimize, scan_apps_deep, app_analysis, app_costs, app_ranking, tech_radar, tech_discover, tech_roadmap, tech_solution, tech_alignment"})
+    elif name == "gilbertus_workforce_analysis":
+        action = arguments.get("action", "overview")
+        if action == "overview":
+            from app.analysis.employee_automation import get_automation_overview
+            r = json.dumps(get_automation_overview(), ensure_ascii=False, indent=2, default=str)
+        elif action == "analyze" and arguments.get("person_slug"):
+            from app.analysis.employee_automation import analyze_work_profile
+            r = json.dumps(analyze_work_profile(arguments["person_slug"]), ensure_ascii=False, indent=2, default=str)
+        elif action == "profile" and arguments.get("person_slug"):
+            from app.analysis.employee_automation import get_work_profile
+            r = json.dumps(get_work_profile(arguments["person_slug"]), ensure_ascii=False, indent=2, default=str)
+        elif action == "roadmap":
+            from app.analysis.employee_automation import get_automation_roadmap
+            r = json.dumps(get_automation_roadmap(), ensure_ascii=False, indent=2, default=str)
+        elif action == "analyze_all":
+            from app.analysis.employee_automation import analyze_all_employees
+            r = json.dumps(analyze_all_employees(organization=arguments.get("organization")), ensure_ascii=False, indent=2, default=str)
+        else:
+            r = json.dumps({"error": "Actions: overview, analyze (+ person_slug), profile (+ person_slug), roadmap, analyze_all"})
     elif name == "omnius_bridge":
         action = arguments.get("action", "dashboard")
         from app.omnius.bridge import (

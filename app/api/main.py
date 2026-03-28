@@ -1670,11 +1670,22 @@ def process_intel_dashboard():
     from app.analysis.business_lines import get_business_lines
     from app.analysis.app_inventory import get_app_inventory
     from app.analysis.optimization_planner import get_optimization_dashboard
-    return {
+    result = {
         "business_lines": get_business_lines(),
         "apps": get_app_inventory(),
         "optimizations": get_optimization_dashboard(),
     }
+    try:
+        from app.analysis.employee_automation import get_automation_overview
+        result["workforce_automation"] = get_automation_overview()
+    except Exception:
+        pass
+    try:
+        from app.analysis.tech_radar import get_tech_radar_dashboard
+        result["tech_radar"] = get_tech_radar_dashboard()
+    except Exception:
+        pass
+    return result
 
 @app.get("/process-intel/business-lines")
 def business_lines_endpoint():
@@ -1725,3 +1736,89 @@ def optimizations_endpoint():
 def generate_plans_endpoint():
     from app.analysis.optimization_planner import generate_plans
     return generate_plans()
+
+
+# F1: Deep App Analysis
+@app.post("/process-intel/scan-apps-deep")
+def scan_apps_deep_endpoint():
+    from app.analysis.app_inventory import scan_applications_deep
+    return scan_applications_deep()
+
+@app.get("/process-intel/app-analysis")
+def app_analysis_endpoint():
+    from app.analysis.app_inventory import get_app_deep_analysis
+    return get_app_deep_analysis()
+
+@app.get("/process-intel/app-analysis/{app_id}")
+def app_analysis_detail_endpoint(app_id: int):
+    from app.analysis.app_inventory import get_app_deep_analysis
+    return get_app_deep_analysis(app_id=app_id)
+
+@app.post("/process-intel/app-costs")
+def app_costs_endpoint():
+    from app.analysis.app_inventory import analyze_app_costs
+    return analyze_app_costs()
+
+@app.get("/process-intel/app-replacement-ranking")
+def app_replacement_ranking_endpoint():
+    from app.analysis.app_inventory import get_app_replacement_ranking
+    return get_app_replacement_ranking()
+
+
+# F2: Employee Automation Analysis (CEO-only)
+@app.post("/process-intel/analyze-employee/{person_slug}")
+def analyze_employee_endpoint(person_slug: str):
+    from app.analysis.employee_automation import analyze_work_profile
+    return analyze_work_profile(person_slug)
+
+@app.post("/process-intel/analyze-all-employees")
+def analyze_all_employees_endpoint(organization: str | None = None):
+    from app.analysis.employee_automation import analyze_all_employees
+    return analyze_all_employees(organization=organization)
+
+@app.get("/process-intel/work-profile/{person_slug}")
+def work_profile_endpoint(person_slug: str):
+    from app.analysis.employee_automation import get_work_profile
+    return get_work_profile(person_slug) or {"error": "Profile not found"}
+
+@app.get("/process-intel/automation-overview")
+def automation_overview_endpoint():
+    from app.analysis.employee_automation import get_automation_overview
+    return get_automation_overview()
+
+@app.get("/process-intel/automation-roadmap")
+def automation_roadmap_endpoint():
+    from app.analysis.employee_automation import get_automation_roadmap
+    return get_automation_roadmap()
+
+
+# F3: Tech Radar
+@app.post("/process-intel/discover-tech")
+def discover_tech_endpoint():
+    from app.analysis.tech_radar import discover_solutions
+    return discover_solutions(force=True)
+
+@app.get("/process-intel/tech-radar")
+def tech_radar_endpoint():
+    from app.analysis.tech_radar import get_tech_radar_dashboard
+    return get_tech_radar_dashboard()
+
+@app.get("/process-intel/tech-radar/{solution_id}")
+def tech_radar_detail_endpoint(solution_id: int):
+    from app.analysis.tech_radar import get_solution_detail
+    return get_solution_detail(solution_id) or {"error": "Solution not found"}
+
+@app.get("/process-intel/tech-roadmap")
+def tech_roadmap_endpoint():
+    from app.analysis.tech_radar import generate_roadmap
+    return generate_roadmap()
+
+@app.post("/process-intel/tech-solution/{solution_id}/status")
+def tech_solution_status_endpoint(solution_id: int, status: str = "approved"):
+    from app.analysis.tech_radar import update_solution_status
+    return update_solution_status(solution_id, status)
+
+@app.get("/process-intel/tech-strategic-alignment")
+def tech_alignment_endpoint():
+    from app.analysis.tech_radar import get_tech_strategic_alignment
+    return get_tech_strategic_alignment()

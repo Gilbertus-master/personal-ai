@@ -43,6 +43,7 @@ Rules:
 - If the chunk is genuinely not event-worthy, return event = null.
 - confidence must be between 0 and 1.
 - summary must be short, factual, and in the language of the chunk.
+- event_date: If the text contains a specific date/time for the event (e.g. "2025-03-15", "w piątek 14:00", "January 2025"), extract it as ISO format (YYYY-MM-DD or YYYY-MM-DDTHH:MM). If no date is mentioned, return null.
 """.strip()
 
 
@@ -60,6 +61,10 @@ EVENT_TOOL_SCHEMA = {
                         },
                         "summary": {"type": "string"},
                         "confidence": {"type": "number"},
+                        "event_date": {
+                            "anyOf": [{"type": "string"}, {"type": "null"}],
+                            "description": "ISO date extracted from text (YYYY-MM-DD or YYYY-MM-DDTHH:MM), or null if no date mentioned",
+                        },
                     },
                     "required": ["event_type", "summary", "confidence"],
                     "additionalProperties": False,
@@ -218,10 +223,21 @@ def normalize_event(raw_event: dict[str, Any] | None, fallback_text: str) -> dic
     if not summary:
         return None
 
+    # Extract LLM-provided date (if present and valid)
+    event_date = raw_event.get("event_date")
+    if event_date and isinstance(event_date, str):
+        event_date = event_date.strip()
+        # Basic validation: must look like a date
+        if len(event_date) < 8 or not event_date[:4].isdigit():
+            event_date = None
+    else:
+        event_date = None
+
     return {
         "event_type": event_type,
         "summary": summary[:500],
         "confidence": confidence,
+        "event_date": event_date,
     }
 
 
@@ -374,11 +390,13 @@ def main() -> None:
         )
 
         if detected:
+            # Prefer LLM-extracted date, fallback to chunk timestamp
+            event_time = detected.get("event_date") or timestamp_start
             event_id = insert_event(
                 document_id=document_id,
                 chunk_id=current_chunk_id,
                 event_type=detected["event_type"],
-                event_time=timestamp_start,
+                event_time=event_time,
                 summary=detected["summary"],
                 confidence=float(detected["confidence"]),
             )

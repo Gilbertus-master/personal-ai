@@ -1,7 +1,7 @@
 # Gilbertus Albans — Projekt AI Mentat
 
 ## ZASADA ZERO: NON-REGRESSION
-**Nowe developmenty NIE MOGĄ pogorszyć dotychczasowych osiągnięć.** Przed deploy: sprawdź czy 23 crony działają, 19 MCP tools odpowiadają, QC 0 errors, extraction coverage nie spadło, latency nie wzrosło. Jeśli nowy feature łamie cokolwiek → REVERT natychmiast.
+**Nowe developmenty NIE MOGĄ pogorszyć dotychczasowych osiągnięć.** Przed deploy: sprawdź czy 39 cronów działa, 43 MCP tools odpowiada, QC 0 errors, extraction coverage nie spadło, latency nie wzrosło. Jeśli nowy feature łamie cokolwiek → REVERT natychmiast.
 
 ## Kto to jest
 Sebastian Jabłoński — właściciel REH (Respect Energy Holding) i REF (Respect Energy Fuels), trader energetyczny, ojciec. Myśli systemowo, ceni kontrolę i efektywność.
@@ -19,10 +19,10 @@ Gilbertus Albans to prywatny mentat AI Sebastiana — system, który indeksuje d
 - **Stack:** Python, FastAPI, PostgreSQL 16, Qdrant, Claude (Anthropic), OpenAI embeddings, Docker
 - **Źródła:** Teams (Graph API), email (Graph API + PST), WhatsApp (OpenClaw), Plaud (audio), dokumenty, ChatGPT
 - **Ekstrakcja:** Entities (5 typów) + Events (15 typów) via Claude Haiku, 24 workers, partycjonowane
-- **Delivery:** WhatsApp, Teams Bot, HTTP API (15 endpointów)
-- **Automatyzacja:** 37 cron jobów (ingestion co 5 min, extraction co 30 min, commitment extract co 30 min, meeting prep co 15 min 8-20, response drafter co 15 min 8-20, backup co 4h, brief o 7:00, weekly synthesis Sun 20:00, weekly analysis Fri 21:00, intelligence scan daily 22:00, QC daily 6:00)
+- **Delivery:** WhatsApp, Teams Bot, HTTP API (110+ endpointów)
+- **Automatyzacja:** 39 cron jobów (ingestion co 5 min, extraction co 30 min, commitment extract co 30 min, meeting prep co 15 min 8-20, response drafter co 15 min 8-20, backup co 4h, brief o 7:00, weekly synthesis Sun 20:00, weekly analysis Fri 21:00, intelligence scan daily 22:00, QC daily 6:00, workforce analysis monthly 1st, tech radar monthly 2nd)
 
-## MCP Tools (28)
+## MCP Tools (43)
 Gilbertus API jest dostępne jako MCP server (`mcp_gilbertus/server.py`).
 
 **Core (11):** `gilbertus_ask`, `gilbertus_timeline`, `gilbertus_summary`, `gilbertus_brief`, `gilbertus_alerts`, `gilbertus_status`, `gilbertus_db_stats`, `gilbertus_decide`, `gilbertus_people`, `gilbertus_lessons`, `gilbertus_costs`.
@@ -30,6 +30,10 @@ Gilbertus API jest dostępne jako MCP server (`mcp_gilbertus/server.py`).
 **Extended (7):** `gilbertus_evaluate`, `gilbertus_propose_action`, `gilbertus_pending_actions`, `gilbertus_self_rules`, `gilbertus_opportunities`, `gilbertus_inefficiency`, `gilbertus_correlate`.
 
 **Intelligence (6):** `gilbertus_commitments`, `gilbertus_meeting_prep`, `gilbertus_sentiment`, `gilbertus_wellbeing`, `gilbertus_delegation`, `gilbertus_network`.
+
+**Process Intel (1+):** `gilbertus_process_intel` (18 akcji: dashboard, discover, processes, mine, apps, scan_apps, flows, map_flows, optimize, scan_apps_deep, app_analysis, app_costs, app_ranking, tech_radar, tech_discover, tech_roadmap, tech_solution, tech_alignment).
+
+**Workforce (1):** `gilbertus_workforce_analysis` (CEO-only: overview, analyze, profile, roadmap, analyze_all).
 
 **Operations (1):** `gilbertus_crons`.
 

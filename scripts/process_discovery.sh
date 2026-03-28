@@ -40,4 +40,26 @@ import json
 print(json.dumps(generate_plans(), ensure_ascii=False, indent=2, default=str))
 "
 
+echo "Step 6: Deep App Analysis + Costs..."
+python -c "
+from app.analysis.app_inventory import scan_applications_deep, analyze_app_costs, rank_replacement_priority
+import json
+print(json.dumps(scan_applications_deep(), ensure_ascii=False, indent=2, default=str))
+print(json.dumps(analyze_app_costs(), ensure_ascii=False, indent=2, default=str))
+print(json.dumps(rank_replacement_priority()[:5], ensure_ascii=False, indent=2, default=str))
+"
+
+echo "Step 7: Tech Radar Refresh..."
+python -c "
+from app.analysis.tech_radar import discover_solutions, calculate_priority_scores, generate_roadmap, link_to_strategic_goals
+import json
+result = discover_solutions()
+if not result.get('skipped'):
+    calculate_priority_scores()
+    link_to_strategic_goals()
+    print(json.dumps(generate_roadmap(), ensure_ascii=False, indent=2, default=str))
+else:
+    print('Tech Radar: recent solutions exist, skipping.')
+"
+
 echo "[$(date)] Process Intelligence cycle complete."
