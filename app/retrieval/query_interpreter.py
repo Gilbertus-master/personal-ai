@@ -151,6 +151,7 @@ def interpret_query(
     date_from: str | None = None,
     date_to: str | None = None,
     mode: str | None = "auto",
+    previous_answer_summary: str = "",
 ) -> InterpretedQuery:
     # --- cache lookup ---
     ck = _cache_key(query, source_types, source_names, date_from, date_to, mode)
@@ -172,6 +173,18 @@ def interpret_query(
             "date_to": date_to,
         },
     }
+
+    # Conversation-aware: if previous answer exists, tell interpreter to target the gap
+    from dotenv import dotenv_values
+    from pathlib import Path
+    _env_flags = dotenv_values(Path(__file__).resolve().parents[2] / ".env")
+    if previous_answer_summary and _env_flags.get("ENABLE_CONV_AWARE", "false").lower() == "true":
+        payload["previous_answer_summary"] = previous_answer_summary
+        payload["instruction"] = (
+            "Poprzednia odpowiedź w tej sesji pokrywała poniższy zakres. "
+            "Sformułuj normalized_query tak, aby celował w to czego BRAKUJE "
+            "lub co użytkownik chce doprecyzować — NIE powtarzaj tego samego searcha."
+        )
 
     try:
         response = client.messages.create(

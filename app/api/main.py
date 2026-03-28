@@ -40,7 +40,7 @@ from app.api.teams_bot import router as teams_router
 from app.db.postgres import get_pg_connection
 
 BASE_DIR = Path(__file__).resolve().parents[2]
-load_dotenv(BASE_DIR / ".env")
+load_dotenv(BASE_DIR / ".env", override=True)
 
 APP_NAME = os.getenv("APP_NAME", "Gilbertus Albans")
 APP_VERSION = os.getenv("APP_VERSION", "0.1.0")
@@ -662,9 +662,11 @@ def ask(request: AskRequest) -> AskResponse:
     from app.db.conversation_store import get_store
     conversation_context = ""
     conv_store = None
+    previous_answer_summary = ""
     if request.channel or request.session_id:
         conv_store = get_store(request.channel, request.session_id)
         conversation_context = conv_store.as_context_string()
+        previous_answer_summary = conv_store.get_last_answer_summary()
 
     # Check cache
     cache_key = _cache_key_for_ask(request.query, request.source_types, request.date_from, request.date_to)
@@ -686,6 +688,7 @@ def ask(request: AskRequest) -> AskResponse:
         date_from=request.date_from,
         date_to=request.date_to,
         mode=request.mode,
+        previous_answer_summary=previous_answer_summary,
     )
 
     prefetch_k = get_prefetch_k(
@@ -818,6 +821,33 @@ def ask(request: AskRequest) -> AskResponse:
     )
     timer.end("answer")
 
+    # Answer self-evaluation gate (Evaluator-Optimizer pattern)
+    eval_result = None
+    from dotenv import dotenv_values
+    _env_flags = dotenv_values(BASE_DIR / ".env")
+    if _env_flags.get("ENABLE_ANSWER_EVAL", "false").lower() == "true":
+        timer.start("evaluate")
+        from app.retrieval.answer_evaluator import evaluate_answer
+        eval_result = evaluate_answer(
+            query=request.query,
+            answer=answer,
+            question_type=interpreted.question_type,
+        )
+        if eval_result and eval_result.should_retry and eval_result.feedback:
+            # Regenerate with evaluator feedback
+            answer = answer_question(
+                query=f"{request.query}\n\n[FEEDBACK EWALUATORA: {eval_result.feedback}]",
+                matches=redacted_matches_for_answer,
+                question_type=interpreted.question_type,
+                analysis_depth=interpreted.analysis_depth,
+                include_sources=request.include_sources,
+                answer_style=request.answer_style,
+                answer_length=request.answer_length,
+                allow_quotes=request.allow_quotes,
+                conversation_context=conversation_context,
+            )
+        timer.end("evaluate")
+
     # Save to conversation window
     if conv_store:
         conv_store.add("user", request.query)
@@ -848,6 +878,8 @@ def ask(request: AskRequest) -> AskResponse:
         "allow_quotes": request.allow_quotes,
         "channel": request.channel,
         "debug": request.debug,
+        "eval_score": eval_result.avg_score if eval_result else None,
+        "eval_retried": eval_result.should_retry if eval_result else None,
     }
 
     latency_ms = int((time.time() - started_at) * 1000)

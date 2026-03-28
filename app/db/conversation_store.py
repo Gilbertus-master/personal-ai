@@ -90,6 +90,20 @@ class ConversationStore:
         lines.append("=== Koniec historii ===\n")
         return "\n".join(lines)
 
+    def get_last_answer_summary(self, max_chars: int = 500) -> str:
+        """
+        Returns truncated text of the last assistant message.
+        Used for conversation-aware follow-up queries (gap targeting).
+        """
+        messages = self.get_messages()
+        for m in reversed(messages):
+            if m["role"] == "assistant":
+                text = m["text"][:max_chars]
+                if len(m["text"]) > max_chars:
+                    text += "...[obcięto]"
+                return text
+        return ""
+
     # ──────────────────────────────────────────────────────────────
     # Write
     # ──────────────────────────────────────────────────────────────
