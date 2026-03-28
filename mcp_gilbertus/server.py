@@ -17,6 +17,7 @@ import sys
 from pathlib import Path
 
 import requests
+import structlog
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
@@ -31,6 +32,7 @@ GILBERTUS_API = os.getenv("GILBERTUS_API_URL", "http://127.0.0.1:8000")
 API_TIMEOUT = 60
 
 server = Server("gilbertus")
+log = structlog.get_logger()
 
 # ---------------------------------------------------------------------------
 # Tool groups for tiered loading
@@ -117,17 +119,19 @@ def _api(method: str, path: str, data: dict | None = None) -> str:
         resp.raise_for_status()
         return json.dumps(resp.json(), ensure_ascii=False, indent=2)
     except requests.ConnectionError:
+        log.error("api_call_failed", url=url, error="ConnectionError")
         return "ERROR: Gilbertus API not running. Start with: bash scripts/run_api.sh"
     except Exception as e:
+        log.error("api_call_failed", url=url, error=str(e))
         return f"ERROR: {e}"
 
 
-def _sql(query: str) -> str:
+def _sql(query: str, params: tuple = ()) -> str:
     try:
         from app.db.postgres import get_pg_connection
         with get_pg_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(query)
+                cur.execute(query, params)
                 cols = [d[0] for d in cur.description] if cur.description else []
                 rows = cur.fetchall()
         if not rows:
@@ -138,6 +142,7 @@ def _sql(query: str) -> str:
             lines.append(" | ".join(str(v) for v in row))
         return "\n".join(lines)
     except Exception as e:
+        log.error("sql_failed", error=str(e))
         return f"DB Error: {e}"
 
 
@@ -410,6 +415,14 @@ async def list_tools():
 
 @server.call_tool()
 async def call_tool(name: str, arguments: dict):
+    try:
+        return await _call_tool_impl(name, arguments)
+    except Exception as e:
+        log.error("tool_error", tool=name, error=str(e))
+        return [TextContent(type="text", text=f"ERROR: {e}")]
+
+
+async def _call_tool_impl(name: str, arguments: dict):
     if name == "gilbertus_router":
         task = arguments.get("task", "")
         task_lower = task.lower()
@@ -481,13 +494,19 @@ async def call_tool(name: str, arguments: dict):
             FROM people p LEFT JOIN relationships r ON r.person_id=p.id ORDER BY chunks DESC NULLS LAST""")
     elif name == "gilbertus_lessons":
         w = ["1=1"]
+        params: list = []
         if arguments.get("category"):
-            w.append(f"category='{arguments['category']}'")
+            w.append("category = %s")
+            params.append(arguments["category"])
         if arguments.get("module"):
-            w.append(f"module LIKE '%{arguments['module']}%'")
-        r = _sql(f"SELECT category, LEFT(description,80) as lesson, prevention_rule FROM lessons_learned WHERE {' AND '.join(w)} ORDER BY id DESC LIMIT 20")
+            w.append("module LIKE %s")
+            params.append(f"%{arguments['module']}%")
+        r = _sql(f"SELECT category, LEFT(description,80) as lesson, prevention_rule FROM lessons_learned WHERE {' AND '.join(w)} ORDER BY id DESC LIMIT 20", tuple(params))
     elif name == "gilbertus_costs":
-        d = arguments.get("days", 7)
+        try:
+            d = int(arguments.get("days", 7))
+        except (ValueError, TypeError):
+            return [TextContent(type="text", text="Error: 'days' must be an integer.")]
         costs = _sql(f"SELECT DATE(created_at) as day, provider, model, module, COUNT(*) as calls, ROUND(SUM(cost_usd)::numeric,4) as cost_usd FROM api_costs WHERE created_at>NOW()-INTERVAL '{d} days' GROUP BY 1,2,3,4 ORDER BY 1 DESC, 6 DESC")
         try:
             budget_resp = _api("GET", "/costs/budget")
@@ -625,9 +644,9 @@ async def call_tool(name: str, arguments: dict):
     elif name == "gilbertus_commitments":
         from app.analysis.commitment_tracker import get_open_commitments, get_commitment_summary
         if arguments.get("person"):
-            result = get_commitment_summary(person_name=arguments["person"])
+            result = get_commitment_summary(person_name=arguments["person"], status=arguments.get("status"))
         else:
-            result = get_open_commitments(limit=arguments.get("limit", 20))
+            result = get_open_commitments(limit=arguments.get("limit", 20), status=arguments.get("status"))
         r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
     elif name == "gilbertus_meeting_prep":
         from app.analysis.meeting_prep import run_meeting_prep

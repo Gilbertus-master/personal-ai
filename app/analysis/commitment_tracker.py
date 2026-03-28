@@ -184,37 +184,30 @@ def check_fulfilled_commitments(hours: int = 24) -> list[dict[str, Any]]:
     return fulfilled
 
 
-def get_commitment_summary(person_name: str | None = None) -> list[dict[str, Any]]:
-    """Return commitment stats per person."""
+def get_commitment_summary(person_name: str | None = None, status: str | None = None) -> list[dict[str, Any]]:
+    """Return commitment stats per person. Optionally filter by person name and/or status."""
+    where_clauses = []
+    params: list = []
     if person_name:
-        sql = """
-            SELECT person_name,
-                   COUNT(*) as total,
-                   COUNT(*) FILTER (WHERE status = 'open') as open,
-                   COUNT(*) FILTER (WHERE status = 'fulfilled') as fulfilled,
-                   COUNT(*) FILTER (WHERE status = 'broken') as broken,
-                   COUNT(*) FILTER (WHERE status = 'overdue') as overdue,
-                   COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled
-            FROM commitments
-            WHERE LOWER(person_name) = LOWER(%s)
-            GROUP BY person_name
-            ORDER BY total DESC
-        """
-        params = (person_name,)
-    else:
-        sql = """
-            SELECT person_name,
-                   COUNT(*) as total,
-                   COUNT(*) FILTER (WHERE status = 'open') as open,
-                   COUNT(*) FILTER (WHERE status = 'fulfilled') as fulfilled,
-                   COUNT(*) FILTER (WHERE status = 'broken') as broken,
-                   COUNT(*) FILTER (WHERE status = 'overdue') as overdue,
-                   COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled
-            FROM commitments
-            GROUP BY person_name
-            ORDER BY total DESC
-        """
-        params = ()
+        where_clauses.append("LOWER(person_name) = LOWER(%s)")
+        params.append(person_name)
+    if status:
+        where_clauses.append("status = %s")
+        params.append(status)
+    where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+    sql = f"""
+        SELECT person_name,
+               COUNT(*) as total,
+               COUNT(*) FILTER (WHERE status = 'open') as open,
+               COUNT(*) FILTER (WHERE status = 'fulfilled') as fulfilled,
+               COUNT(*) FILTER (WHERE status = 'broken') as broken,
+               COUNT(*) FILTER (WHERE status = 'overdue') as overdue,
+               COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled
+        FROM commitments
+        {where_sql}
+        GROUP BY person_name
+        ORDER BY total DESC
+    """
 
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
@@ -235,17 +228,26 @@ def get_commitment_summary(person_name: str | None = None) -> list[dict[str, Any
     ]
 
 
-def get_open_commitments(limit: int = 20) -> list[dict[str, Any]]:
-    """Return open commitments ordered by deadline (soonest first)."""
+def get_open_commitments(limit: int = 20, status: str | None = None) -> list[dict[str, Any]]:
+    """Return commitments ordered by deadline (soonest first). Defaults to open+overdue."""
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("""
-                SELECT id, person_name, commitment_text, deadline, status, created_at
-                FROM commitments
-                WHERE status IN ('open', 'overdue')
-                ORDER BY deadline ASC NULLS LAST, created_at ASC
-                LIMIT %s
-            """, (limit,))
+            if status:
+                cur.execute("""
+                    SELECT id, person_name, commitment_text, deadline, status, created_at
+                    FROM commitments
+                    WHERE status = %s
+                    ORDER BY deadline ASC NULLS LAST, created_at ASC
+                    LIMIT %s
+                """, (status, limit))
+            else:
+                cur.execute("""
+                    SELECT id, person_name, commitment_text, deadline, status, created_at
+                    FROM commitments
+                    WHERE status IN ('open', 'overdue')
+                    ORDER BY deadline ASC NULLS LAST, created_at ASC
+                    LIMIT %s
+                """, (limit,))
             rows = cur.fetchall()
 
     return [

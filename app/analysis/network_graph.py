@@ -135,7 +135,8 @@ def build_weekly_graph(week_start: str | None = None) -> dict[str, Any]:
                     data["last_communication"],
                     week_start,
                 ))
-                if cur.fetchone():
+                rows = cur.fetchall()
+                if rows:
                     edges_created += 1
         conn.commit()
 
@@ -182,37 +183,48 @@ def detect_silos() -> list[dict[str, Any]]:
     if len(orgs) < 2:
         return []
 
-    # Check cross-org communication (last 4 weeks)
-    silos = []
+    # Fetch all relevant edges in a single query before the loop (avoids N² round-trips)
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
-            for org_a, org_b in combinations(sorted(orgs), 2):
-                people_a = list(org_people[org_a])
-                people_b = list(org_people[org_b])
+            cur.execute(
+                "SELECT LOWER(person_a), LOWER(person_b), COUNT(*), COALESCE(SUM(message_count), 0)"
+                " FROM communication_edges"
+                " WHERE week_start > CURRENT_DATE - INTERVAL %s"
+                " GROUP BY 1, 2",
+                ("28 days",),
+            )
+            edge_rows = cur.fetchall()
 
-                # Count edges between the two groups
-                cur.execute("""
-                    SELECT COUNT(*), COALESCE(SUM(message_count), 0)
-                    FROM communication_edges
-                    WHERE week_start > CURRENT_DATE - INTERVAL '28 days'
-                      AND (
-                          (LOWER(person_a) = ANY(%s) AND LOWER(person_b) = ANY(%s))
-                          OR (LOWER(person_a) = ANY(%s) AND LOWER(person_b) = ANY(%s))
-                      )
-                """, (people_a, people_b, people_b, people_a))
-                row = cur.fetchone()
-                edge_count, msg_count = row
+    edge_map: dict[tuple[str, str], tuple[int, int]] = {
+        (r[0], r[1]): (int(r[2]), int(r[3])) for r in edge_rows
+    }
 
-                if edge_count < 3:
-                    silos.append({
-                        "org_a": org_a,
-                        "org_b": org_b,
-                        "cross_edges": edge_count,
-                        "cross_messages": msg_count,
-                        "people_in_a": len(org_people[org_a]),
-                        "people_in_b": len(org_people[org_b]),
-                        "severity": "high" if edge_count == 0 else "medium",
-                    })
+    # Check cross-org communication (last 4 weeks)
+    silos = []
+    for org_a, org_b in combinations(sorted(orgs), 2):
+        people_a = org_people[org_a]
+        people_b = org_people[org_b]
+
+        edge_count = 0
+        msg_count = 0
+        for pa in people_a:
+            for pb in people_b:
+                for key in ((pa, pb), (pb, pa)):
+                    if key in edge_map:
+                        ec, mc = edge_map[key]
+                        edge_count += ec
+                        msg_count += mc
+
+        if edge_count < 3:
+            silos.append({
+                "org_a": org_a,
+                "org_b": org_b,
+                "cross_edges": edge_count,
+                "cross_messages": msg_count,
+                "people_in_a": len(org_people[org_a]),
+                "people_in_b": len(org_people[org_b]),
+                "severity": "high" if edge_count == 0 else "medium",
+            })
 
     return sorted(silos, key=lambda s: s["cross_edges"])
 
@@ -229,7 +241,8 @@ def detect_bottlenecks(threshold: float = 0.30) -> list[dict[str, Any]]:
                 FROM communication_edges
                 WHERE week_start > CURRENT_DATE - INTERVAL '28 days'
             """)
-            total_edges = cur.fetchone()[0]
+            rows = cur.fetchall()
+            total_edges = rows[0][0] if rows else 0
 
             if total_edges == 0:
                 return []
@@ -283,8 +296,9 @@ def get_network_summary() -> dict[str, Any]:
                 FROM communication_edges
                 WHERE week_start > CURRENT_DATE - INTERVAL '28 days'
             """)
-            row = cur.fetchone()
-            total_edges, total_messages = row
+            rows = cur.fetchall()
+            row = rows[0] if rows else None
+            total_edges, total_messages = row if row else (0, 0)
 
             # Most connected people
             cur.execute("""

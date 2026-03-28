@@ -225,20 +225,20 @@ def _check_completion_evidence(task_id: int, assignee: str, title: str) -> str |
     params: list[Any] = [f"%{kw}%" for kw in keywords]
     params.append(assignee)
 
+    query = (
+            "SELECT e.description, e.event_date FROM events e "
+            "WHERE (" + keyword_conditions + ") "
+            "AND LOWER(e.person_name) = LOWER(%s) "
+            "AND e.event_date > NOW() - INTERVAL '7 days' "
+            "AND e.event_type IN ('commitment_made', 'task_completed', "
+            "                     'decision_made', 'deliverable') "
+            "ORDER BY e.event_date DESC LIMIT 3"
+        )
+
     try:
         with get_pg_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(f"""
-                    SELECT e.description, e.event_date
-                    FROM events e
-                    WHERE ({keyword_conditions})
-                      AND LOWER(e.person_name) = LOWER(%s)
-                      AND e.event_date > NOW() - INTERVAL '7 days'
-                      AND e.event_type IN ('commitment_made', 'task_completed',
-                                           'decision_made', 'deliverable')
-                    ORDER BY e.event_date DESC
-                    LIMIT 3
-                """, params)
+                cur.execute(query, params)
                 rows = cur.fetchall()
 
         if rows:
@@ -327,7 +327,8 @@ def _mark_completed(task_id: int, evidence: str):
                 WHERE id = %s
                 RETURNING commitment_id
             """, (evidence, task_id))
-            row = cur.fetchone()
+            rows = cur.fetchall()
+            row = rows[0] if rows else None
 
             # Update linked commitment
             if row and row[0]:
@@ -483,10 +484,10 @@ def _handle_remind(task_id: int) -> dict[str, Any]:
                 "SELECT assignee, assignee_email, title FROM delegation_tasks WHERE id = %s",
                 (task_id,),
             )
-            row = cur.fetchone()
-            if not row:
+            rows = cur.fetchall()
+            if not rows:
                 return {"error": f"Delegation #{task_id} not found"}
-            assignee, email, title = row
+            assignee, email, title = rows[0]
 
     _send_reminder(task_id, assignee, email, title)
     return {"task_id": task_id, "action": "reminded", "assignee": assignee}
@@ -518,11 +519,11 @@ def _handle_extend(task_id: int, days: int) -> dict[str, Any]:
                 WHERE id = %s AND status NOT IN ('completed', 'cancelled')
                 RETURNING deadline
             """, (days, task_id))
-            row = cur.fetchone()
-            if not row:
+            rows = cur.fetchall()
+            if not rows:
                 conn.rollback()
                 return {"error": f"Delegation #{task_id} not found or already closed"}
-            new_deadline = row[0]
+            new_deadline = rows[0][0]
         conn.commit()
 
     log.info("delegation.extended", task_id=task_id, days=days, new_deadline=str(new_deadline))

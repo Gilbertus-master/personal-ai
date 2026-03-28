@@ -451,9 +451,10 @@ def calculate_priority_scores():
                     LEFT JOIN tech_solutions ts ON ts.id = td.depends_on_id
                     WHERE td.solution_id = %s AND td.dependency_type = 'blocks'
                 """, (sol_id,))
-                dep_row = cur.fetchone()
-                total_deps = dep_row[0] or 0
-                deployed_deps = dep_row[1] or 0
+                dep_rows = cur.fetchall()
+                dep_row = dep_rows[0] if dep_rows else None
+                total_deps = dep_row[0] or 0 if dep_row else 0
+                deployed_deps = dep_row[1] or 0 if dep_row else 0
                 dep_readiness = 100 if total_deps == 0 else int((deployed_deps / total_deps) * 100)
 
                 # Risk based on dev hours (higher = more risk)

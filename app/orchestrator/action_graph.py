@@ -57,10 +57,13 @@ def node_propose(state: ActionState) -> dict:
                     state["source"],
                 ),
             )
-            row = cur.fetchone()
+            rows = cur.fetchall()
+            row = rows[0] if rows else None
         conn.commit()
 
-    action_id = row[0] if row else state["action_id"]
+    if not row:
+        raise RuntimeError(f"INSERT action_items returned no row for action_type={state['action_type']}")
+    action_id = row[0]
 
     _notify_proposal(action_id, state["action_type"], state["description"], state["draft_params"])
 
@@ -315,8 +318,8 @@ def graph_propose_action(
                     (json.dumps({"graph_thread_id": thread_id}), action_id),
                 )
             conn.commit()
-    except Exception:
-        pass
+    except Exception as exc:
+        log.error("thread_id_store_failed", action_id=action_id, thread_id=thread_id, error=str(exc))
 
     return {"action_id": action_id, "thread_id": thread_id, "status": "pending"}
 
@@ -329,7 +332,8 @@ def graph_resume_action(action_id: int, decision: str, edit_text: str | None = N
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT result FROM action_items WHERE id = %s", (action_id,))
-            row = cur.fetchone()
+            rows = cur.fetchall()
+            row = rows[0] if rows else None
 
     if not row or not row[0]:
         log.warning("no_thread_id", action_id=action_id)

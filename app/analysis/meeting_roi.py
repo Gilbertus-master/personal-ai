@@ -70,7 +70,8 @@ def score_meeting(minutes_id: int) -> dict:
                 FROM meeting_minutes
                 WHERE id = %s
             """, (minutes_id,))
-            row = cur.fetchone()
+            rows = cur.fetchall()
+            row = rows[0] if rows else None
 
             if not row:
                 log.warning("meeting_not_found", minutes_id=minutes_id)
@@ -106,8 +107,8 @@ def score_meeting(minutes_id: int) -> dict:
                     )
                     AND event_type = 'commitment'
                 """, (document_id,))
-                result = cur.fetchone()
-                commitments_count = result[0] if result else 0
+                res_rows = cur.fetchall()
+                commitments_count = res_rows[0][0] if res_rows else 0
 
             # Calculate ROI score
             raw_score = (

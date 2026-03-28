@@ -223,7 +223,8 @@ def scan_applications(days: int = 90) -> dict[str, Any]:
                     WHERE c.text ~* %s
                     AND d.created_at > NOW() - INTERVAL '%s days'
                 """, (pattern, days))
-                count = cur.fetchone()[0]
+                rows = cur.fetchall()
+                count = rows[0][0] if rows else 0
                 if count > 0:
                     results[app_name] = count
 
@@ -311,7 +312,8 @@ def scan_applications_deep(days: int = 90) -> dict[str, Any]:
                     WHERE c.text ~* %s
                     AND d.created_at > NOW() - INTERVAL '%s days'
                 """, (pattern, days))
-                count = cur.fetchone()[0]
+                rows = cur.fetchall()
+                count = rows[0][0] if rows else 0
                 if count > 0:
                     extended_found[app_name] = count
 
@@ -326,7 +328,8 @@ def scan_applications_deep(days: int = 90) -> dict[str, Any]:
                     WHERE d.title ILIKE %s
                     AND d.created_at > NOW() - INTERVAL '%s days'
                 """, (f"%{ext}", days))
-                count = cur.fetchone()[0]
+                rows = cur.fetchall()
+                count = rows[0][0] if rows else 0
                 if count > 0:
                     format_found[app_name] = count
 
@@ -647,7 +650,8 @@ def assess_replacement_feasibility(app_id: int | None = None) -> dict[str, Any]:
                 cur.execute("SELECT COUNT(*) FROM app_inventory WHERE id = %s AND (cost_monthly_pln = 0 OR cost_monthly_pln IS NULL)", (app_id,))
             else:
                 cur.execute("SELECT COUNT(*) FROM app_inventory WHERE replacement_feasibility = 0 AND cost_monthly_pln > 0")
-            needs_analysis = cur.fetchone()[0]
+            rows = cur.fetchall()
+            needs_analysis = rows[0][0] if rows else 0
 
     if needs_analysis == 0 and not app_id:
         # Run cost analysis for apps without cost data

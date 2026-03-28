@@ -18,7 +18,6 @@ This module provides:
 """
 from __future__ import annotations
 
-import logging
 import shutil
 import ssl
 import subprocess
@@ -26,11 +25,12 @@ import time
 from pathlib import Path
 from typing import Any
 
+import structlog
 import requests
 import urllib3
 from requests.adapters import HTTPAdapter
 
-log = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # MTU fix
@@ -230,15 +230,15 @@ def ssl_safe_download(
             tmp_path.unlink(missing_ok=True)
             raise
 
-    # Exhausted retries -- fall back to curl -k (works reliably in WSL2 with MTU issues)
-    log.warning("ssl_safe_download: Python requests exhausted, falling back to curl -k")
+    # Exhausted retries -- fall back to curl (works reliably in WSL2 with MTU issues)
+    log.warning("ssl_safe_download: Python requests exhausted, falling back to curl")
     tmp_path.unlink(missing_ok=True)
     try:
         header_args: list[str] = []
         for k, v in (headers or {}).items():
             header_args += ["-H", f"{k}: {v}"]
         result = subprocess.run(
-            ["curl", "-k", "-L", "-s", "-o", str(output_path)] + header_args + [url],
+            ["curl", "-L", "-s", "-o", str(output_path)] + header_args + [url],
             capture_output=True,
             timeout=timeout,
         )

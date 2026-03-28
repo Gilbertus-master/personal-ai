@@ -11,7 +11,8 @@ data (whatsapp, chatgpt, whatsapp_live) is ever exposed.
 
 from __future__ import annotations
 
-import logging
+import asyncio
+import structlog
 import os
 import time
 from pathlib import Path
@@ -20,6 +21,8 @@ from typing import Any
 import httpx
 from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException, Request
+from jwt import PyJWKClient, decode as jwt_decode
+from jwt.exceptions import InvalidTokenError
 from pydantic import BaseModel, Field
 
 from app.api.presentation import (
@@ -35,7 +38,7 @@ from app.retrieval.postprocess import cleanup_matches
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env")
 
-logger = logging.getLogger(__name__)
+log = structlog.get_logger("teams_bot")
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 
@@ -61,6 +64,49 @@ TEAMS_SYSTEM_ADDENDUM = (
     "Odpowiadaj profesjonalnie, konkretnie i z kontekstem biznesowym. "
     "Formatuj odpowiedzi w sposob czytelny w Microsoft Teams (uzywaj Markdown)."
 )
+
+# ─── Bot Framework JWT validation ────────────────────────────────────────────
+_BOT_FRAMEWORK_OPENID_URL = (
+    "https://login.botframework.com/v1/.well-known/openidconfiguration"
+)
+ALLOWED_SERVICE_URL_PREFIXES = (
+    "https://smba.trafficmanager.net",
+    "https://webchat.botframework.com",
+)
+_jwks_client: PyJWKClient | None = None
+
+
+def _get_jwks_client() -> PyJWKClient:
+    global _jwks_client
+    if _jwks_client is None:
+        resp = httpx.get(_BOT_FRAMEWORK_OPENID_URL, timeout=10)
+        resp.raise_for_status()
+        jwks_uri = resp.json()["jwks_uri"]
+        _jwks_client = PyJWKClient(jwks_uri)
+    return _jwks_client
+
+
+def verify_bot_token(token: str, app_id: str) -> None:
+    """Validate Bot Framework JWT; raises HTTP 401 on failure."""
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing Authorization token")
+    if not app_id:
+        raise HTTPException(status_code=500, detail="TEAMS_APP_ID not configured")
+    try:
+        client = _get_jwks_client()
+        signing_key = client.get_signing_key_from_jwt(token)
+        jwt_decode(
+            token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=app_id,
+            issuer="https://api.botframework.com",
+        )
+    except InvalidTokenError as exc:
+        raise HTTPException(status_code=401, detail=f"Invalid Bot Framework token: {exc}") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail=f"Token validation failed: {exc}") from exc
+
 
 # ─── Token cache ─────────────────────────────────────────────────────────────
 _token_cache: dict[str, Any] = {"access_token": None, "expires_at": 0.0}
@@ -118,7 +164,7 @@ async def _get_bot_token() -> str:
         )
 
     if resp.status_code != 200:
-        logger.error("Bot Framework token request failed: %s %s", resp.status_code, resp.text)
+        log.error("bot_framework_token_failed", status=resp.status_code, body=resp.text)
         raise HTTPException(status_code=502, detail="Failed to obtain Bot Framework token")
 
     data = resp.json()
@@ -134,6 +180,10 @@ async def _send_reply(service_url: str, conversation_id: str, activity_id: str, 
     """
     Send a reply to a Teams conversation via Bot Framework REST API.
     """
+    if not any(service_url.startswith(prefix) for prefix in ALLOWED_SERVICE_URL_PREFIXES):
+        log.critical("teams_bot.ssrf_blocked", service_url=service_url)
+        raise HTTPException(status_code=400, detail="Invalid service_url")
+
     token = await _get_bot_token()
 
     # Normalise service URL (must end with /)
@@ -157,12 +207,7 @@ async def _send_reply(service_url: str, conversation_id: str, activity_id: str, 
         )
 
     if resp.status_code not in (200, 201):
-        logger.error(
-            "Teams reply failed: status=%s url=%s body=%s",
-            resp.status_code,
-            url,
-            resp.text[:500],
-        )
+        log.error("teams_reply_failed", status=resp.status_code, url=url, body=resp.text[:500])
 
 
 # ─── Business-only query engine (mirrors presentation_ask) ──────────────────
@@ -256,12 +301,7 @@ def _business_ask(query: str, conversation_id: str | None = None) -> str:
         conv_store.add("assistant", answer)
 
     latency_ms = int((time.time() - started_at) * 1000)
-    logger.info(
-        "Teams bot answered in %d ms  matches=%d  question_type=%s",
-        latency_ms,
-        len(redacted_matches),
-        interpreted.question_type,
-    )
+    log.info("teams_bot_answered", latency_ms=latency_ms, matches=len(redacted_matches), question_type=interpreted.question_type)
 
     return answer
 
@@ -302,6 +342,9 @@ async def teams_webhook(request: Request) -> TeamsWebhookResponse:
 
     All queries are filtered through the BUSINESS-ONLY content filter.
     """
+    token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
+    verify_bot_token(token, TEAMS_APP_ID)
+
     try:
         body = await request.json()
     except Exception:
@@ -344,18 +387,16 @@ async def teams_webhook(request: Request) -> TeamsWebhookResponse:
         if not query:
             return TeamsWebhookResponse(status="ok", message="empty message ignored")
 
-        logger.info(
-            "Teams message from=%s query=%s",
-            (activity.from_ or {}).get("name", "unknown"),
-            query[:120],
-        )
+        log.info("teams_message_received", user=(activity.from_ or {}).get("name", "unknown"), query=query[:120])
 
         # Run the business-only RAG pipeline
         teams_conv_id = activity.conversation.get("id", "") if activity.conversation else None
         try:
-            answer = _business_ask(query, conversation_id=teams_conv_id)
+            answer = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: _business_ask(query, conversation_id=teams_conv_id)
+            )
         except Exception as e:
-            logger.exception("Teams bot _business_ask failed: %s", e)
+            log.exception("teams_bot_business_ask_failed", error=str(e))
             answer = (
                 "Przepraszam, wystapil blad podczas przetwarzania pytania. "
                 "Sprobuj ponownie za chwile."
@@ -373,5 +414,5 @@ async def teams_webhook(request: Request) -> TeamsWebhookResponse:
         return TeamsWebhookResponse(status="ok", message="reply sent")
 
     # ── Unknown activity type — acknowledge silently ─────────────────
-    logger.debug("Teams: ignoring activity type=%s", activity.type)
+    log.debug("teams_activity_ignored", activity_type=activity.type)
     return TeamsWebhookResponse(status="ok", message=f"ignored activity type: {activity.type}")

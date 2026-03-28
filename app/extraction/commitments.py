@@ -248,8 +248,8 @@ def resolve_person_id(person_name: str) -> int | None:
                 """,
                 (person_name,),
             )
-            row = cur.fetchone()
-    return row[0] if row else None
+            rows = cur.fetchall()
+    return rows[0][0] if rows else None
 
 
 def insert_commitment(
@@ -300,7 +300,8 @@ def _create_extraction_run(model: str, worker_id: int, worker_total: int, batch_
                 run_id = cur.fetchone()[0]
             conn.commit()
         return run_id
-    except Exception:
+    except Exception as e:
+        log.warning("extraction_run_create_failed", error=str(e))
         return None
 
 
@@ -318,8 +319,8 @@ def _finish_extraction_run(run_id: int | None, processed: int, created: int, neg
                     (processed, created, negative, run_id),
                 )
             conn.commit()
-    except Exception:
-        pass
+    except Exception as e:
+        log.warning("extraction_run_finish_failed", run_id=run_id, error=str(e))
 
 
 def main() -> None:
@@ -349,7 +350,12 @@ def main() -> None:
         chunk_id = row["chunk_id"]
         text = row["text"] or ""
 
-        detected = detect_commitment_with_llm(llm, text)
+        try:
+            detected = detect_commitment_with_llm(llm, text)
+        except Exception as e:
+            log.error("llm_call_failed", chunk_id=chunk_id, error=str(e))
+            processed += 1
+            continue
 
         log.info(
             "chunk_processed",
@@ -371,9 +377,8 @@ def main() -> None:
                 source_chunk_id=chunk_id,
             )
             commitments_written += 1
-        else:
-            mark_commitment_checked(chunk_id)
 
+        mark_commitment_checked(chunk_id)
         processed += 1
 
     _finish_extraction_run(run_id, processed, commitments_written, processed - commitments_written)

@@ -1,5 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
+LOCKFILE=/tmp/process_discovery.lock
+exec 9>"$LOCKFILE"
+if ! flock -n 9; then
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] process_discovery already running — exiting"
+  exit 0
+fi
+trap 'rm -f "$LOCKFILE"' EXIT INT TERM
+
 cd /home/sebastian/personal-ai
 source .venv/bin/activate 2>/dev/null || true
 
@@ -44,9 +53,12 @@ echo "Step 6: Deep App Analysis + Costs..."
 python -c "
 from app.analysis.app_inventory import scan_applications_deep, analyze_app_costs, rank_replacement_priority
 import json
-print(json.dumps(scan_applications_deep(), ensure_ascii=False, indent=2, default=str))
-print(json.dumps(analyze_app_costs(), ensure_ascii=False, indent=2, default=str))
-print(json.dumps(rank_replacement_priority()[:5], ensure_ascii=False, indent=2, default=str))
+result = {
+  'deep': scan_applications_deep(),
+  'costs': analyze_app_costs(),
+  'top5': rank_replacement_priority()[:5]
+}
+print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
 "
 
 echo "Step 7: Tech Radar Refresh..."

@@ -53,9 +53,9 @@ class ConversationStore:
                         "SELECT messages FROM conversation_windows WHERE channel_key = %s",
                         (self.channel_key,),
                     )
-                    row = cur.fetchone()
-            if row:
-                msgs = row[0] if isinstance(row[0], list) else json.loads(row[0])
+                    rows = cur.fetchall()
+            if rows:
+                msgs = rows[0][0] if isinstance(rows[0][0], list) else json.loads(rows[0][0])
                 return msgs
         except Exception as e:
             log.warning("get_messages_failed", channel=self.channel_key, error=str(e))
@@ -114,20 +114,28 @@ class ConversationStore:
             return
 
         try:
-            messages = self.get_messages()
-
-            messages.append({
-                "role": role,
-                "text": text.strip(),
-                "ts": datetime.now(tz=timezone.utc).isoformat(),
-            })
-
-            messages = self._apply_window(messages)
-            total_chars = sum(len(m["text"]) for m in messages)
-
             from app.db.postgres import get_pg_connection
             with get_pg_connection() as conn:
                 with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT messages FROM conversation_windows WHERE channel_key = %s FOR UPDATE",
+                        (self.channel_key,),
+                    )
+                    rows = cur.fetchall()
+                    if rows:
+                        messages = rows[0][0] if isinstance(rows[0][0], list) else json.loads(rows[0][0])
+                    else:
+                        messages = []
+
+                    messages.append({
+                        "role": role,
+                        "text": text.strip(),
+                        "ts": datetime.now(tz=timezone.utc).isoformat(),
+                    })
+
+                    messages = self._apply_window(messages)
+                    total_chars = sum(len(m["text"]) for m in messages)
+
                     cur.execute(
                         """
                         INSERT INTO conversation_windows
@@ -221,5 +229,6 @@ def cleanup_inactive_windows(hours: int = 24) -> int:
                 deleted = cur.rowcount
             conn.commit()
         return deleted
-    except Exception:
+    except Exception as e:
+        log.warning("cleanup_inactive_windows_failed", hours=hours, error=str(e))
         return 0

@@ -21,7 +21,13 @@ from app.db.postgres import get_pg_connection
 # Database
 # ================================================================
 
+_tables_ensured = False
+
+
 def _ensure_tables():
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             # Ensure response tracking columns exist on sent_communications
@@ -57,6 +63,7 @@ def _ensure_tables():
                     ON standing_order_metrics(order_id)
             """)
         conn.commit()
+    _tables_ensured = True
 
 
 # ================================================================
@@ -79,12 +86,12 @@ def analyze_order_effectiveness(order_id: int, days: int = 30) -> dict[str, Any]
                 FROM standing_orders
                 WHERE id = %s
             """, (order_id,))
-            order_row = cur.fetchone()
-            if not order_row:
+            rows = cur.fetchall()
+            if not rows:
                 log.warning("standing_order_not_found", order_id=order_id)
                 return {"error": f"Standing order #{order_id} not found"}
 
-            _, channel, recipient, scope = order_row
+            _, channel, recipient, scope = rows[0]
 
             # Count sends
             cur.execute("""
@@ -92,7 +99,8 @@ def analyze_order_effectiveness(order_id: int, days: int = 30) -> dict[str, Any]
                 WHERE standing_order_id = %s
                   AND sent_at > NOW() - make_interval(days => %s)
             """, (order_id, days))
-            sent_count = cur.fetchone()[0]
+            rows = cur.fetchall()
+            sent_count = rows[0][0] if rows else 0
 
             # Count responses
             cur.execute("""
@@ -101,7 +109,8 @@ def analyze_order_effectiveness(order_id: int, days: int = 30) -> dict[str, Any]
                   AND sent_at > NOW() - make_interval(days => %s)
                   AND response_received = TRUE
             """, (order_id, days))
-            response_count = cur.fetchone()[0]
+            rows = cur.fetchall()
+            response_count = rows[0][0] if rows else 0
 
             # Avg response time
             cur.execute("""
@@ -110,8 +119,8 @@ def analyze_order_effectiveness(order_id: int, days: int = 30) -> dict[str, Any]
                   AND response_received = TRUE
                   AND sent_at > NOW() - make_interval(days => %s)
             """, (order_id, days))
-            avg_hours_row = cur.fetchone()
-            avg_response_hours = float(avg_hours_row[0]) if avg_hours_row and avg_hours_row[0] else None
+            rows = cur.fetchall()
+            avg_response_hours = float(rows[0][0]) if rows and rows[0][0] else None
 
     # Calculate rate
     response_rate = round(response_count / sent_count, 2) if sent_count > 0 else 0.0

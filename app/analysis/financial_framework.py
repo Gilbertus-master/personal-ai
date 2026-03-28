@@ -124,7 +124,8 @@ def record_metric(
                    RETURNING id""",
                 (company, metric_type, value, period_start, period_end, source, notes),
             )
-            row = cur.fetchone()
+            rows = cur.fetchall()
+            row = rows[0] if rows else None
         conn.commit()
     metric_id = row[0] if row else None
     log.info("metric_recorded", company=company, metric_type=metric_type, value=value, id=metric_id)
@@ -158,7 +159,8 @@ def record_budget(
                    RETURNING id""",
                 (company, category, planned_amount, actual_amount, period_start, period_end),
             )
-            row = cur.fetchone()
+            rows = cur.fetchall()
+            row = rows[0] if rows else None
         conn.commit()
     budget_id = row[0] if row else None
     log.info("budget_recorded", company=company, category=category, planned=planned_amount, id=budget_id)
@@ -177,7 +179,8 @@ def update_budget_actual(company: str, category: str, period_start: str, actual_
                    RETURNING id, planned_amount""",
                 (actual_amount, company, category, period_start),
             )
-            row = cur.fetchone()
+            rows = cur.fetchall()
+            row = rows[0] if rows else None
         conn.commit()
 
     if not row:
@@ -248,7 +251,8 @@ def check_budget_alerts() -> list[dict]:
                              AND is_active = TRUE""",
                     (alert_type, company, f"%{category}%"),
                 )
-                if cur.fetchone():
+                rows = cur.fetchall()
+                if rows:
                     continue
 
                 description = (
@@ -262,7 +266,8 @@ def check_budget_alerts() -> list[dict]:
                        RETURNING id""",
                     (alert_type, company, description, severity, actual_f, planned_f * threshold_f),
                 )
-                alert_row = cur.fetchone()
+                alert_rows = cur.fetchall()
+                alert_row = alert_rows[0] if alert_rows else None
                 alert_id = alert_row[0] if alert_row else None
                 alerts_created.append({
                     "id": alert_id,
@@ -292,7 +297,7 @@ def get_api_cost_summary(months: int = 3) -> dict:
                           SUM(cost_usd) as total_usd,
                           COUNT(*) as api_calls
                    FROM api_costs
-                   WHERE created_at > NOW() - INTERVAL '%s months'
+                   WHERE created_at > NOW() - (%s * INTERVAL '1 month')
                    GROUP BY 1 ORDER BY 1 DESC""",
                 (months,),
             )
@@ -409,7 +414,8 @@ def get_financial_dashboard(company: str | None = None) -> dict:
 
             # Total active alerts
             cur.execute("SELECT COUNT(*) FROM financial_alerts WHERE is_active = TRUE")
-            row = cur.fetchone()
+            rows = cur.fetchall()
+            row = rows[0] if rows else None
             dashboard["active_alerts"] = row[0] if row else 0
 
     # API costs

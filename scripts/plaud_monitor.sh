@@ -9,6 +9,16 @@
 # The ONLY manual step is syncing Plaud Pin S with the phone app.
 # Everything else is fully automatic.
 set -euo pipefail
+
+LOCKFILE=/tmp/plaud_monitor.lock
+exec 9>"$LOCKFILE"
+if ! flock -n 9; then
+  LOCK_AGE=$(( $(date +%s) - $(stat -c %Y "$LOCKFILE") ))
+  if [ "$LOCK_AGE" -lt 2700 ]; then echo "[$(date '+%Y-%m-%d %H:%M')] plaud_monitor already running (${LOCK_AGE}s), skipping"; exit 0; fi
+  echo "[$(date '+%Y-%m-%d %H:%M')] plaud_monitor stale lock (${LOCK_AGE}s), stealing"
+fi
+trap 'flock -u 9; rm -f $LOCKFILE' EXIT INT TERM
+
 cd "$(dirname "$0")/.."
 
 .venv/bin/python -c "
@@ -88,7 +98,9 @@ if triggered:
     print(f'  Triggered {triggered} new transcriptions')
 
 # --- Step 2c: Fallback to local Whisper for any still-untranscribed ---
-if needs_transcription:
+# Only run Whisper if no cloud transcriptions were triggered this cycle.
+# If triggered > 0, cloud is actively processing — wait for next cycle.
+if needs_transcription and not triggered:
     import subprocess, sys
     whisper_script = os.path.join(os.path.dirname(os.path.abspath('.')), 'personal-ai/app/ingestion/whisper_transcribe.py')
     whisper_script = 'app/ingestion/whisper_transcribe.py'

@@ -20,6 +20,7 @@ import json
 import os
 import subprocess
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from typing import Any
 
 import requests
@@ -28,6 +29,8 @@ from dotenv import load_dotenv
 from app.db.postgres import get_pg_connection
 
 load_dotenv()
+
+WAR = ZoneInfo("Europe/Warsaw")
 
 OPENCLAW_BIN = os.getenv("OPENCLAW_BIN", "openclaw")
 WA_TARGET = os.getenv("WA_TARGET", "+48505441635")
@@ -256,8 +259,8 @@ def block_deep_work(
     for ev in day_events:
         ev_start = _parse_event_dt(ev["start"])
         ev_end = _parse_event_dt(ev["end"])
-        ds = datetime.fromisoformat(desired_start).replace(tzinfo=timezone.utc)
-        de = datetime.fromisoformat(desired_end).replace(tzinfo=timezone.utc)
+        ds = datetime.fromisoformat(desired_start).replace(tzinfo=WAR).astimezone(timezone.utc)
+        de = datetime.fromisoformat(desired_end).replace(tzinfo=WAR).astimezone(timezone.utc)
         if ev_start and ev_end and ev_start < de and ev_end > ds:
             slot_free = False
             break
@@ -270,8 +273,8 @@ def block_deep_work(
                 continue
             candidate_start = f"{date}T{hour:02d}:00:00"
             candidate_end = f"{date}T{hour + duration_hours:02d}:00:00"
-            cs = datetime.fromisoformat(candidate_start).replace(tzinfo=timezone.utc)
-            ce = datetime.fromisoformat(candidate_end).replace(tzinfo=timezone.utc)
+            cs = datetime.fromisoformat(candidate_start).replace(tzinfo=WAR).astimezone(timezone.utc)
+            ce = datetime.fromisoformat(candidate_end).replace(tzinfo=WAR).astimezone(timezone.utc)
 
             conflict = False
             for ev in day_events:
@@ -396,10 +399,11 @@ def detect_conflicts(days_ahead: int = 3) -> list[dict]:
         # No lunch break
         has_lunch_free = True
         for s, e, subj in day_events:
-            # Check if event overlaps 12:00-13:00
-            lunch_start = s.replace(hour=LUNCH_START_HOUR, minute=0, second=0)
-            lunch_end = s.replace(hour=LUNCH_END_HOUR, minute=0, second=0)
-            if s < lunch_end and e > lunch_start:
+            # Check if event overlaps 12:00-13:00 CET (convert UTC to Warsaw first)
+            s_local = s.astimezone(WAR)
+            lunch_start = s_local.replace(hour=LUNCH_START_HOUR, minute=0, second=0)
+            lunch_end = s_local.replace(hour=LUNCH_END_HOUR, minute=0, second=0)
+            if s_local < lunch_end and e.astimezone(WAR) > lunch_start:
                 has_lunch_free = False
                 break
 
@@ -454,7 +458,8 @@ def suggest_meetings() -> list[dict]:
                         WHERE table_name = 'entities'
                     )
                 """)
-                if not cur.fetchone()[0]:
+                rows = cur.fetchall()
+                if not rows or not rows[0][0]:
                     log.info("suggest_meetings_skipped", reason="entities table missing")
                     return []
 

@@ -73,7 +73,8 @@ def _calc_commitment_rate() -> dict:
                     FROM commitments
                     WHERE updated_at > NOW() - INTERVAL '30 days'
                 """)
-                row = cur.fetchone()
+                rows = cur.fetchall()
+                row = rows[0] if rows else None
                 rate = row[0] / max(row[1], 1)
                 score = min(rate / 0.85, 1.0) * 100
                 return {"score": round(score, 1), "value": round(rate, 3), "weight": 0.25,
@@ -94,7 +95,8 @@ def _calc_sentiment() -> dict:
                     FROM sentiment_scores
                     WHERE created_at > NOW() - INTERVAL '7 days'
                 """)
-                row = cur.fetchone()
+                rows = cur.fetchall()
+                row = rows[0] if rows else None
                 if row and row[0] is not None:
                     avg_sent = float(row[0])
                     # Map 1-5 scale: 3.5 = 100 points, 1.0 = 0, 5.0 = 100
@@ -121,7 +123,8 @@ def _calc_response_rate() -> dict:
                     FROM sent_communications
                     WHERE sent_at > NOW() - INTERVAL '7 days'
                 """)
-                row = cur.fetchone()
+                rows = cur.fetchall()
+                row = rows[0] if rows else None
                 if row and row[1] > 0:
                     rate = row[0] / row[1]
                     score = min(rate / 0.80, 1.0) * 100
@@ -147,7 +150,8 @@ def _calc_delegation() -> dict:
                     FROM delegation_tasks
                     WHERE updated_at > NOW() - INTERVAL '30 days'
                 """)
-                row = cur.fetchone()
+                rows = cur.fetchall()
+                row = rows[0] if rows else None
                 if row and row[1] > 0:
                     rate = row[0] / row[1]
                     score = min(rate / 0.80, 1.0) * 100
@@ -173,7 +177,8 @@ def _calc_decision_followup() -> dict:
                     FROM decisions
                     WHERE created_at > NOW() - INTERVAL '30 days'
                 """)
-                row = cur.fetchone()
+                rows = cur.fetchall()
+                row = rows[0] if rows else None
                 if row and row[1] > 0:
                     rate = row[0] / row[1]
                     score = min(rate / 0.80, 1.0) * 100
@@ -200,7 +205,8 @@ def _calc_deep_work() -> dict:
                         WHERE table_name = 'calendar_events'
                     )
                 """)
-                if cur.fetchone()[0]:
+                exists_rows = cur.fetchall()
+                if exists_rows and exists_rows[0][0]:
                     cur.execute("""
                         SELECT
                             COUNT(*) FILTER (WHERE event_type = 'focus_time') as focus,
@@ -208,7 +214,8 @@ def _calc_deep_work() -> dict:
                         FROM calendar_events
                         WHERE start_time > NOW() - INTERVAL '7 days'
                     """)
-                    row = cur.fetchone()
+                    rows = cur.fetchall()
+                    row = rows[0] if rows else None
                     if row and row[1] > 0:
                         rate = row[0] / row[1]
                         score = min(rate / 0.30, 1.0) * 100
@@ -238,7 +245,8 @@ def _calc_blind_spots() -> dict:
                         HAVING COUNT(*) < 2
                     ) sub
                 """)
-                row = cur.fetchone()
+                rows = cur.fetchall()
+                row = rows[0] if rows else None
                 blind_count = row[0] if row else 0
                 # Target <2: 0 spots = 100, 2 = 50, 5+ = 0
                 score = max(0, 100 - blind_count * 25)
@@ -259,7 +267,8 @@ def _calc_predictive_alerts() -> dict:
                     SELECT COUNT(*) FROM predictive_alerts
                     WHERE status = 'active'
                 """)
-                row = cur.fetchone()
+                rows = cur.fetchall()
+                row = rows[0] if rows else None
                 alert_count = row[0] if row else 0
                 # Target 0: 0 = 100, 1 = 80, 3 = 40, 5+ = 0
                 score = max(0, 100 - alert_count * 20)
@@ -410,7 +419,8 @@ def run_health_assessment() -> dict:
                     """,
                     (week_start,),
                 )
-                row = cur.fetchone()
+                rows = cur.fetchall()
+                row = rows[0] if rows else None
                 if row:
                     trend_vs_last = round(health["overall_score"] - float(row[0]), 1)
     except Exception:
@@ -446,7 +456,8 @@ def run_health_assessment() -> dict:
                         json.dumps({"calculated_at": health["calculated_at"]}, default=str),
                     ),
                 )
-                saved_id = cur.fetchone()[0]
+                rows = cur.fetchall()
+                saved_id = rows[0][0] if rows else None
             conn.commit()
         log.info("org_health.saved", id=saved_id, week_start=str(week_start))
     except Exception:

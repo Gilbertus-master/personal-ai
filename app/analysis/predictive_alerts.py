@@ -63,9 +63,10 @@ def predict_escalation_risk(person_name: str) -> dict[str, Any]:
                   AND e.event_type IN ('conflict', 'escalation', 'blocker')
                   AND e.event_time > NOW() - INTERVAL '14 days'
             """, (f"%{person_name}%",))
-            row = cur.fetchone()
-            conflict_count = row[0]
-            conflict_summaries = row[1] or []
+            rows = cur.fetchall()
+            row = rows[0] if rows else None
+            conflict_count = row[0] if row else 0
+            conflict_summaries = row[1] if row else []
 
             # Historical conflict rate (last 3 months for baseline)
             cur.execute("""
@@ -77,7 +78,9 @@ def predict_escalation_risk(person_name: str) -> dict[str, Any]:
                   AND e.event_type IN ('conflict', 'escalation', 'blocker')
                   AND e.event_time > NOW() - INTERVAL '3 months'
             """, (f"%{person_name}%",))
-            total_3m = cur.fetchone()[0]
+            rows = cur.fetchall()
+            row = rows[0] if rows else None
+            total_3m = row[0] if row else 0
 
     if conflict_count < 2:
         return {
@@ -202,7 +205,9 @@ def predict_deadline_risks() -> list[dict[str, Any]]:
                     WHERE table_name = 'commitments'
                 )
             """)
-            if not cur.fetchone()[0]:
+            rows = cur.fetchall()
+            row = rows[0] if rows else None
+            if not (row and row[0]):
                 log.info("predictive_alerts.no_commitments_table")
                 return []
 
@@ -232,8 +237,9 @@ def predict_deadline_risks() -> list[dict[str, Any]]:
                         WHERE person_id = %s
                           AND status IN ('completed', 'missed', 'overdue')
                     """, (pid,))
-                    hist = cur.fetchone()
-                    total_hist = hist[2]
+                    rows = cur.fetchall()
+                    hist = rows[0] if rows else None
+                    total_hist = hist[2] if hist else 0
                     if total_hist > 0:
                         completion_rate = hist[0] / total_hist
 
@@ -289,7 +295,8 @@ def _store_alerts(alerts: list[dict[str, Any]]) -> int:
                     LIMIT 1
                 """, (alert["alert_type"], alert.get("prediction", "")))
 
-                if cur.fetchone():
+                rows = cur.fetchall()
+                if rows:
                     continue  # duplicate, skip
 
                 evidence = {k: v for k, v in alert.items()
