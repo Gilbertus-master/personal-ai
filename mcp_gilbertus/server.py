@@ -379,14 +379,36 @@ async def call_tool(name: str, arguments: dict):
             importance=arguments.get("importance"))
         r = json.dumps(rules, ensure_ascii=False, indent=2, default=str)
     elif name == "gilbertus_opportunities":
+        _allowed_statuses = {"new", "in_progress", "done", "rejected"}
         status = arguments.get("status", "new")
-        limit = arguments.get("limit", 10)
-        r = _sql(f"""
-            SELECT id, opportunity_type, LEFT(description, 100), estimated_value_pln,
-                   estimated_effort_hours, roi_score, confidence, status
-            FROM opportunities WHERE status = '{status}'
-            ORDER BY roi_score DESC NULLS LAST LIMIT {limit}
-        """)
+        if status not in _allowed_statuses:
+            status = "new"
+        try:
+            limit = int(arguments.get("limit", 10))
+        except (TypeError, ValueError):
+            limit = 10
+        try:
+            from app.db.postgres import get_pg_connection
+            with get_pg_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT id, opportunity_type, LEFT(description, 100),"
+                        " estimated_value_pln, estimated_effort_hours, roi_score,"
+                        " confidence, status FROM opportunities WHERE status = %s"
+                        " ORDER BY roi_score DESC NULLS LAST LIMIT %s",
+                        (status, limit),
+                    )
+                    cols = [d[0] for d in cur.description] if cur.description else []
+                    rows = cur.fetchall()
+            if not rows:
+                r = "No results."
+            else:
+                lines = [" | ".join(cols), "-" * len(" | ".join(cols))]
+                for row in rows:
+                    lines.append(" | ".join(str(v) for v in row))
+                r = "\n".join(lines)
+        except Exception as e:
+            r = f"DB Error: {e}"
     elif name == "gilbertus_inefficiency":
         from app.analysis.inefficiency import generate_inefficiency_report
         r = json.dumps(generate_inefficiency_report(), ensure_ascii=False, indent=2, default=str)

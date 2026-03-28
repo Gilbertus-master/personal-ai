@@ -7,16 +7,39 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Prevent concurrent runs — skip if workers already running
-EXISTING=$(ps aux | grep -E "extraction\.(entities|events)" | grep -v grep | wc -l)
-if [ "$EXISTING" -gt 0 ]; then
-    echo "[$(date '+%H:%M:%S')] Skipping: $EXISTING workers already running"
-    exit 0
+# Prevent concurrent runs — use flock with 45-minute timeout.
+# Old grep-based guard caused 36h+ blocks from zombie workers (lesson #13).
+LOCKFILE="/tmp/turbo_extract.lock"
+exec 9>"$LOCKFILE"
+if ! flock -n 9; then
+    # Lock held — check if it's stale (older than 45 minutes)
+    LOCK_AGE=$(( $(date +%s) - $(stat -c %Y "$LOCKFILE" 2>/dev/null || echo 0) ))
+    if [ "$LOCK_AGE" -gt 2700 ]; then
+        echo "[$(date '+%H:%M:%S')] WARNING: Lock stale (${LOCK_AGE}s old). Breaking lock and killing orphan workers."
+        pkill -f "app\.extraction\.(entities|events)" 2>/dev/null || true
+        sleep 2
+        flock -n 9 || { echo "[$(date '+%H:%M:%S')] Still locked after break attempt. Exiting."; exit 0; }
+    else
+        echo "[$(date '+%H:%M:%S')] Skipping: another turbo_extract running (lock age: ${LOCK_AGE}s)"
+        exit 0
+    fi
 fi
+# Touch lockfile so age tracking works
+touch "$LOCKFILE"
+
+cleanup() {
+    echo "[$(date '+%H:%M:%S')] Cleaning up workers..." | tee -a "${LOG:-/dev/null}"
+    for pid in "${PIDS[@]:-}"; do
+        kill "$pid" 2>/dev/null || true
+    done
+    wait 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
 
 BATCH=${1:-5000}
 WORKERS=${2:-12}
 MODEL=${3:-claude-haiku-4-5-20251001}
+MAX_WORKER_TIME=1800  # 30 min max per worker
 LOG="logs/turbo_extract_$(date +%Y%m%d_%H%M).log"
 
 echo "[$(date '+%H:%M:%S')] Turbo extract: batch=${BATCH}, workers=${WORKERS}, model=${MODEL}" | tee "$LOG"
@@ -56,9 +79,31 @@ done
 
 echo "[$(date '+%H:%M:%S')] All ${#PIDS[@]} workers launched: ${PIDS[*]}" | tee -a "$LOG"
 
-# Wait for all
-for pid in "${PIDS[@]}"; do
-    wait "$pid" 2>/dev/null || true
+# Wait for all with timeout
+START_WAIT=$(date +%s)
+while true; do
+    ALIVE=0
+    for pid in "${PIDS[@]}"; do
+        if kill -0 "$pid" 2>/dev/null; then
+            ALIVE=$((ALIVE + 1))
+        fi
+    done
+    [ "$ALIVE" -eq 0 ] && break
+
+    ELAPSED=$(( $(date +%s) - START_WAIT ))
+    if [ "$ELAPSED" -gt "$MAX_WORKER_TIME" ]; then
+        echo "[$(date '+%H:%M:%S')] TIMEOUT: $ALIVE workers still running after ${ELAPSED}s. Killing." | tee -a "$LOG"
+        for pid in "${PIDS[@]}"; do
+            kill "$pid" 2>/dev/null || true
+        done
+        sleep 2
+        # Force kill survivors
+        for pid in "${PIDS[@]}"; do
+            kill -9 "$pid" 2>/dev/null || true
+        done
+        break
+    fi
+    sleep 5
 done
 
 echo "[$(date '+%H:%M:%S')] All workers finished" | tee -a "$LOG"
