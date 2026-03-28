@@ -60,6 +60,8 @@ app.include_router(teams_router)
 app.include_router(voice_router)
 from app.api.voice_ws import router as voice_ws_router
 app.include_router(voice_ws_router)
+from app.api.observability import router as observability_router
+app.include_router(observability_router)
 
 
 # =========================
@@ -558,6 +560,27 @@ def system_status() -> dict[str, Any]:
 # Ask endpoint
 # =========================
 
+def _get_latest_cost_for_module(module: str) -> dict:
+    """Get most recent api_costs entry for a module (written moments ago)."""
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """SELECT model, input_tokens, output_tokens, cost_usd
+                       FROM api_costs
+                       WHERE module = %s
+                       ORDER BY created_at DESC LIMIT 1""",
+                    (module,),
+                )
+                row = cur.fetchone()
+        if row:
+            return {"model": row[0], "input_tokens": row[1],
+                    "output_tokens": row[2], "cost_usd": float(row[3] or 0)}
+    except Exception:
+        pass
+    return {}
+
+
 def _apply_channel_defaults(request: AskRequest) -> AskRequest:
     """Override defaults for specific channels (e.g. WhatsApp needs fast, short answers)."""
     if request.channel == "whatsapp":
@@ -613,6 +636,8 @@ def _save_answer_cache(cache_key: str, query: str, answer: str, meta: dict, ttl_
 @app.post("/ask", response_model=AskResponse)
 def ask(request: AskRequest) -> AskResponse:
     started_at = time.time()
+    from app.db.stage_timer import StageTimer
+    timer = StageTimer()
     request = _apply_channel_defaults(request)
 
     # Check cache
@@ -627,6 +652,7 @@ def ask(request: AskRequest) -> AskResponse:
         return AskResponse(answer=answer_text, meta=meta)
     request_payload = model_to_dict(request)
 
+    timer.start("interpret")
     interpreted = interpret_query(
         query=request.query,
         source_types=request.source_types,
@@ -647,7 +673,9 @@ def ask(request: AskRequest) -> AskResponse:
     )
 
     final_match_limit = max(request.top_k, min(answer_match_limit, request.top_k * 3))
+    timer.end("interpret")
 
+    timer.start("retrieve")
     matches = search_chunks(
         query=interpreted.normalized_query,
         top_k=answer_match_limit,
@@ -673,6 +701,7 @@ def ask(request: AskRequest) -> AskResponse:
             prefetch_k=prefetch_k,
             question_type=interpreted.question_type,
         )
+    timer.end("retrieve")
 
     if not matches:
         latency_ms = int((time.time() - started_at) * 1000)
@@ -721,6 +750,8 @@ def ask(request: AskRequest) -> AskResponse:
             },
             matches=[],
             latency_ms=latency_ms,
+            stage_ms=timer.to_dict(),
+            cache_hit=False,
         )
 
         return AskResponse(
@@ -747,6 +778,7 @@ def ask(request: AskRequest) -> AskResponse:
 
     redacted_matches_for_answer, redacted_count = redact_matches(matches_for_answer)
 
+    timer.start("answer")
     answer = answer_question(
         query=request.query,
         matches=redacted_matches_for_answer,
@@ -757,6 +789,7 @@ def ask(request: AskRequest) -> AskResponse:
         answer_length=request.answer_length,
         allow_quotes=request.allow_quotes,
     )
+    timer.end("answer")
 
     response_sources = build_sources_from_matches(redacted_matches_for_answer) if request.debug else None
     response_matches = build_debug_matches(redacted_matches_for_answer) if request.debug else None
@@ -786,6 +819,16 @@ def ask(request: AskRequest) -> AskResponse:
     }
 
     latency_ms = int((time.time() - started_at) * 1000)
+    stage_breakdown = timer.to_dict()
+
+    run_cost_data = _get_latest_cost_for_module("retrieval.answering")
+
+    error_flag = (
+        answer.startswith("Wystąpił błąd")
+        or answer.startswith("ERROR")
+        or answer.startswith("Nie udało")
+        or latency_ms > 90_000
+    )
 
     response_payload = {
         "answer": answer,
@@ -807,6 +850,14 @@ def ask(request: AskRequest) -> AskResponse:
         },
         matches=matches_for_answer,
         latency_ms=latency_ms,
+        stage_ms=stage_breakdown,
+        model_used=run_cost_data.get("model"),
+        input_tokens=run_cost_data.get("input_tokens", 0),
+        output_tokens=run_cost_data.get("output_tokens", 0),
+        cost_usd=run_cost_data.get("cost_usd"),
+        error_flag=error_flag,
+        error_message=answer[:200] if error_flag else None,
+        cache_hit=bool(cached),
     )
 
     # Save to cache (1h TTL)
@@ -1475,6 +1526,12 @@ def estimate_cost(description: str):
     """Estimate cost of a proposed action."""
     from app.analysis.cost_estimator import estimate_cost
     return estimate_cost(description)
+
+@app.get("/costs/budget")
+def costs_budget():
+    """Current budget status: spend vs limits, alerts today."""
+    from app.db.cost_tracker import get_budget_status
+    return get_budget_status()
 
 
 # =========================

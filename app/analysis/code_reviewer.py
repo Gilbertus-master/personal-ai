@@ -33,6 +33,7 @@ PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
 _dotenv_vars = dotenv_values(PROJECT_DIR / ".env")
 REVIEW_PROMPT_PATH = PROJECT_DIR / "scripts" / "review_prompt.md"
 MODEL = os.getenv("CODE_REVIEW_MODEL", "sonnet")
+CLAUDE_BIN = os.getenv("CLAUDE_BIN", "/home/sebastian/.npm-global/bin/claude")
 BUDGET_PER_FILE = float(os.getenv("CODE_REVIEW_BUDGET_PER_FILE", "0.50"))
 REVIEW_BATCH_DEFAULT = 5
 RE_REVIEW_DAYS = 30
@@ -249,8 +250,7 @@ def _launch_review_session(file_path: str, system_prompt: str) -> dict | None:
     )
 
     cmd = [
-        "claude", "-p",
-        "--bare",
+        CLAUDE_BIN, "-p",
         "--model", MODEL,
         "--max-budget-usd", str(BUDGET_PER_FILE),
         "--system-prompt-file", prompt_file,
@@ -302,10 +302,31 @@ def _launch_review_session(file_path: str, system_prompt: str) -> dict | None:
         elif "```" in json_str:
             json_str = json_str.split("```")[1].split("```")[0]
 
-        # Find JSON object
+        # Find the outermost JSON object by matching braces
         start = json_str.find("{")
-        end = json_str.rfind("}") + 1
-        if start >= 0 and end > start:
+        if start >= 0:
+            depth = 0
+            end = start
+            in_string = False
+            escape_next = False
+            for i, ch in enumerate(json_str[start:], start):
+                if escape_next:
+                    escape_next = False
+                    continue
+                if ch == '\\' and in_string:
+                    escape_next = True
+                    continue
+                if ch == '"' and not escape_next:
+                    in_string = not in_string
+                    continue
+                if not in_string:
+                    if ch == '{':
+                        depth += 1
+                    elif ch == '}':
+                        depth -= 1
+                        if depth == 0:
+                            end = i + 1
+                            break
             json_str = json_str[start:end]
 
         data = json.loads(json_str)

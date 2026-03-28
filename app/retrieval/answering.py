@@ -267,6 +267,13 @@ Materiał źródłowy:
 
     model = _select_model(question_type, analysis_depth, answer_length)
 
+    # Budget circuit breaker — fail-open
+    from app.db.cost_tracker import check_budget
+    budget = check_budget("retrieval.answering")
+    if not budget["ok"]:
+        log.warning("budget_exceeded", reason=budget["reason"])
+        return f"⚠️ Budget przekroczony — odpowiedź wstrzymana. {budget['reason']}"
+
     system = [
         {"type": "text", "text": ANSWERING_STATIC_SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}},
         {"type": "text", "text": dynamic_part.strip()},

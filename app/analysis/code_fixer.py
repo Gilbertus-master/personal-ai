@@ -28,6 +28,7 @@ _dotenv_vars = dotenv_values(PROJECT_DIR / ".env")
 FIX_PROMPT_PATH = PROJECT_DIR / "scripts" / "fix_prompt.md"
 MODEL = os.getenv("CODE_FIX_MODEL", "sonnet")
 BUDGET_PER_FIX = float(os.getenv("CODE_FIX_BUDGET", "0.50"))
+CLAUDE_BIN = os.getenv("CLAUDE_BIN", "/home/sebastian/.npm-global/bin/claude")
 
 ALLOWED_PREFIXES = ("app/", "scripts/", "mcp_gilbertus/")
 
@@ -139,8 +140,7 @@ def _launch_fix_session(finding: dict, system_prompt: str) -> dict | None:
     user_prompt = _build_user_prompt(finding)
 
     cmd = [
-        "claude", "-p",
-        "--bare",
+        CLAUDE_BIN, "-p",
         "--model", MODEL,
         "--max-budget-usd", str(BUDGET_PER_FIX),
         "--system-prompt", system_prompt,

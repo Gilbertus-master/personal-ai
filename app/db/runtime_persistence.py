@@ -115,6 +115,14 @@ def create_ask_run(
     response_payload: dict[str, Any],
     interpretation: Optional[dict[str, Any]],
     latency_ms: Optional[int],
+    stage_ms: Optional[dict] = None,
+    model_used: Optional[str] = None,
+    input_tokens: int = 0,
+    output_tokens: int = 0,
+    cost_usd: Optional[float] = None,
+    error_flag: bool = False,
+    error_message: Optional[str] = None,
+    cache_hit: bool = False,
 ) -> int:
     meta = (response_payload or {}).get("meta") or {}
     answer_text = (response_payload or {}).get("answer") or ""
@@ -142,6 +150,15 @@ def create_ask_run(
         latency_ms,
         json.dumps(request_payload, ensure_ascii=False),
         json.dumps(response_payload, ensure_ascii=False),
+        # observability columns
+        model_used,
+        input_tokens,
+        output_tokens,
+        cost_usd,
+        error_flag,
+        error_message,
+        json.dumps(stage_ms) if stage_ms else None,
+        cache_hit,
     )
 
     with get_pg_connection() as conn:
@@ -154,13 +171,16 @@ def create_ask_run(
                     source_types, source_names, date_from, date_to,
                     used_fallback, match_count, answer_text, answer_length,
                     allow_quotes, debug, latency_ms,
-                    raw_request_json, raw_response_json
+                    raw_request_json, raw_response_json,
+                    model_used, input_tokens, output_tokens,
+                    cost_usd, error_flag, error_message, stage_ms, cache_hit
                 )
                 VALUES (
                     %s, %s, %s, %s, %s, %s, %s, %s,
                     %s::jsonb, %s::jsonb, %s, %s,
                     %s, %s, %s, %s, %s, %s, %s,
-                    %s::jsonb, %s::jsonb
+                    %s::jsonb, %s::jsonb,
+                    %s, %s, %s, %s, %s, %s, %s::jsonb, %s
                 )
                 RETURNING id
                 """,
@@ -210,6 +230,14 @@ def persist_ask_run_best_effort(
     interpretation: Optional[dict[str, Any]],
     matches: Optional[list[dict[str, Any]]],
     latency_ms: Optional[int],
+    stage_ms: Optional[dict] = None,
+    model_used: Optional[str] = None,
+    input_tokens: int = 0,
+    output_tokens: int = 0,
+    cost_usd: Optional[float] = None,
+    error_flag: bool = False,
+    error_message: Optional[str] = None,
+    cache_hit: bool = False,
 ) -> Optional[int]:
     """
     Best effort:
@@ -223,6 +251,14 @@ def persist_ask_run_best_effort(
             response_payload=response_payload,
             interpretation=interpretation,
             latency_ms=latency_ms,
+            stage_ms=stage_ms,
+            model_used=model_used,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cost_usd=cost_usd,
+            error_flag=error_flag,
+            error_message=error_message,
+            cache_hit=cache_hit,
         )
         insert_ask_run_matches(ask_run_id, matches or [])
         return ask_run_id

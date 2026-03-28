@@ -488,7 +488,12 @@ async def call_tool(name: str, arguments: dict):
         r = _sql(f"SELECT category, LEFT(description,80) as lesson, prevention_rule FROM lessons_learned WHERE {' AND '.join(w)} ORDER BY id DESC LIMIT 20")
     elif name == "gilbertus_costs":
         d = arguments.get("days", 7)
-        r = _sql(f"SELECT DATE(created_at) as day, provider, model, module, COUNT(*) as calls, ROUND(SUM(cost_usd)::numeric,4) as cost_usd FROM api_costs WHERE created_at>NOW()-INTERVAL '{d} days' GROUP BY 1,2,3,4 ORDER BY 1 DESC, 6 DESC")
+        costs = _sql(f"SELECT DATE(created_at) as day, provider, model, module, COUNT(*) as calls, ROUND(SUM(cost_usd)::numeric,4) as cost_usd FROM api_costs WHERE created_at>NOW()-INTERVAL '{d} days' GROUP BY 1,2,3,4 ORDER BY 1 DESC, 6 DESC")
+        try:
+            budget_resp = _api("GET", "/costs/budget")
+            r = f"=== BUDGET STATUS ===\n{budget_resp}\n\n=== COST BREAKDOWN (last {d} days) ===\n{costs}"
+        except Exception:
+            r = costs
     elif name == "gilbertus_evaluate":
         from app.evaluation.data_collector import collect_person_data
         from app.evaluation.evaluator import evaluate_person

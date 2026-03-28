@@ -1,6 +1,10 @@
 """Centralized API cost tracking. Fire-and-forget — never breaks callers."""
 from __future__ import annotations
 
+import threading
+import structlog
+
+log = structlog.get_logger()
 
 # Pricing per 1M tokens (USD)
 ANTHROPIC_PRICING = {
@@ -67,3 +71,170 @@ def log_openai_cost(model: str, module: str, token_count: int) -> None:
             conn.commit()
     except Exception:
         pass
+
+
+# ================================================================
+# Budget checks & alerts — fail-open: ok=True on any error
+# ================================================================
+
+def check_budget(module: str) -> dict:
+    """Check if module or daily total budget is exceeded.
+
+    Returns dict: {ok: bool, reason: str|None, daily_total: float, daily_limit: float}
+    NEVER raises — always returns ok=True on error (fail-open).
+    """
+    try:
+        from app.db.postgres import get_pg_connection
+
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                # Today's total spend
+                cur.execute("SELECT COALESCE(SUM(cost_usd), 0) FROM api_costs WHERE created_at >= CURRENT_DATE")
+                daily_total = float(cur.fetchone()[0])
+
+                # Module spend today
+                cur.execute(
+                    "SELECT COALESCE(SUM(cost_usd), 0) FROM api_costs WHERE created_at >= CURRENT_DATE AND module LIKE %s",
+                    (f"{module}%",)
+                )
+                module_total = float(cur.fetchone()[0])
+
+                # Load budget limits
+                cur.execute("SELECT scope, limit_usd, alert_threshold_pct, hard_limit FROM cost_budgets")
+                budgets = {row[0]: {"limit": float(row[1]), "alert_pct": row[2], "hard": row[3]} for row in cur.fetchall()}
+
+        result = {"ok": True, "reason": None, "daily_total": daily_total, "daily_limit": 0.0}
+
+        # Check daily total
+        dt = budgets.get("daily_total")
+        if dt:
+            result["daily_limit"] = dt["limit"]
+            pct = (daily_total / dt["limit"] * 100) if dt["limit"] > 0 else 0
+
+            if pct >= 100 and dt["hard"]:
+                result["ok"] = False
+                result["reason"] = f"Daily budget exceeded: ${daily_total:.2f} / ${dt['limit']:.2f}"
+                _send_cost_alert(result["reason"], "hard_limit", scope="daily_total")
+                return result
+
+            if pct >= dt["alert_pct"]:
+                _send_cost_alert(
+                    f"Daily spend at {pct:.0f}%: ${daily_total:.2f} / ${dt['limit']:.2f}",
+                    "warning", scope="daily_total"
+                )
+
+        # Check module budget
+        module_prefix = module.split(".")[0] if "." in module else module
+        mb = budgets.get(f"module:{module_prefix}")
+        if mb:
+            pct = (module_total / mb["limit"] * 100) if mb["limit"] > 0 else 0
+            if pct >= 100 and mb["hard"]:
+                result["ok"] = False
+                result["reason"] = f"Module {module_prefix} budget exceeded: ${module_total:.2f} / ${mb['limit']:.2f}"
+                _send_cost_alert(result["reason"], "hard_limit", scope=f"module:{module_prefix}")
+                return result
+
+            if pct >= mb["alert_pct"]:
+                _send_cost_alert(
+                    f"Module {module_prefix} at {pct:.0f}%: ${module_total:.2f} / ${mb['limit']:.2f}",
+                    "warning", scope=f"module:{module_prefix}"
+                )
+
+        return result
+
+    except Exception as e:
+        log.warning("check_budget_failed", error=str(e))
+        return {"ok": True, "reason": None, "daily_total": 0.0, "daily_limit": 0.0}
+
+
+def get_budget_status() -> dict:
+    """Return current budget status for all scopes. For /costs/budget endpoint."""
+    try:
+        from app.db.postgres import get_pg_connection
+
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT COALESCE(SUM(cost_usd), 0) FROM api_costs WHERE created_at >= CURRENT_DATE")
+                daily_total = float(cur.fetchone()[0])
+
+                cur.execute("""
+                    SELECT module, COALESCE(SUM(cost_usd), 0)
+                    FROM api_costs WHERE created_at >= CURRENT_DATE
+                    GROUP BY module ORDER BY 2 DESC
+                """)
+                module_costs = {row[0]: float(row[1]) for row in cur.fetchall()}
+
+                cur.execute("SELECT scope, limit_usd, alert_threshold_pct, hard_limit FROM cost_budgets ORDER BY scope")
+                budgets = []
+                for row in cur.fetchall():
+                    scope, limit_usd, alert_pct, hard = row[0], float(row[1]), row[2], row[3]
+                    if scope == "daily_total":
+                        spent = daily_total
+                    elif scope.startswith("module:"):
+                        prefix = scope.replace("module:", "")
+                        spent = sum(v for k, v in module_costs.items() if k.startswith(prefix))
+                    else:
+                        spent = 0.0
+                    pct = (spent / limit_usd * 100) if limit_usd > 0 else 0
+                    budgets.append({
+                        "scope": scope,
+                        "limit_usd": limit_usd,
+                        "spent_usd": round(spent, 4),
+                        "pct": round(pct, 1),
+                        "hard_limit": hard,
+                        "status": "exceeded" if pct >= 100 else "warning" if pct >= alert_pct else "ok"
+                    })
+
+                # Recent alerts
+                cur.execute("""
+                    SELECT scope, alert_type, message, created_at
+                    FROM cost_alert_log WHERE created_at >= CURRENT_DATE
+                    ORDER BY created_at DESC LIMIT 10
+                """)
+                alerts = [{"scope": r[0], "type": r[1], "message": r[2], "at": str(r[3])} for r in cur.fetchall()]
+
+        return {"daily_total_usd": round(daily_total, 4), "budgets": budgets, "alerts_today": alerts}
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _send_cost_alert(message: str, alert_type: str, scope: str = "daily_total") -> None:
+    """Fire-and-forget alert: log to DB + send WhatsApp. Runs in background thread."""
+    def _do():
+        try:
+            from app.db.postgres import get_pg_connection
+
+            with get_pg_connection() as conn:
+                with conn.cursor() as cur:
+                    # Dedup: don't re-alert same scope+type within 1 hour
+                    cur.execute("""
+                        SELECT 1 FROM cost_alert_log
+                        WHERE scope = %s AND alert_type = %s
+                          AND created_at > NOW() - INTERVAL '1 hour'
+                        LIMIT 1
+                    """, (scope, alert_type))
+                    if cur.fetchone():
+                        return
+
+                    cur.execute(
+                        "INSERT INTO cost_alert_log (scope, alert_type, message) VALUES (%s, %s, %s)",
+                        (scope, alert_type, message)
+                    )
+                conn.commit()
+
+            # Send WhatsApp alert
+            import os
+            import subprocess
+            openclaw = os.getenv("OPENCLAW_BIN", "/home/sebastian/personal-ai/app/ingestion/whatsapp_live/openclaw")
+            wa_target = os.getenv("WA_TARGET", "+48505441635")
+            prefix = "\U0001f6a8" if alert_type == "hard_limit" else "\u26a0\ufe0f"
+            subprocess.run(
+                [openclaw, "message", "send", "--channel", "whatsapp",
+                 "--target", wa_target, "--message", f"{prefix} Gilbertus Cost Alert: {message}"],
+                capture_output=True, text=True, timeout=30,
+            )
+        except Exception as e:
+            log.warning("cost_alert_failed", error=str(e))
+
+    threading.Thread(target=_do, daemon=True).start()

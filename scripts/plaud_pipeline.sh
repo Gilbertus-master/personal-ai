@@ -56,12 +56,12 @@ for r in needs:
     try:
         requests.patch(f"{PLAUD_API}/file/{fid}", headers=headers,
             json={"extra_data": {"tranConfig": {"language": "auto", "trans_type": 1}}},
-            timeout=15, verify=False)
+            timeout=15)
         resp = requests.post(f"{PLAUD_API}/ai/transsumm/{fid}",
             headers={**headers, "Origin": "https://web.plaud.ai", "Referer": "https://web.plaud.ai/"},
             json={"language": "auto", "summ_type": "1", "support_mul_summ": True,
                   "info": json.dumps({"language": "auto", "summary_type": 1})},
-            timeout=30, verify=False)
+            timeout=30)
         status_code = resp.json().get("status")
         msg = resp.json().get("msg", "")
         if status_code == 0:
@@ -92,7 +92,7 @@ for r in needs:
     # Get S3 URL
     try:
         url_resp = requests.get(f"{PLAUD_API}/file/temp-url/{fullname}",
-            headers={"Authorization": f"Bearer {token}"}, timeout=15, verify=False)
+            headers={"Authorization": f"Bearer {token}"}, timeout=15)
         audio_url = url_resp.json().get("temp_url")
     except Exception:
         audio_url = None
@@ -105,7 +105,7 @@ for r in needs:
     tmp_audio = f"/tmp/plaud_{fid[:12]}.mp3"
     try:
         result = subprocess.run(
-            ["curl", "-k", "-L", "-s", "-o", tmp_audio, "--max-time", "120", audio_url],
+            ["curl", "-L", "-s", "-o", tmp_audio, "--max-time", "120", audio_url],
             timeout=130, capture_output=True
         )
         if result.returncode != 0 or not os.path.exists(tmp_audio):
