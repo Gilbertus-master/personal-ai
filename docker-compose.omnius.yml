@@ -1,0 +1,85 @@
+# Omnius tenant instances — one per company
+# Usage:
+#   docker compose -f docker-compose.omnius.yml up -d
+#   docker compose -f docker-compose.omnius.yml --profile reh up -d  (only REH)
+#   docker compose -f docker-compose.omnius.yml --profile ref up -d  (only REF)
+
+services:
+  omnius-db:
+    image: postgres:16
+    container_name: omnius-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: omnius
+      POSTGRES_PASSWORD: ${OMNIUS_DB_PASSWORD:-omnius_secure_pw}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - omnius_pgdata:/var/lib/postgresql/data
+      - ./omnius/db/migrations:/docker-entrypoint-initdb.d/migrations
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U omnius"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    command: >
+      postgres
+        -c shared_buffers=256MB
+        -c work_mem=16MB
+
+  omnius-qdrant:
+    image: qdrant/qdrant:latest
+    container_name: omnius-qdrant
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6335:6333"
+    volumes:
+      - omnius_qdrant:/qdrant/storage
+
+  omnius-reh:
+    build:
+      context: ./omnius
+      dockerfile: ../Dockerfile.omnius
+    container_name: omnius-reh
+    restart: unless-stopped
+    env_file: omnius/.env.reh
+    environment:
+      - OMNIUS_POSTGRES_HOST=omnius-db
+      - OMNIUS_QDRANT_URL=http://omnius-qdrant:6333
+    ports:
+      - "127.0.0.1:8001:8000"
+    depends_on:
+      omnius-db:
+        condition: service_healthy
+      omnius-qdrant:
+        condition: service_started
+    profiles:
+      - reh
+      - all
+
+  omnius-ref:
+    build:
+      context: ./omnius
+      dockerfile: ../Dockerfile.omnius
+    container_name: omnius-ref
+    restart: unless-stopped
+    env_file: omnius/.env.ref
+    environment:
+      - OMNIUS_POSTGRES_HOST=omnius-db
+      - OMNIUS_QDRANT_URL=http://omnius-qdrant:6333
+    ports:
+      - "127.0.0.1:8002:8000"
+    depends_on:
+      omnius-db:
+        condition: service_healthy
+      omnius-qdrant:
+        condition: service_started
+    profiles:
+      - ref
+      - all
+
+volumes:
+  omnius_pgdata:
+    name: omnius_pgdata
+  omnius_qdrant:
+    name: omnius_qdrant

@@ -58,6 +58,8 @@ app.include_router(presentation_router)
 app.include_router(relationships_router)
 app.include_router(teams_router)
 app.include_router(voice_router)
+from app.api.voice_ws import router as voice_ws_router
+app.include_router(voice_ws_router)
 
 
 # =========================

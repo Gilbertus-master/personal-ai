@@ -138,6 +138,12 @@ async def list_tools():
         Tool(name="omnius_status",
              description="Check status of all Omnius tenants.",
              inputSchema={"type": "object", "properties": {}}),
+        Tool(name="omnius_bridge",
+             description="Cross-tenant Omnius operations: search both REH+REF at once, aggregated dashboard, cross-company audit, operator tasks, sync all. Sebastian's god-view across all companies.",
+             inputSchema={"type": "object", "properties": {
+                 "action": {"type": "string", "enum": ["search", "dashboard", "audit", "tasks", "sync", "insights"], "default": "dashboard"},
+                 "query": {"type": "string", "description": "Search query (for search action)"},
+             }}),
         Tool(name="gilbertus_self_rules",
              description="List active self-rules that Gilbertus extracted from Sebastian's voice recordings. These are instructions/principles/preferences to follow.",
              inputSchema={"type": "object", "properties": {
@@ -602,6 +608,27 @@ async def call_tool(name: str, arguments: dict):
         else:
             from app.analysis.org_health import get_health_trend
             result = get_health_trend(weeks=arguments.get("weeks", 8))
+        r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+    elif name == "omnius_bridge":
+        action = arguments.get("action", "dashboard")
+        from app.omnius.bridge import (
+            cross_tenant_search, aggregated_dashboard, cross_tenant_audit,
+            cross_tenant_operator_tasks, sync_all_tenants, get_cross_company_insights
+        )
+        if action == "search" and arguments.get("query"):
+            result = cross_tenant_search(arguments["query"])
+        elif action == "dashboard":
+            result = aggregated_dashboard()
+        elif action == "audit":
+            result = cross_tenant_audit()
+        elif action == "tasks":
+            result = cross_tenant_operator_tasks()
+        elif action == "sync":
+            result = sync_all_tenants()
+        elif action == "insights":
+            result = get_cross_company_insights()
+        else:
+            result = {"error": "Specify action: search (query), dashboard, audit, tasks, sync, insights"}
         r = json.dumps(result, ensure_ascii=False, indent=2, default=str)
     elif name == "gilbertus_scenarios":
         action = arguments.get("action", "list")
