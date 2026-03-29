@@ -23,7 +23,9 @@ def insert_source(conn, source_type: str, source_name: str) -> int:
     with get_pg_connection() as pg:
         with pg.cursor() as cur:
             cur.execute(
-                "INSERT INTO sources (source_type, source_name) VALUES (%s, %s) RETURNING id",
+                """INSERT INTO sources (source_type, source_name) VALUES (%s, %s)
+                   ON CONFLICT (source_type, source_name) DO UPDATE SET source_name = EXCLUDED.source_name
+                   RETURNING id""",
                 (source_type, source_name),
             )
             row = cur.fetchone()
