@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 
+import structlog
+
 from app.ingestion.common.db import (
     document_exists_by_raw_path,
     get_connection,
@@ -10,6 +12,7 @@ from app.ingestion.common.db import (
 )
 from app.ingestion.chatgpt.parser import parse_chatgpt_export_file
 
+log = structlog.get_logger()
 
 CHUNK_TARGET_CHARS = 5000
 
@@ -48,7 +51,7 @@ def chunk_messages(messages):
 
 def main() -> None:
     if len(sys.argv) < 2:
-        print("Usage: python -m app.ingestion.chatgpt.importer <path_to_conversations_file.json>")
+        log.error("chatgpt.import.usage", msg="Usage: python -m app.ingestion.chatgpt.importer <path_to_conversations_file.json>")
         sys.exit(1)
 
     file_path = Path(sys.argv[1])
@@ -56,7 +59,7 @@ def main() -> None:
     conversations = parse_chatgpt_export_file(file_path)
 
     if not conversations:
-        print("No conversations parsed.")
+        log.warning("chatgpt.import.empty", file=str(file_path))
         sys.exit(1)
 
     conn = get_connection()
@@ -68,7 +71,7 @@ def main() -> None:
         raw_path = f"{file_path}::{conv.conversation_id}"
 
         if document_exists_by_raw_path(raw_path):
-            print(f"Skipping already imported conversation: {conv.title}")
+            log.info("chatgpt.import.skip", title=conv.title)
             skipped += 1
             continue
 
@@ -101,11 +104,10 @@ def main() -> None:
                 embedding_id=None,
             )
 
-        print(f"Imported conversation: {conv.title} | messages={len(conv.messages)} | chunks={len(grouped_chunks)}")
+        log.info("chatgpt.import.conversation", title=conv.title, messages=len(conv.messages), chunks=len(grouped_chunks))
         imported += 1
 
-    print()
-    print(f"ChatGPT import finished. Imported={imported}, skipped={skipped}")
+    log.info("chatgpt.import.finished", imported=imported, skipped=skipped)
 
 
 if __name__ == "__main__":

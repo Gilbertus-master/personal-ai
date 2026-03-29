@@ -238,7 +238,8 @@ class AlertManager:
                     """,
                     (category, title, self.dedup_window),
                 )
-                return cur.fetchone() is not None
+                rows = cur.fetchall()
+                return len(rows) > 0
 
     def _insert_alert(
         self,
@@ -263,7 +264,8 @@ class AlertManager:
                     (tier, category, title, message, fix_command,
                      auto_fix_attempted, auto_fix_result),
                 )
-                alert_id = cur.fetchone()[0]
+                rows = cur.fetchall()
+                alert_id = rows[0][0]
             conn.commit()
 
         log.info(
@@ -286,7 +288,8 @@ class AlertManager:
                       AND last_sent_at > NOW() - INTERVAL '1 hour'
                     """,
                 )
-                count = cur.fetchone()[0]
+                rows = cur.fetchall()
+                count = rows[0][0]
         return count < MAX_WA_PER_HOUR
 
     def _send_whatsapp(self, message: str) -> bool:
