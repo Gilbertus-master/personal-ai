@@ -1,3 +1,4 @@
+import structlog
 import csv
 import sys
 from pathlib import Path
@@ -10,6 +11,8 @@ from app.ingestion.common.db import (
     insert_source,
 )
 from app.ingestion.teams.parser import parse_teams_thread_html
+
+log = structlog.get_logger(__name__)
 
 
 DISCOVERY_CSV = Path("data/processed/teams/discovery/teams_message_candidates.csv")
@@ -91,13 +94,13 @@ def load_existing_thread_paths(limit: int | None = None) -> list[str]:
 
 def import_one_thread(file_path: str) -> bool:
     if document_exists_by_raw_path(file_path):
-        print(f"Skipping already imported thread: {file_path}")
+        log.info(f"Skipping already imported thread: {file_path}")
         return False
 
     parsed = parse_teams_thread_html(file_path)
 
     if not parsed.messages:
-        print(f"No messages extracted from thread: {file_path}")
+        log.info(f"No messages extracted from thread: {file_path}")
         return False
 
     conn = get_connection()
@@ -131,10 +134,10 @@ def import_one_thread(file_path: str) -> bool:
             embedding_id=None,
         )
 
-    print(f"Imported Teams thread: {file_path}")
-    print(f"Participants: {parsed.participants}")
-    print(f"Messages: {len(parsed.messages)}")
-    print(f"Chunks: {len(grouped_chunks)}")
+    log.info(f"Imported Teams thread: {file_path}")
+    log.info(f"Participants: {parsed.participants}")
+    log.info(f"Messages: {len(parsed.messages)}")
+    log.info(f"Chunks: {len(grouped_chunks)}")
     return True
 
 
@@ -151,15 +154,15 @@ def main() -> None:
 
     paths = load_existing_thread_paths(limit=limit)
 
-    print(f"Discovered Teams thread HTML files to process: {len(paths)}")
+    log.info(f"Discovered Teams thread HTML files to process: {len(paths)}")
 
     imported = 0
     skipped = 0
     failed = 0
 
     for idx, path in enumerate(paths, start=1):
-        print()
-        print(f"[{idx}/{len(paths)}] Processing: {path}")
+        log.info()
+        log.info(f"[{idx}/{len(paths)}] Processing: {path}")
 
         try:
             did_import = import_one_thread(path)
@@ -169,14 +172,14 @@ def main() -> None:
                 skipped += 1
         except Exception as e:
             failed += 1
-            print(f"FAILED: {path}")
-            print(f"ERROR: {e}")
+            log.info(f"FAILED: {path}")
+            log.info(f"ERROR: {e}")
 
-    print()
-    print("Teams import finished.")
-    print(f"Imported: {imported}")
-    print(f"Skipped: {skipped}")
-    print(f"Failed: {failed}")
+    log.info()
+    log.info("Teams import finished.")
+    log.info(f"Imported: {imported}")
+    log.info(f"Skipped: {skipped}")
+    log.info(f"Failed: {failed}")
 
 
 if __name__ == "__main__":

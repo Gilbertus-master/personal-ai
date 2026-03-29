@@ -76,22 +76,45 @@ def _fix_print_to_structlog(file_paths: list[str]) -> tuple[list[str], str | Non
         in_main_block = False
         main_indent = 0
 
-        # Ensure structlog import exists
+        # Ensure structlog import and logger exist without creating E402 violations.
+        # Strategy:
+        #   1. Insert `import structlog` in the imports block (after __future__, before code)
+        #   2. Insert `log = structlog.get_logger(__name__)` AFTER the last import line
         has_structlog = "import structlog" in content
-        if not has_structlog:
-            insert_idx = 0
+        has_log_var = re.search(r'^log\s*=\s*structlog', content, re.MULTILINE)
+        if not has_structlog or not has_log_var:
+            # Find last import line end, handling multi-line imports (open parens).
+            last_import_end = -1   # last line of last import (incl. closing paren)
+            first_import_idx = -1
+            in_multiline = False
             for i, line in enumerate(lines):
-                if line.startswith("from __future__"):
-                    insert_idx = i + 1
+                stripped_l = line.strip()
+                if in_multiline:
+                    if stripped_l.startswith(")"):
+                        last_import_end = i
+                        in_multiline = False
+                    continue
+                if stripped_l.startswith("from __future__"):
+                    continue
+                if stripped_l.startswith("import ") or stripped_l.startswith("from "):
+                    if first_import_idx == -1:
+                        first_import_idx = i
+                    last_import_end = i
+                    # Multi-line import: `from x import (\n  ...\n)`
+                    if "(" in stripped_l and ")" not in stripped_l.split("(", 1)[1]:
+                        in_multiline = True
+                elif stripped_l and not stripped_l.startswith("#") \
+                        and last_import_end != -1:
                     break
-            if insert_idx == 0:
-                for i, line in enumerate(lines):
-                    if line.startswith("import ") or line.startswith("from "):
-                        insert_idx = i
-                        break
-            lines.insert(insert_idx, "import structlog")
-            lines.insert(insert_idx + 1, 'log = structlog.get_logger(__name__)')
-            lines.insert(insert_idx + 2, "")
+
+            if not has_structlog and first_import_idx != -1:
+                lines.insert(first_import_idx, "import structlog")
+                last_import_end += 1  # adjust for inserted line
+
+            if not has_log_var and last_import_end != -1:
+                insert_after = last_import_end + 1
+                lines.insert(insert_after, "log = structlog.get_logger(__name__)")
+                lines.insert(insert_after, "")
 
         for line in lines:
             stripped = line.lstrip()
@@ -112,7 +135,7 @@ def _fix_print_to_structlog(file_paths: list[str]) -> tuple[list[str], str | Non
                 continue
 
             # Replace print() with log.info()
-            match = re.match(r'print\((.*)\)\s*$', stripped)
+            match = re.match(r'print\((.*)\)\s*(?:#.*)?$', stripped)
             if match:
                 arg = match.group(1)
                 new_lines.append(f"{indent}log.info({arg})")
@@ -167,7 +190,8 @@ def _fix_dead_code(file_paths: list[str]) -> tuple[list[str], str | None]:
         if not abs_path.exists() or not fp.endswith(".py"):
             continue
         try:
-            _run_cmd([".venv/bin/ruff", "check", "--select", "F841", "--fix", fp])
+            _run_cmd([".venv/bin/ruff", "check", "--select", "F841",
+                      "--fix", "--unsafe-fixes", fp])
             diff = _run_cmd(["git", "diff", "--stat", fp])
             if diff.stdout.strip():
                 fixed_files.append(fp)
