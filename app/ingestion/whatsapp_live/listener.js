@@ -256,25 +256,43 @@ async function startListener({ clearAuth = false } = {}) {
 
     if (connection === "close") {
       isConnected = false;
+      qrPending = false;
       const statusCode =
         lastDisconnect?.error instanceof Boom
           ? lastDisconnect.error.output.statusCode
           : null;
 
-      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+      const errorMessage = lastDisconnect?.error?.message || "";
+      const isBadMac = errorMessage.toLowerCase().includes("bad mac")
+        || errorMessage.toLowerCase().includes("hmac validation failed");
+      const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+      const shouldReconnect = !isLoggedOut && !isBadMac;
 
       logger.info(
-        { statusCode, shouldReconnect, reconnectAttempt },
+        { statusCode, shouldReconnect, reconnectAttempt, isBadMac, isLoggedOut },
         "Connection closed"
       );
       console.log(
-        `[${new Date().toISOString()}] Disconnected (status=${statusCode}). ${
-          shouldReconnect ? "Reconnecting..." : "Logged out - run with --pair to re-link."
+        `[${new Date().toISOString()}] Disconnected (status=${statusCode}, badMac=${isBadMac}). ${
+          shouldReconnect ? "Reconnecting..." : "Needs re-pair — writing needs_repair.flag."
         }`
       );
 
       if (!shouldReconnect) {
-        process.exit(1);
+        // Write repair flag so external monitor can trigger re-pair
+        try {
+          fs.writeFileSync(NEEDS_REPAIR_FLAG, JSON.stringify({
+            reason: isBadMac ? "bad_mac" : "logged_out",
+            status_code: statusCode,
+            error_message: errorMessage,
+            timestamp: new Date().toISOString(),
+            pid: process.pid,
+          }), "utf8");
+          logger.info({ isBadMac, isLoggedOut }, "Wrote needs_repair.flag");
+        } catch (err) {
+          logger.error({ err }, "Failed to write needs_repair.flag");
+        }
+        process.exit(2);
       }
 
       if (statusCode === 408) {

@@ -1,23 +1,29 @@
 #!/usr/bin/env bash
 # WhatsApp Live Pipeline Supervisor
-# Checks listener.js health and restarts if needed.
+# Quick health check — delegates repair logic to wa_repair_monitor.py.
 # Cron: */5 * * * * cd /home/sebastian/personal-ai && bash scripts/wa_supervisor.sh
 #
-# Checks:
-# 1. PID file exists and process is alive
-# 2. Health check endpoint responds
-# 3. Last message not too stale (warn only — Bad MAC means re-pair needed)
+# This script handles basic liveness checks. For Bad MAC / session drift
+# detection and automated re-pair, see wa_repair_monitor.py (cron */3).
 
 set -euo pipefail
 
 LOGFILE="/home/sebastian/personal-ai/logs/wa_supervisor.log"
 PID_FILE="$HOME/.gilbertus/whatsapp_listener/listener.pid"
 HEALTH_URL="http://127.0.0.1:9393/health"
-STALE_THRESHOLD=3600  # 1 hour — warn if no messages for this long
+NEEDS_REPAIR_FLAG="$HOME/.gilbertus/whatsapp_listener/needs_repair.flag"
+REPAIR_MONITOR="cd /home/sebastian/personal-ai && .venv/bin/python -m app.ingestion.whatsapp_live.wa_repair_monitor"
 
 log() {
     echo "[$(date -u '+%Y-%m-%d %H:%M:%S')] $*" >> "$LOGFILE"
 }
+
+# 0. If needs_repair.flag exists, delegate to repair monitor immediately
+if [ -f "$NEEDS_REPAIR_FLAG" ]; then
+    log "REPAIR: needs_repair.flag detected — delegating to wa_repair_monitor.py"
+    eval "$REPAIR_MONITOR" 2>&1 | while read -r line; do log "REPAIR_MONITOR: $line"; done
+    exit 0
+fi
 
 # 1. Check if systemd service is active
 if systemctl --user is-active whatsapp-listener.service >/dev/null 2>&1; then
@@ -39,10 +45,18 @@ fi
 HEALTH_OK=false
 CONNECTED=false
 LAST_MSG=""
+QR_PENDING=false
 if HEALTH_RESPONSE=$(curl -s --max-time 5 "$HEALTH_URL" 2>/dev/null); then
     HEALTH_OK=true
     CONNECTED=$(echo "$HEALTH_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('connected', False))" 2>/dev/null || echo "false")
     LAST_MSG=$(echo "$HEALTH_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('last_msg_at', ''))" 2>/dev/null || echo "")
+    QR_PENDING=$(echo "$HEALTH_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('qr_pending', False))" 2>/dev/null || echo "false")
+fi
+
+# 4. If QR pending, let repair monitor handle it
+if [ "$QR_PENDING" = "True" ] || [ "$QR_PENDING" = "true" ]; then
+    log "INFO: QR pending — repair monitor will handle alerting"
+    exit 0
 fi
 
 # Decision logic
@@ -57,13 +71,13 @@ elif [ "$PID_ALIVE" = "false" ] && [ "$HEALTH_OK" = "false" ]; then
 elif [ "$CONNECTED" = "False" ] || [ "$CONNECTED" = "false" ]; then
     log "WARN: listener running but not connected to WhatsApp Web"
 else
-    # Check staleness
+    # Check staleness (warn only — repair monitor handles alerts)
     if [ -n "$LAST_MSG" ] && [ "$LAST_MSG" != "null" ] && [ "$LAST_MSG" != "None" ]; then
         LAST_EPOCH=$(date -d "$LAST_MSG" +%s 2>/dev/null || echo 0)
         NOW_EPOCH=$(date +%s)
         AGE=$((NOW_EPOCH - LAST_EPOCH))
-        if [ "$AGE" -gt "$STALE_THRESHOLD" ]; then
-            log "WARN: last message ${AGE}s ago (>${STALE_THRESHOLD}s). May need re-pair."
+        if [ "$AGE" -gt 3600 ]; then
+            log "WARN: last message ${AGE}s ago (>3600s). Repair monitor will alert if stale."
         fi
     fi
     # All OK — silent (don't spam log)
