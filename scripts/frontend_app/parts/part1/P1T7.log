@@ -1,0 +1,16 @@
+Build passes. Here's what I implemented:
+
+**`packages/ui/src/components/chat/message-list.tsx`** — A `MessageList` component with:
+
+- **Scrollable container** (`flex-1 overflow-y-auto`) with max-width 3xl centered content
+- **Auto-scroll** logic: scrolls to bottom on new messages only if user is already at bottom (100px threshold)
+- **New message badge**: tracks count of messages added while user is scrolled up
+- **Scroll-to-bottom FAB**: floating `ArrowDown` button at bottom-right when not at bottom, with blue badge showing unread count
+- **Instant scroll** on first render, smooth scroll thereafter
+- Uses `MessageBubble` from the existing P1T4 component with `onRetry` wired per message ID
+- `space-y-4` gap between messages, chronological order (oldest first)
+
+Exported from `index.ts` as `MessageList` + `MessageListProps`.
+[DEV:P1T7] Started: 2026-03-29T12:19:03.336079+00:00
+======================================================================
+

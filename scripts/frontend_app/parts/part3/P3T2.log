@@ -1,0 +1,12 @@
+Build passes. The earlier failure must have been a transient issue (possibly stale cache from the stash operation).
+
+Done. Created:
+
+1. **`packages/api-client/src/intelligence-types.ts`** — All TypeScript interfaces for Opportunities, Inefficiency, Correlation, Scenarios, Predictions, and Org Health
+2. **`packages/api-client/src/intelligence.ts`** — 12 API client functions using `customFetch`, following existing patterns. `createScenario` correctly uses query params (not request body) as noted
+3. **Updated `packages/api-client/src/index.ts`** — Added re-exports for both new modules
+
+Build passes cleanly.
+[DEV:P3T2] Started: 2026-03-29T13:03:18.987588+00:00
+======================================================================
+

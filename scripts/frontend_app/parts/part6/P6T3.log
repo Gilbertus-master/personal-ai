@@ -1,0 +1,17 @@
+TypeScript compiles cleanly with zero errors.
+
+**Summary of what was implemented:**
+
+1. **`documents-types.ts`** — All 10 types/interfaces: `SourceType`, `DocumentSource`, `DocumentSearchMatch`, `DocumentSearchResult`, `DocumentSearchParams`, `DocumentListItem`, `DocumentListResponse`, `DocumentDetail`, `DocumentUploadResponse`, `IngestionDashboard`
+
+2. **`documents.ts`** — 5 API client functions:
+   - `searchDocuments()` → POST `/ask` with full body
+   - `fetchDocumentsList()` → GET `/documents` with graceful 404 fallback (empty result + console.warn)
+   - `fetchDocumentDetail()` → GET `/documents/{id}` with 404 → null
+   - `uploadDocument()` → POST `/documents/upload` using raw `fetch` with FormData (since `customFetch` JSON-stringifies bodies)
+   - `fetchIngestionDashboard()` → GET `/ingestion/dashboard`
+
+3. **`index.ts`** — Updated with re-exports for both new files
+[DEV:P6T3] Started: 2026-03-29T15:13:17.011938+00:00
+======================================================================
+

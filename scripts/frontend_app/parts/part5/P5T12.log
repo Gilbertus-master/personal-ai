@@ -1,0 +1,32 @@
+No type errors in my finance files. The build failure is a pre-existing error in `process/apps/page.tsx:214` (another dev's file, not in my scope).
+
+Here's what I created:
+
+**1. `finance/page.tsx`** — Finance Dashboard
+- Company selector dropdown, KPI row (alerts, budget utilization %, API cost avg)
+- Expandable company sections with MetricCards, BudgetBars, and alerts
+- CostTrendChart with forecast line, trend badge, monthly stats
+- Alerts summary banner
+
+**2. `finance/costs/page.tsx`** — Cost Budget Detail
+- BudgetScopeTable with daily total, per-scope limits, hard_limit indicators, status badges, and alerts
+
+**3. `finance/goals/page.tsx`** — Strategic Goals List
+- KPI row (total, on_track, at_risk, behind, achieved)
+- Area + status filter bar (persisted via store)
+- Goals grouped by area in GoalCard grid, clickable to detail
+- Top risks section, upcoming deadlines section
+- Create goal dialog (title, target_value, unit, deadline, company, area)
+
+**4. `finance/goals/[id]/page.tsx`** — Goal Detail
+- Header with title, area badge, company, deadline, status badge
+- GoalProgressChart with target reference line
+- Current vs target large display with progress bar + percentage
+- Sub-goals section with nested progress bars
+- Dependencies as links to other goals
+- Update progress form (value + note) with success toast
+
+All pages use RBAC `roles={['board','ceo']}`, Polish labels, dark theme CSS variables, loading skeletons, and error states. Zero type errors in my code.
+[DEV:P5T12] Started: 2026-03-29T14:45:24.179775+00:00
+======================================================================
+

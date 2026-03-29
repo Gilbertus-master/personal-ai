@@ -1,0 +1,148 @@
+{
+  "tasks": [
+    {
+      "id": "P0T1",
+      "title": "Monorepo scaffolding + root config",
+      "description": "Create the monorepo root structure at /home/sebastian/personal-ai/frontend/.\n\nFiles to create:\n1. `pnpm-workspace.yaml` — define workspaces: ['apps/*', 'packages/*']\n2. `package.json` — root package with:\n   - name: '@gilbertus/monorepo', private: true\n   - scripts: { 'dev': 'pnpm --filter web dev', 'build': 'pnpm --filter web build', 'lint': 'eslint .', 'generate:api': 'pnpm --filter api-client generate' }\n   - devDependencies: typescript@~5.7, eslint, @typescript-eslint/parser, @typescript-eslint/eslint-plugin, prettier\n3. `tsconfig.base.json` — shared config: target ES2022, module ESNext, moduleResolution bundler, strict: true, jsx: react-jsx, paths: { '@gilbertus/ui': ['packages/ui/src'], '@gilbertus/api-client': ['packages/api-client/src'], '@gilbertus/rbac': ['packages/rbac/src'], '@gilbertus/i18n': ['packages/i18n/src'] }\n4. `.eslintrc.js` — extends @typescript-eslint/recommended, rules: no-console warn\n5. `.gitignore` — node_modules, .next, dist, .env.local, .turbo, target/\n6. `.env.example` — template with GILBERTUS_API_URL=http://127.0.0.1:8000, GILBERTUS_API_KEY=, NEXTAUTH_SECRET=, NEXTAUTH_URL=http://localhost:3000, AZURE_AD_CLIENT_ID=, AZURE_AD_CLIENT_SECRET=, AZURE_AD_TENANT_ID=, OMNIUS_API_URL=\n\nAfter creating files: run `cd frontend && pnpm install` to verify zero errors.\nThis task creates ONLY root-level files. All subdirectories are created by subsequent tasks.",
+      "files": [
+        "frontend/pnpm-workspace.yaml",
+        "frontend/package.json",
+        "frontend/tsconfig.base.json",
+        "frontend/.eslintrc.js",
+        "frontend/.gitignore",
+        "frontend/.env.example"
+      ],
+      "parallel_group": 1,
+      "status": "done"
+    },
+    {
+      "id": "P0T2",
+      "title": "RBAC package (@gilbertus/rbac)",
+      "description": "Create the RBAC package at frontend/packages/rbac/. This mirrors the Python backend permissions system.\n\nFiles:\n1. `package.json` — name: '@gilbertus/rbac', main: 'src/index.ts', peerDependencies: { react: '>=19' }\n2. `tsconfig.json` — extends ../../tsconfig.base.json, include: ['src']\n3. `src/roles.ts` — Export RoleName type and ROLES constant:\n   ```typescript\n   export type RoleName = 'gilbertus_admin' | 'operator' | 'ceo' | 'board' | 'director' | 'manager' | 'specialist';\n   export const ROLES: Record<RoleName, { level: number; label: string }> = {\n     gilbertus_admin: { level: 99, label: 'System Admin' },\n     operator: { level: 70, label: 'Operator' },\n     ceo: { level: 60, label: 'CEO' },\n     board: { level: 50, label: 'Board' },\n     director: { level: 40, label: 'Director' },\n     manager: { level: 30, label: 'Manager' },\n     specialist: { level: 20, label: 'Specialist' },\n   };\n   ```\n4. `src/permissions.ts` — Export ROLE_PERMISSIONS mapping (mirrors omnius/db/migrations/003_seed.sql):\n   - operator: ['config:write:system', 'sync:manage', 'sync:credentials', 'infra:manage', 'dev:execute', 'commands:task']\n   - ceo: ['data:read:all', 'financials:read', 'evaluations:read:all', 'communications:read:all', 'config:write:system', 'users:manage:all', 'queries:create', 'prompts:manage', 'rbac:manage', 'commands:email', 'commands:ticket', 'commands:meeting', 'commands:task', 'commands:sync', 'views:configure:own']\n   - board: ['data:read:all', 'financials:read', 'evaluations:read:reports', 'config:write:system', 'users:manage:below', 'queries:create', 'commands:email', 'commands:ticket', 'commands:meeting', 'commands:task', 'commands:sync', 'views:configure:own']\n   - director: ['data:read:department', 'evaluations:read:reports', 'communications:read:department', 'config:write:department', 'queries:create', 'commands:email', 'commands:ticket', 'commands:meeting', 'commands:task', 'commands:sync', 'views:configure:own']\n   - manager: ['data:read:team', 'config:write:own', 'queries:create:department', 'commands:ticket', 'commands:meeting', 'commands:task', 'views:configure:own']\n   - specialist: ['data:read:own', 'config:write:own', 'commands:task', 'views:configure:own']\n   - gilbertus_admin: [] (bypasses all checks via level 99)\n   Export `hasPermission(role, roleLevel, permission)` — if roleLevel >= 99 return true, else check ROLE_PERMISSIONS.\n5. `src/classifications.ts` — Export ROLE_CLASSIFICATIONS:\n   - gilbertus_admin/ceo: ['public', 'internal', 'confidential', 'ceo_only', 'personal']\n   - board: ['public', 'internal', 'confidential', 'personal']\n   - director/manager: ['public', 'internal', 'personal']\n   - specialist: ['public', 'personal']\n   - operator: []\n   Export `allowedClassifications(role)`.\n6. `src/navigation.ts` — Export MODULES config and `getNavigationModules(role)` function:\n   ```typescript\n   export interface ModuleConfig {\n     id: string;\n     icon: string;  // lucide-react icon name\n     roles: RoleName[] | ['*'];\n     label: { pl: string; en: string };\n     path: string;\n   }\n   ```\n   Modules: dashboard('*'), chat('*'), people(ceo/board/director), intelligence(ceo/board), compliance(ceo/board/director), market(ceo/board/director), finance(ceo/board), process(ceo/board/director), decisions(ceo), calendar(ceo/board/director/manager), documents(ceo/board/director), voice(ceo/board), settings('*'), omnius(gilbertus_admin).\n   `getNavigationModules(role)` filters modules where role matches or roles=['*']. Admin (gilbertus_admin) sees everything.\n7. `src/hooks.ts` — React hooks (use 'use client' directive):\n   - `useRole()` — reads role from NextAuth session, returns { role, roleLevel }\n   - `usePermissions()` — returns { hasPermission(perm), permissions[] }\n   - `useClassifications()` — returns allowed classification levels\n   These hooks use `useSession()` from next-auth/react internally.\n8. `src/index.ts` — re-export everything from roles, permissions, classifications, navigation, hooks.",
+      "files": [
+        "frontend/packages/rbac/package.json",
+        "frontend/packages/rbac/tsconfig.json",
+        "frontend/packages/rbac/src/roles.ts",
+        "frontend/packages/rbac/src/permissions.ts",
+        "frontend/packages/rbac/src/classifications.ts",
+        "frontend/packages/rbac/src/navigation.ts",
+        "frontend/packages/rbac/src/hooks.ts",
+        "frontend/packages/rbac/src/index.ts"
+      ],
+      "parallel_group": 1,
+      "status": "done"
+    },
+    {
+      "id": "P0T3",
+      "title": "i18n package (@gilbertus/i18n)",
+      "description": "Create the i18n package at frontend/packages/i18n/. Uses next-intl for App Router.\n\nFiles:\n1. `package.json` — name: '@gilbertus/i18n', main: 'src/index.ts', dependencies: { 'next-intl': '^4' }\n2. `tsconfig.json` — extends ../../tsconfig.base.json\n3. `src/index.ts` — export config: { defaultLocale: 'pl', locales: ['pl', 'en'] }, re-export request config\n4. `src/request.ts` — next-intl server request config: getRequestConfig that loads messages from messages/[locale].json\n5. `messages/pl.json` — Polish translations for P0:\n   ```json\n   {\n     \"common\": {\n       \"appName\": \"Gilbertus Albans\",\n       \"loading\": \"Ładowanie...\",\n       \"error\": \"Wystąpił błąd\",\n       \"save\": \"Zapisz\",\n       \"cancel\": \"Anuluj\",\n       \"search\": \"Szukaj...\",\n       \"noResults\": \"Brak wyników\"\n     },\n     \"auth\": {\n       \"login\": \"Zaloguj się\",\n       \"logout\": \"Wyloguj\",\n       \"apiKeyLabel\": \"Klucz API\",\n       \"apiKeyPlaceholder\": \"Wpisz klucz API...\",\n       \"azureAdButton\": \"Zaloguj przez Microsoft\",\n       \"invalidKey\": \"Nieprawidłowy klucz API\",\n       \"loginTitle\": \"Gilbertus Albans\",\n       \"loginSubtitle\": \"Zaloguj się do systemu\"\n     },\n     \"nav\": {\n       \"dashboard\": \"Panel główny\",\n       \"chat\": \"Czat\",\n       \"people\": \"Ludzie\",\n       \"intelligence\": \"Inteligencja\",\n       \"compliance\": \"Compliance\",\n       \"market\": \"Rynek\",\n       \"finance\": \"Finanse\",\n       \"process\": \"Procesy\",\n       \"decisions\": \"Decyzje\",\n       \"calendar\": \"Kalendarz\",\n       \"documents\": \"Dokumenty\",\n       \"voice\": \"Głos\",\n       \"settings\": \"Ustawienia\",\n       \"omnius\": \"Omnius\"\n     },\n     \"sidebar\": {\n       \"collapse\": \"Zwiń\",\n       \"expand\": \"Rozwiń\"\n     },\n     \"commandPalette\": {\n       \"placeholder\": \"Wpisz komendę lub szukaj...\",\n       \"noResults\": \"Brak wyników\",\n       \"navigation\": \"Nawigacja\",\n       \"actions\": \"Akcje\"\n     },\n     \"theme\": {\n       \"light\": \"Jasny\",\n       \"dark\": \"Ciemny\",\n       \"system\": \"Systemowy\"\n     }\n   }\n   ```\n6. `messages/en.json` — English translations (same structure, English values):\n   common.appName='Gilbertus Albans', auth.login='Sign in', nav.dashboard='Dashboard', nav.chat='Chat', nav.people='People', nav.intelligence='Intelligence', etc.",
+      "files": [
+        "frontend/packages/i18n/package.json",
+        "frontend/packages/i18n/tsconfig.json",
+        "frontend/packages/i18n/src/index.ts",
+        "frontend/packages/i18n/src/request.ts",
+        "frontend/packages/i18n/messages/pl.json",
+        "frontend/packages/i18n/messages/en.json"
+      ],
+      "parallel_group": 1,
+      "status": "done"
+    },
+    {
+      "id": "P0T4",
+      "title": "API client package (@gilbertus/api-client)",
+      "description": "Create the API client package at frontend/packages/api-client/. Uses orval to generate typed client from OpenAPI spec.\n\nFiles:\n1. `package.json` — name: '@gilbertus/api-client', main: 'src/index.ts', scripts: { 'generate': 'bash scripts/generate.sh' }, dependencies: { '@tanstack/react-query': '^5' }, devDependencies: { 'orval': '^7' }\n2. `tsconfig.json` — extends ../../tsconfig.base.json\n3. `orval.config.ts` — orval configuration:\n   ```typescript\n   export default {\n     gilbertus: {\n       input: { target: './openapi.json' },  // local copy\n       output: {\n         target: './src/gilbertus.ts',\n         client: 'react-query',\n         mode: 'single',\n         override: {\n           mutator: { path: './src/base.ts', name: 'customFetch' },\n         },\n       },\n     },\n   };\n   ```\n4. `scripts/generate.sh` — Shell script:\n   ```bash\n   #!/bin/bash\n   set -e\n   SCRIPT_DIR=$(cd $(dirname $0) && pwd)\n   PKG_DIR=$(dirname $SCRIPT_DIR)\n   # Fetch latest OpenAPI spec\n   curl -sf http://127.0.0.1:8000/openapi.json -o \"$PKG_DIR/openapi.json\"\n   # Generate client\n   cd $PKG_DIR && npx orval\n   echo 'API client generated successfully'\n   ```\n5. `src/base.ts` — Custom fetch wrapper:\n   ```typescript\n   // customFetch: orval mutator that adds auth headers\n   // Reads API key from environment or session\n   // Adds X-API-Key header to all requests\n   // Adds Content-Type: application/json\n   // Handles errors (401 → redirect to login, 500 → throw)\n   // Base URL from NEXT_PUBLIC_GILBERTUS_API_URL env var (default http://127.0.0.1:8000)\n   ```\n   Export `customFetch<T>(config: { url: string; method: string; params?: any; data?: any; headers?: Record<string,string> }): Promise<T>`\n   Export `setApiKey(key: string)` and `getApiKey()` — stores in memory (not localStorage for security).\n6. `src/types.ts` — Manual types for endpoints not in OpenAPI or for Omnius:\n   ```typescript\n   export interface HealthResponse { status: string }\n   export interface VersionResponse { version: string; name: string }\n   export interface OmniusUser { user_id: number; email: string; display_name: string; role_name: string; role_level: number; department: string | null; permissions: string[] }\n   ```\n7. `src/gilbertus.ts` — Placeholder file with comment: '// Generated by orval — run `pnpm generate:api` to regenerate'. Export a manual `validateApiKey` function that calls GET /health with the key.\n8. `src/index.ts` — re-export from base, types, gilbertus.",
+      "files": [
+        "frontend/packages/api-client/package.json",
+        "frontend/packages/api-client/tsconfig.json",
+        "frontend/packages/api-client/orval.config.ts",
+        "frontend/packages/api-client/scripts/generate.sh",
+        "frontend/packages/api-client/src/base.ts",
+        "frontend/packages/api-client/src/types.ts",
+        "frontend/packages/api-client/src/gilbertus.ts",
+        "frontend/packages/api-client/src/index.ts"
+      ],
+      "parallel_group": 1,
+      "status": "done"
+    },
+    {
+      "id": "P0T5",
+      "title": "Next.js app scaffolding + config",
+      "description": "Create the Next.js 15 app at frontend/apps/web/. This task covers ONLY config and root layout — NOT auth or shell components.\n\nFiles:\n1. `package.json` — name: '@gilbertus/web', private: true, scripts: { dev: 'next dev', build: 'next build', start: 'next start', lint: 'next lint' }, dependencies: { next: '^15', react: '^19', react-dom: '^19', next-auth: '5.0.0-beta.25', next-intl: '^4', zustand: '^5', next-themes: '^0.4', lucide-react: '^0.460', clsx: '^2', tailwind-merge: '^2', '@tanstack/react-query': '^5', '@gilbertus/ui': 'workspace:*', '@gilbertus/api-client': 'workspace:*', '@gilbertus/rbac': 'workspace:*', '@gilbertus/i18n': 'workspace:*' }, devDependencies: { typescript: '~5.7', '@types/react': '^19', '@types/node': '^22', tailwindcss: '^4', postcss: '^8', autoprefixer: '^10' }\n2. `tsconfig.json` — extends ../../tsconfig.base.json, paths for @/ → ./\n3. `next.config.ts` — transpilePackages: ['@gilbertus/ui', '@gilbertus/rbac', '@gilbertus/api-client', '@gilbertus/i18n'], env: { NEXT_PUBLIC_GILBERTUS_API_URL: process.env.GILBERTUS_API_URL || 'http://127.0.0.1:8000' }\n4. `tailwind.config.ts` — content paths include packages/ui, extend theme with CSS variable colors (bg, surface, accent, etc.), fontFamily Inter, borderRadius from --radius\n5. `postcss.config.js` — standard: tailwindcss + autoprefixer\n6. `.env.local.example` — NEXTAUTH_SECRET=change-me, NEXTAUTH_URL=http://localhost:3000, GILBERTUS_API_URL=http://127.0.0.1:8000, GILBERTUS_API_KEY=, AZURE_AD_CLIENT_ID=, AZURE_AD_CLIENT_SECRET=, AZURE_AD_TENANT_ID=, OMNIUS_API_URL=\n7. `app/globals.css` — Tailwind directives (@tailwind base/components/utilities) + CSS custom properties for dark/light themes as specified in plan (--bg: #0f1117, --surface: #1a1d27, etc.). Import Inter font from Google Fonts or next/font.\n8. `app/layout.tsx` — Root layout: html lang='pl' with suppressHydrationWarning, body with Inter font class + bg-[var(--bg)] text-[var(--text)]. Wrap children in Providers component.\n9. `components/providers.tsx` — Compose all providers: SessionProvider (next-auth), QueryClientProvider (@tanstack/react-query), ThemeProvider (next-themes, defaultTheme='dark'), NextIntlClientProvider. Create QueryClient with staleTime: 60_000.\n\nDo NOT create auth config, middleware, sidebar, or any page components — those are separate tasks.",
+      "files": [
+        "frontend/apps/web/package.json",
+        "frontend/apps/web/tsconfig.json",
+        "frontend/apps/web/next.config.ts",
+        "frontend/apps/web/tailwind.config.ts",
+        "frontend/apps/web/postcss.config.js",
+        "frontend/apps/web/.env.local.example",
+        "frontend/apps/web/app/globals.css",
+        "frontend/apps/web/app/layout.tsx",
+        "frontend/apps/web/components/providers.tsx"
+      ],
+      "parallel_group": 1,
+      "status": "done"
+    },
+    {
+      "id": "P0T6",
+      "title": "UI package + shadcn base components",
+      "description": "Create the shared UI package at frontend/packages/ui/. Includes theme provider and base utility components.\n\nFiles:\n1. `package.json` — name: '@gilbertus/ui', main: 'src/index.ts', peerDependencies: { react: '>=19', react-dom: '>=19', lucide-react: '>=0.460', next-themes: '>=0.4' }, dependencies: { '@radix-ui/react-dialog': '^1', '@radix-ui/react-dropdown-menu': '^2', '@radix-ui/react-tooltip': '^1', '@radix-ui/react-avatar': '^1', '@radix-ui/react-separator': '^1', 'cmdk': '^1', 'class-variance-authority': '^0.7', 'clsx': '^2', 'tailwind-merge': '^2' }\n2. `tsconfig.json` — extends ../../tsconfig.base.json\n3. `src/lib/utils.ts` — Export `cn(...inputs)` function using clsx + tailwind-merge (standard shadcn pattern)\n4. `src/components/theme-provider.tsx` — Thin wrapper around next-themes ThemeProvider. 'use client'. Props: children, defaultTheme='dark', attribute='class'.\n5. `src/components/theme-toggle.tsx` — 'use client'. Button that cycles dark→light→system. Uses useTheme() from next-themes. Icon: Sun/Moon from lucide-react.\n6. `src/components/skeleton-card.tsx` — Reusable skeleton loading card. Animated pulse div with configurable height/width. Used as placeholder in all module pages.\n7. `src/components/rbac-gate.tsx` — 'use client'. Props: { permission?: string; roles?: RoleName[]; children; fallback?: ReactNode }. Uses usePermissions() and useRole() from @gilbertus/rbac. Renders children only if user has required permission or role. Renders fallback (default: null) otherwise.\n8. `src/index.ts` — re-export all components and utils.\n\nDo NOT create sidebar, topbar, command-palette, user-menu, or login-form — those are in separate tasks.",
+      "files": [
+        "frontend/packages/ui/package.json",
+        "frontend/packages/ui/tsconfig.json",
+        "frontend/packages/ui/src/lib/utils.ts",
+        "frontend/packages/ui/src/components/theme-provider.tsx",
+        "frontend/packages/ui/src/components/theme-toggle.tsx",
+        "frontend/packages/ui/src/components/skeleton-card.tsx",
+        "frontend/packages/ui/src/components/rbac-gate.tsx",
+        "frontend/packages/ui/src/index.ts"
+      ],
+      "parallel_group": 1,
+      "status": "done"
+    },
+    {
+      "id": "P0T7",
+      "title": "Tauri desktop placeholder",
+      "description": "Create minimal Tauri 2.0 placeholder at frontend/apps/desktop/. This is NOT a functional build — just config files so the monorepo structure is complete.\n\nFiles:\n1. `package.json` — name: '@gilbertus/desktop', private: true, scripts: { 'tauri': 'cargo tauri' }\n2. `src-tauri/tauri.conf.json` — minimal config:\n   ```json\n   {\n     \"$schema\": \"https://raw.githubusercontent.com/nicoverbruggen/tauri-schema/main/schema-v2.json\",\n     \"productName\": \"Gilbertus Albans\",\n     \"version\": \"0.1.0\",\n     \"identifier\": \"com.gilbertus.app\",\n     \"build\": {\n       \"frontendDist\": \"../../apps/web/.next\",\n       \"devUrl\": \"http://localhost:3000\"\n     },\n     \"app\": {\n       \"title\": \"Gilbertus Albans\",\n       \"windows\": [{ \"title\": \"Gilbertus Albans\", \"width\": 1280, \"height\": 800, \"minWidth\": 800, \"minHeight\": 600 }]\n     }\n   }\n   ```\n3. `src-tauri/Cargo.toml` — minimal Cargo config: [package] name='gilbertus-desktop', version='0.1.0', edition='2021'. [dependencies] tauri = { version='2', features=[] }. [build-dependencies] tauri-build = { version='2' }\n4. `src-tauri/src/main.rs` — minimal entry: `fn main() { tauri::Builder::default().run(tauri::generate_context!()).expect(\"error while running tauri application\"); }`\n\nThis is a skeleton only. Full Tauri integration happens in P9.",
+      "files": [
+        "frontend/apps/desktop/package.json",
+        "frontend/apps/desktop/src-tauri/tauri.conf.json",
+        "frontend/apps/desktop/src-tauri/Cargo.toml",
+        "frontend/apps/desktop/src-tauri/src/main.rs"
+      ],
+      "parallel_group": 1,
+      "status": "done"
+    },
+    {
+      "id": "P0T8",
+      "title": "NextAuth config + login page + auth middleware",
+      "description": "Create the authentication system. Depends on P0T4 (api-client) and P0T5 (Next.js app) being complete.\n\nFiles:\n1. `apps/web/lib/auth.ts` — NextAuth v5 configuration:\n   - Import NextAuth from 'next-auth'\n   - CredentialsProvider: id='api-key', name='API Key', credentials: { apiKey: { label: 'API Key', type: 'password' } }\n     - authorize(credentials): call `fetch(GILBERTUS_API_URL + '/health', { headers: { 'X-API-Key': credentials.apiKey } })`. If 200 → return { id: 'gilbertus-admin', email: 'sebastian@gilbertus.local', name: 'Sebastian', role: 'gilbertus_admin', roleLevel: 99, permissions: [], tenant: 'gilbertus', authType: 'api_key' }. If fail → return null.\n   - AzureADProvider (Microsoft Entra ID): clientId, clientSecret, tenantId from env. (Configure but mark as TODO for full Omnius user lookup — for now just map Azure AD profile to basic session).\n   - Callbacks:\n     - jwt({ token, user }): if user, merge role/roleLevel/permissions/tenant/authType into token\n     - session({ session, token }): populate session.user with role/roleLevel/permissions/tenant/authType from token\n   - Pages: { signIn: '/login' }\n   - Export { handlers: { GET, POST }, auth, signIn, signOut }\n\n2. `apps/web/app/api/auth/[...nextauth]/route.ts` — Export { GET, POST } from lib/auth handlers.\n\n3. `apps/web/middleware.ts` — NextAuth middleware:\n   - Public paths: /login, /api/auth, /_next, /favicon.ico\n   - For all other paths: check auth session. If no session → redirect to /login.\n   - Use NextAuth's `auth` as middleware wrapper.\n\n4. `apps/web/app/(auth)/layout.tsx` — Auth layout: centered container, dark background, flex items-center justify-center min-h-screen.\n\n5. `apps/web/app/(auth)/login/page.tsx` — Login page:\n   - 'use client'\n   - Card with Gilbertus logo/title, subtitle 'Zaloguj się do systemu'\n   - API key input field (password type) + 'Zaloguj' submit button\n   - Divider with 'lub'\n   - 'Zaloguj przez Microsoft' button (Azure AD)\n   - On API key submit: call signIn('api-key', { apiKey, redirect: false }). If error → show 'Nieprawidłowy klucz API'. If ok → router.push('/dashboard').\n   - On Azure AD click: call signIn('azure-ad').\n   - Use translations from @gilbertus/i18n for all labels.\n   - Styled with Tailwind: surface card, accent buttons, proper spacing.\n\n6. `apps/web/lib/stores/sidebar-store.ts` — Zustand store:\n   ```typescript\n   interface SidebarStore { collapsed: boolean; toggle: () => void; setCollapsed: (v: boolean) => void }\n   ```\n   Use zustand/middleware persist to localStorage key 'gilbertus-sidebar'.\n\n7. `apps/web/lib/stores/command-palette-store.ts` — Zustand store:\n   ```typescript\n   interface CommandPaletteStore { open: boolean; query: string; setOpen: (v: boolean) => void; setQuery: (q: string) => void }\n   ```",
+      "files": [
+        "frontend/apps/web/lib/auth.ts",
+        "frontend/apps/web/app/api/auth/[...nextauth]/route.ts",
+        "frontend/apps/web/middleware.ts",
+        "frontend/apps/web/app/(auth)/layout.tsx",
+        "frontend/apps/web/app/(auth)/login/page.tsx",
+        "frontend/apps/web/lib/stores/sidebar-store.ts",
+        "frontend/apps/web/lib/stores/command-palette-store.ts"
+      ],
+      "parallel_group": 2,
+      "status": "done"
+    },
+    {
+      "id": "P0T9",
+      "title": "App shell: sidebar, topbar, command palette, app layout",
+      "description": "Create the authenticated app shell with sidebar navigation, topbar, and command palette. Depends on P0T2 (rbac), P0T5 (Next.js app), P0T6 (UI package), P0T8 (auth + stores).\n\nFiles:\n1. `packages/ui/src/components/sidebar.tsx` — 'use client'. Full sidebar component:\n   - Props: none (reads from stores and session internally)\n   - Uses useSidebarStore() for collapsed state\n   - Uses useSession() from next-auth to get user role\n   - Uses getNavigationModules(role) from @gilbertus/rbac to get filtered modules\n   - Uses usePathname() from next/navigation for active state\n   - Width: 260px expanded, 64px collapsed (CSS transition)\n   - Structure: Logo at top → nav items (icon + label, icon only when collapsed) → footer with UserMenu\n   - Each nav item: lucide-react icon, label from translations, link to /(app)/[module]\n   - Active state: accent background color\n   - Collapse toggle button at bottom of nav\n   - Responsive: on mobile (<768px) overlay with backdrop\n\n2. `packages/ui/src/components/topbar.tsx` — 'use client'. Top navigation bar:\n   - Height: 56px, sticky top-0\n   - Left: breadcrumb showing current module name\n   - Right: Cmd+K trigger button (shows 'Ctrl+K' hint), ThemeToggle, notification bell (placeholder icon, badge for P2)\n   - Background: var(--surface), border-bottom: var(--border)\n\n3. `packages/ui/src/components/command-palette.tsx` — 'use client'. Cmd+K command palette:\n   - Uses cmdk library (Command component)\n   - Uses useCommandPaletteStore() for open/close state\n   - Global keyboard listener: Cmd+K / Ctrl+K → toggle open\n   - Escape → close\n   - Lists navigation modules (filtered by RBAC) in 'Nawigacja' group\n   - Lists quick actions in 'Akcje' group: 'Wyloguj', 'Zmień motyw'\n   - On select navigation → router.push, close palette\n   - Overlay with backdrop blur\n\n4. `packages/ui/src/components/user-menu.tsx` — 'use client'. User dropdown in sidebar footer:\n   - Shows avatar (initials), display name, role badge\n   - Dropdown (Radix DropdownMenu): 'Ustawienia', 'Wyloguj'\n   - On logout: call signOut() from next-auth\n\n5. `apps/web/app/(app)/layout.tsx` — App layout (authenticated shell):\n   - Flex row: Sidebar + main content area\n   - Main area: Topbar (sticky) + scrollable content area with padding\n   - CommandPalette rendered here (global overlay)\n   - Uses auth() server-side to verify session (redirect to /login if not authenticated)\n\n6. `apps/web/app/(app)/page.tsx` — Root app page: redirect to /dashboard using next/navigation redirect().\n\n7. `apps/web/app/(app)/dashboard/page.tsx` — Placeholder dashboard:\n   - Title: 'Panel główny' (from translations)\n   - Grid of SkeletonCards as placeholder\n   - Message: 'Dashboard will be implemented in P2'\n\nUpdate `packages/ui/src/index.ts` to export new components (sidebar, topbar, command-palette, user-menu).",
+      "files": [
+        "frontend/packages/ui/src/components/sidebar.tsx",
+        "frontend/packages/ui/src/components/topbar.tsx",
+        "frontend/packages/ui/src/components/command-palette.tsx",
+        "frontend/packages/ui/src/components/user-menu.tsx",
+        "frontend/apps/web/app/(app)/layout.tsx",
+        "frontend/apps/web/app/(app)/page.tsx",
+        "frontend/apps/web/app/(app)/dashboard/page.tsx"
+      ],
+      "parallel_group": 3,
+      "status": "done"
+    }
+  ]
+}

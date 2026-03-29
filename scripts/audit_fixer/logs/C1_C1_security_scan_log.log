@@ -1,0 +1,6 @@
+Done. The security scan cron (Monday 06:00 UTC) now logs to `logs/security_scan.log` with both stdout and stderr captured. Schedule and script path unchanged.
+Task: C1 — Security scan — add log redirect to crontab
+Level: CRITICAL
+Started: 2026-03-29T09:17:29.025073+00:00
+============================================================
+

@@ -1,0 +1,18 @@
+Build succeeds with no errors.
+
+Both files created and build passes:
+
+- **`use-voice.ts`** — Central voice hook orchestrating:
+  - MediaRecorder with WebM/Opus for HTTP and WebSocket modes
+  - Web Audio API AnalyserNode for waveform visualization
+  - HTTP mode: record → `voiceAsk()` → add messages to store → optional TTS playback
+  - WebSocket mode: stream audio chunks in real-time with auto-reconnect (exponential backoff)
+  - Audio playback via HTMLAudioElement with proper cleanup
+  - Push-to-talk keyboard shortcut (Space bar, respects input focus)
+  - `executeCommand()` for quick command chips
+  - Clean unmount: closes AudioContext, stops tracks, closes WS
+
+- **`use-voice-health.ts`** — React Query hook polling `/voice/health` every 30s with stale time of 25s
+[DEV:P7T5] Started: 2026-03-29T17:21:25.418951+00:00
+======================================================================
+

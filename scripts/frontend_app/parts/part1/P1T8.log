@@ -1,0 +1,16 @@
+Build passes. All three routes are registered:
+- `○ /chat` — static, shows empty state
+- `ƒ /chat/[id]` — dynamic, activates specific conversation
+
+Here's what was created:
+
+**`chat/layout.tsx`** — Full chat UI with negative margin to cancel parent `p-6`. Renders `ChatSidebar` + main area (either active conversation with `ChatHeader`/`MessageList`/`ChatInput`, or `EmptyState`). Maps store's `SourceItem` to UI's `SourceItem` shape via `useMemo`.
+
+**`chat/page.tsx`** — Sets `activeConversation(null)` so layout shows empty state.
+
+**`chat/[id]/page.tsx`** — Sets active conversation by URL param `id`. Redirects to `/chat` if conversation not found.
+
+Both page components render `null` — all visible UI lives in the layout, avoiding duplication.
+[DEV:P1T8] Started: 2026-03-29T12:21:43.763368+00:00
+======================================================================
+

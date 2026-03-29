@@ -1,0 +1,19 @@
+Discovery report written to `scripts/frontend_app/parts/part2/discovery.md`.
+
+**Key findings:**
+
+- **7 API endpoints** fully documented with exact response shapes — all exist and are functional
+- **RBAC:** 5 visibility tiers mapped (admin/ceo full, board partial, director/manager brief+calendar, specialist own-tasks, operator system-only)
+- **Frontend patterns:** monorepo with `@gilbertus/ui`, `@gilbertus/rbac`, `@gilbertus/api-client` packages. TanStack Query in Providers, Zustand for client state, CSS vars for theming, `RbacGate` component ready to use
+- **Dashboard page** is currently a skeleton placeholder ("P2") — ready to be replaced
+- **Topbar** already has Bell icon placeholder for notifications
+
+**3 backend gaps identified:**
+1. No `POST /alerts/{id}/acknowledge` — can't dismiss alerts (workaround: localStorage)
+2. No historical KPI data — sparklines deferred to post-MVP
+3. No real-time push — polling every 60s for notifications
+
+**Overall complexity: MEDIUM** — ~10 new component files, 2 API client files, 1 store, 1 hook.
+[ARCHITECT] Started: 2026-03-29T12:25:30.945155+00:00
+======================================================================
+

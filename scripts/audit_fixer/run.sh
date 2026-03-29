@@ -1,0 +1,15 @@
+#!/bin/bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
+
+cd "$REPO_DIR"
+source .venv/bin/activate
+
+echo "Gilbertus Audit Fixer Orchestrator"
+echo "  Repo: $REPO_DIR"
+echo "  Tasks: $(python3 -c "import json; q=json.load(open('$SCRIPT_DIR/queue.json')); print(f\"{sum(1 for t in q['tasks'] if t['status']=='pending')} pending / {len(q['tasks'])} total\")")"
+echo ""
+
+python3 "$SCRIPT_DIR/runner.py" "$@"

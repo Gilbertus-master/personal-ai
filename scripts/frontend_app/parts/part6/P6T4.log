@@ -1,0 +1,7 @@
+Build passes cleanly. Both files created:
+
+- **`decisions-store.ts`** — Zustand store with `persist` middleware, key `gilbertus-decisions`. State: `areaFilter`, `searchQuery`, `listLimit`, `activeTab`, `expandedDecisionId`, `intelligenceMonths` with setter actions.
+- **`use-decisions.ts`** — 3 query hooks (`useDecisions`, `useDecisionPatterns`, `useDecisionIntelligence`) and 3 mutation hooks (`useCreateDecision`, `useAddOutcome`, `useRunIntelligence`) with proper cache invalidation.
+[DEV:P6T4] Started: 2026-03-29T15:31:15.956274+00:00
+======================================================================
+

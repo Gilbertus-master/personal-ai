@@ -1,0 +1,21 @@
+Part 6 plan complete. Two files created:
+
+**`parts/part6/plan.md`** — Full architecture with:
+- Component trees for all 3 modules (Decisions, Calendar, Documents)
+- 38 files in the file tree
+- API integration map (18 endpoint-component mappings)
+- RBAC matrix (CEO-only decisions, manager+ calendar, director+ documents with classification filtering)
+- Zustand store shapes (3 stores)
+- 8 UX flows documented
+- Technical decisions (no external calendar lib, markdown reuse from chat, graceful degradation for missing backend endpoints)
+
+**`parts/part6/tasks.json`** — 12 tasks in 4 parallel groups:
+- **Group 1** (3 tasks, parallel): API types + clients for Decisions, Calendar, Documents
+- **Group 2** (3 tasks, parallel): Hooks + stores for all 3 modules
+- **Group 3** (3 tasks, parallel): UI components — 9 decisions, 9 calendar, 9 documents components
+- **Group 4** (3 tasks, parallel): Page assembly for all 3 routes
+
+Zero file overlap between parallel tasks. Implementation order within modules follows discovery recommendation: Decisions (simplest, all endpoints exist) → Calendar (medium, all endpoints exist) → Documents (complex, needs 3 new backend endpoints).
+[ARCHITECT] Started: 2026-03-29T15:06:18.932794+00:00
+======================================================================
+

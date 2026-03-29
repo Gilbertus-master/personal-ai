@@ -1,0 +1,108 @@
+{
+  "name": "Gilbertus/Omnius Frontend Application",
+  "description": "Hierarchical orchestrator: 10 parts, each with discovery → plan → execute cycle",
+  "created_at": "2026-03-29T14:00:00Z",
+  "frontend_dir": "/home/sebastian/personal-ai/frontend",
+  "tasks": [
+    {
+      "id": "P0",
+      "level": "CRITICAL",
+      "title": "Foundation — scaffolding, API client, auth, layout, i18n",
+      "file": "P00_foundation",
+      "status": "done",
+      "started_at": "2026-03-29T11:16:23.617866+00:00",
+      "completed_at": "2026-03-29T12:03:25.743129+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "P1",
+      "level": "CRITICAL",
+      "title": "Chat Core — multi-conversation, streaming, attachments, history",
+      "file": "P01_chat",
+      "status": "done",
+      "started_at": "2026-03-29T12:03:40.230078+00:00",
+      "completed_at": "2026-03-29T12:25:15.910875+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "P2",
+      "level": "HIGH",
+      "title": "Dashboard & Alerts — brief, KPIs, timeline, notifications",
+      "file": "P02_dashboard",
+      "status": "done",
+      "started_at": "2026-03-29T12:25:30.914855+00:00",
+      "completed_at": "2026-03-29T12:47:00.602599+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "P3",
+      "level": "HIGH",
+      "title": "People & Intelligence — directory, profiles, sentiment, opportunities, scenarios",
+      "file": "P03_people_intelligence",
+      "status": "done",
+      "started_at": "2026-03-29T12:47:13.584605+00:00",
+      "completed_at": "2026-03-29T13:28:55.713298+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "P4",
+      "level": "HIGH",
+      "title": "Compliance & Legal — matters, docs, trainings, risks, RACI",
+      "file": "P04_compliance",
+      "status": "done",
+      "started_at": "2026-03-29T13:29:10.719819+00:00",
+      "completed_at": "2026-03-29T14:08:43.884932+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "P5",
+      "level": "HIGH",
+      "title": "Market, Finance & Process — energy intel, budgets, tech radar",
+      "file": "P05_market_finance",
+      "status": "done",
+      "started_at": "2026-03-29T14:08:58.893546+00:00",
+      "completed_at": "2026-03-29T14:59:06.223640+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "P6",
+      "level": "HIGH",
+      "title": "Documents, Decisions & Calendar — upload, search, journal, meeting prep",
+      "file": "P06_docs_decisions",
+      "status": "done",
+      "started_at": "2026-03-29T14:59:21.228220+00:00",
+      "completed_at": "2026-03-29T15:53:11.738144+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "P7",
+      "level": "MEDIUM",
+      "title": "Voice & Real-time — WebSocket voice, TTS, push-to-talk",
+      "file": "P07_voice",
+      "status": "done",
+      "started_at": "2026-03-29T17:06:23.819212+00:00",
+      "completed_at": "2026-03-29T17:27:58.538278+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "P8",
+      "level": "MEDIUM",
+      "title": "Settings, Admin & Omnius Bridge — RBAC admin, crons, cross-tenant",
+      "file": "P08_settings_admin",
+      "status": "done",
+      "started_at": "2026-03-29T16:07:31.385352+00:00",
+      "completed_at": "2026-03-29T16:38:03.166267+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "P9",
+      "level": "MEDIUM",
+      "title": "Desktop Build & Polish — Tauri build, offline, animations, testing",
+      "file": "P09_polish",
+      "status": "done",
+      "started_at": "2026-03-29T16:38:18.167565+00:00",
+      "completed_at": "2026-03-29T17:06:02.551821+00:00",
+      "session_cost_usd": null
+    }
+  ]
+}

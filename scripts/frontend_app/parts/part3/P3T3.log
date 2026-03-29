@@ -1,0 +1,9 @@
+Build passes with zero errors. All 4 files are done:
+
+- **`stores/people-store.ts`** — Zustand + persist store with search, filter (type/status), sort, active profile tab, and reset
+- **`hooks/use-people.ts`** — 13 hooks: `usePeople`, `usePerson`, `useScorecard`, `useSentiment` (lazy), `useDelegation` (lazy), `useNetwork`, `useWellbeing`, `useSentimentAlerts`, plus 5 mutations (`useCreatePerson`, `useUpdatePerson`, `useEvaluatePerson`, `useAddTimeline`, `useAddRole`, `useAddLoop`, `useCloseLoop`) — all with proper cache invalidation
+- **`stores/intelligence-store.ts`** — Zustand + persist store with active tab, opportunity/scenario status filters, correlation type + params
+- **`hooks/use-intelligence.ts`** — 11 hooks: `useOpportunities`, `useScanOpportunities`, `useInefficiency`, `useCorrelation`, `useScenarios`, `useCreateScenario`, `useAnalyzeScenario`, `useCompareScenarios` (enabled when 2+ ids), `usePredictions` (5min refetch), `useOrgHealth`, `useAssessOrgHealth`
+[DEV:P3T3] Started: 2026-03-29T13:04:43.729218+00:00
+======================================================================
+

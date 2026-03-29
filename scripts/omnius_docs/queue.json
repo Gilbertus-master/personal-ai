@@ -1,0 +1,239 @@
+{
+  "name": "Omnius Deployment Documentation — REH & REF",
+  "description": "Complete compliance documentation package for deploying Omnius AI in Respect Energy Holding and Respect Energy Fuels",
+  "created_at": "2026-03-29T12:00:00Z",
+  "output_reh": "/mnt/c/Users/jablo/Desktop/Omnius_REH",
+  "output_ref": "/mnt/c/Users/jablo/Desktop/Omnius_REF",
+  "tasks": [
+    {
+      "id": "D01",
+      "level": "CRITICAL",
+      "title": "DPIA — Ocena skutkow dla ochrony danych (REH + REF)",
+      "file": "D01_dpia",
+      "status": "failed",
+      "started_at": "2026-03-29T10:11:25.394771+00:00",
+      "completed_at": "2026-03-29T10:26:01.184779+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D02",
+      "level": "CRITICAL",
+      "title": "Klauzula informacyjna dla pracownikow (RODO Art. 13/14)",
+      "file": "D02_klauzula_informacyjna",
+      "status": "done",
+      "started_at": "2026-03-29T10:26:16.186922+00:00",
+      "completed_at": "2026-03-29T10:31:13.768699+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D03",
+      "level": "CRITICAL",
+      "title": "Regulamin monitoringu komunikacji elektronicznej",
+      "file": "D03_regulamin_monitoringu",
+      "status": "done",
+      "started_at": "2026-03-29T10:31:27.525062+00:00",
+      "completed_at": "2026-03-29T10:35:38.470544+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D04",
+      "level": "CRITICAL",
+      "title": "Aneks do regulaminu pracy — wdrozenie AI i monitoringu",
+      "file": "D04_aneks_regulamin_pracy",
+      "status": "done",
+      "started_at": "2026-03-29T10:35:53.475179+00:00",
+      "completed_at": "2026-03-29T10:42:00.707269+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D05",
+      "level": "CRITICAL",
+      "title": "Ocena ryzyka AI — Fundamental Rights Impact Assessment",
+      "file": "D05_ai_risk_assessment",
+      "status": "done",
+      "started_at": "2026-03-29T10:42:15.708456+00:00",
+      "completed_at": "2026-03-29T10:48:46.914472+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D06",
+      "level": "CRITICAL",
+      "title": "Rejestr czynnosci przetwarzania danych (Art. 30 RODO)",
+      "file": "D06_rejestr_czynnosci",
+      "status": "done",
+      "started_at": "2026-03-29T10:49:00.399723+00:00",
+      "completed_at": "2026-03-29T10:54:51.925714+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D07",
+      "level": "HIGH",
+      "title": "Polityka retencji i usuwania danych",
+      "file": "D07_polityka_retencji",
+      "status": "done",
+      "started_at": "2026-03-29T10:55:06.928099+00:00",
+      "completed_at": "2026-03-29T10:56:59.405280+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D08",
+      "level": "HIGH",
+      "title": "Procedura realizacji praw podmiotow danych",
+      "file": "D08_prawa_podmiotow",
+      "status": "done",
+      "started_at": "2026-03-29T10:57:12.768213+00:00",
+      "completed_at": "2026-03-29T10:59:30.126350+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D09",
+      "level": "HIGH",
+      "title": "Zgoda na nagrywanie i przetwarzanie rozmow (Plaud)",
+      "file": "D09_zgoda_nagrywanie",
+      "status": "done",
+      "started_at": "2026-03-29T10:59:45.128091+00:00",
+      "completed_at": "2026-03-29T11:05:41.763540+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D10",
+      "level": "HIGH",
+      "title": "Umowa powierzenia przetwarzania danych (DPA) — szablon",
+      "file": "D10_dpa_szablon",
+      "status": "done",
+      "started_at": "2026-03-29T11:05:56.765970+00:00",
+      "completed_at": "2026-03-29T11:11:09.495080+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D11",
+      "level": "HIGH",
+      "title": "Dokumentacja techniczna systemu AI (Art. 11 AI Act)",
+      "file": "D11_dokumentacja_techniczna",
+      "status": "done",
+      "started_at": "2026-03-29T11:11:22.946673+00:00",
+      "completed_at": "2026-03-29T11:14:04.904823+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D12",
+      "level": "HIGH",
+      "title": "System zarzadzania ryzykiem AI (Art. 9 AI Act)",
+      "file": "D12_system_zarzadzania_ryzykiem",
+      "status": "done",
+      "started_at": "2026-03-29T11:14:19.139027+00:00",
+      "completed_at": "2026-03-29T11:16:11.442080+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D13",
+      "level": "HIGH",
+      "title": "Procedura nadzoru ludzkiego nad AI (Art. 14 AI Act)",
+      "file": "D13_nadzor_ludzki",
+      "status": "done",
+      "started_at": "2026-03-29T11:16:26.444591+00:00",
+      "completed_at": "2026-03-29T11:18:51.799991+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D14",
+      "level": "HIGH",
+      "title": "Oswiadczenie pracownika o zapoznaniu sie z systemem AI",
+      "file": "D14_oswiadczenie_pracownika",
+      "status": "done",
+      "started_at": "2026-03-29T11:19:06.811161+00:00",
+      "completed_at": "2026-03-29T11:21:07.531360+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D15",
+      "level": "HIGH",
+      "title": "Regulamin korzystania z systemu Omnius",
+      "file": "D15_regulamin_omnius",
+      "status": "done",
+      "started_at": "2026-03-29T11:21:20.837917+00:00",
+      "completed_at": "2026-03-29T11:23:20.023620+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D16",
+      "level": "HIGH",
+      "title": "Polityka bezpieczenstwa danych systemu Omnius",
+      "file": "D16_polityka_bezpieczenstwa",
+      "status": "done",
+      "started_at": "2026-03-29T11:23:34.424456+00:00",
+      "completed_at": "2026-03-29T11:25:19.870470+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D17",
+      "level": "HIGH",
+      "title": "Procedura reagowania na incydenty (breach notification)",
+      "file": "D17_procedura_incydentow",
+      "status": "done",
+      "started_at": "2026-03-29T11:25:33.148972+00:00",
+      "completed_at": "2026-03-29T11:27:45.645687+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D18",
+      "level": "MEDIUM",
+      "title": "Matryca rol i uprawnien RBAC",
+      "file": "D18_matryca_rbac",
+      "status": "done",
+      "started_at": "2026-03-29T11:28:00.648460+00:00",
+      "completed_at": "2026-03-29T11:30:29.521700+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D19",
+      "level": "MEDIUM",
+      "title": "Plan wdrozenia Omnius — harmonogram i checklist",
+      "file": "D19_plan_wdrozenia",
+      "status": "done",
+      "started_at": "2026-03-29T11:30:42.794551+00:00",
+      "completed_at": "2026-03-29T11:33:17.786556+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D20",
+      "level": "MEDIUM",
+      "title": "Polityka barier informacyjnych (REMIT compliance)",
+      "file": "D20_bariery_informacyjne",
+      "status": "done",
+      "started_at": "2026-03-29T11:33:31.083057+00:00",
+      "completed_at": "2026-03-29T11:35:25.549668+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D21",
+      "level": "HIGH",
+      "title": "NDA — Umowa o zachowaniu poufnosci (3 warianty)",
+      "file": "D21_nda_poufnosc",
+      "status": "done",
+      "started_at": "2026-03-29T11:35:40.551816+00:00",
+      "completed_at": "2026-03-29T11:38:43.713634+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D22",
+      "level": "HIGH",
+      "title": "Oswiadczenia wspolpracownikow B2B + klauzula RODO + czlonek organu",
+      "file": "D22_oswiadczenie_wspolpracownik",
+      "status": "done",
+      "started_at": "2026-03-29T11:38:58.715954+00:00",
+      "completed_at": "2026-03-29T11:44:45.230552+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "D23",
+      "level": "MEDIUM",
+      "title": "Klauzula poufnosci — aneks do istniejacych umow",
+      "file": "D23_klauzula_poufnosci_umowa",
+      "status": "done",
+      "started_at": "2026-03-29T11:45:00.232169+00:00",
+      "completed_at": "2026-03-29T11:48:12.181386+00:00",
+      "session_cost_usd": null
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+Build succeeded. All 7 files created/modified:
+
+1. **`profile-card.tsx`** — Read-only user profile card with initials avatar, role badge (color by level), info rows (email, role, department), session info section (auth type, last login, permissions badges)
+2. **`preferences-form.tsx`** — Language toggle (PL/EN), theme toggle (Ciemny/Jasny), notification switches with "(wkrótce)" note. Pure component with props, no store dependency.
+3. **`api-key-manager.tsx`** — Key list with masked display, copy-to-clipboard with checkmark feedback, rotate button with inline confirmation dialog, loading/empty states
+4. **`settings/index.ts`** — Barrel exports
+5. **`admin-sidebar.tsx`** — Left nav with 7 items, `adminOnly` items filtered by role via `useRole()`, active state with accent left border, w-56 surface bg
+6. **`admin/index.ts`** — Barrel export
+7. **`packages/ui/src/index.ts`** — Added settings + admin re-exports
+
+Build passes cleanly.
+[DEV:P8T5] Started: 2026-03-29T16:25:12.967688+00:00
+======================================================================
+

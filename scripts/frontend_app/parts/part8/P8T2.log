@@ -1,0 +1,7 @@
+Build passed. Both stores are created following the exact same pattern as `finance-store.ts`:
+
+- **`settings-store.ts`** — `useSettingsStore` with active tab, language, notification preferences, and persisted to `gilbertus-settings`
+- **`admin-store.ts`** — `useAdminStore` with cron/code-review/audit filters, Omnius Bridge tab/tenant state, reset helpers, persisted to `gilbertus-admin`
+[DEV:P8T2] Started: 2026-03-29T16:22:02.386994+00:00
+======================================================================
+

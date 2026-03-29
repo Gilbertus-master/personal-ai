@@ -1,0 +1,12 @@
+Build passes. Both files created:
+
+- **`documents-store.ts`** — Zustand store with persist middleware, all specified state fields and actions, `clearFilters` resets everything to defaults
+- **`use-documents.ts`** — 5 React Query hooks:
+  - `useDocumentSearch` — enabled when query >= 2 chars, 30s stale
+  - `useDocumentsList` — parameterized list, 60s stale
+  - `useDocumentDetail` — enabled when id truthy, 60s stale
+  - `useIngestionDashboard` — 30s stale
+  - `useDocumentUpload` — mutation that invalidates list + dashboard on success
+[DEV:P6T6] Started: 2026-03-29T15:33:18.350216+00:00
+======================================================================
+

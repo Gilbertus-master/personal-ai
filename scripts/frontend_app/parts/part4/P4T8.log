@@ -1,0 +1,15 @@
+Build passes. All 4 new routes are registered: `/compliance/raci`, `/compliance/reports`, `/compliance/risks`, `/compliance/scan`.
+
+**Summary of created files:**
+
+1. **`packages/ui/.../risks-table.tsx`** — Risk register table with area/status filters, color-coded likelihood/impact/score columns, linked matters
+2. **`packages/ui/.../risk-heatmap.tsx`** — Interactive 5x5 CSS grid probability/impact matrix with color zones, area summary cards, overall stats
+3. **`packages/ui/.../raci-matrix.tsx`** — Editable RACI grid (areas × people) with sticky first column, click-to-edit popover (R/A/C/I/Remove + notes), optimistic updates
+4. **`packages/ui/.../report-viewer.tsx`** — Tabbed viewer for daily (pre-formatted text), weekly (table with summary row), and area reports
+5. **`apps/web/.../risks/page.tsx`** — Risks page with Register/Heatmap tab navigation, RbacGate [ceo, board]
+6. **`apps/web/.../raci/page.tsx`** — RACI matrix page, RbacGate [ceo, board]
+7. **`apps/web/.../reports/page.tsx`** — Reports page with 3 tabs, RbacGate [ceo, board, director]
+8. **`apps/web/.../scan/page.tsx`** — Regulatory scan page with hours selector, scan button, results display
+[DEV:P4T8] Started: 2026-03-29T14:01:03.439243+00:00
+======================================================================
+

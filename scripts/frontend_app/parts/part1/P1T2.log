@@ -1,0 +1,13 @@
+Build passes with no errors.
+
+**Done.** Created `frontend/apps/web/lib/stores/chat-store.ts` with:
+
+- **Zustand + persist** middleware (key: `gilbertus-chat`), matching `sidebar-store.ts` pattern
+- **Types:** `ChatMessage`, `Conversation`, `SourceItem`, `AskResponseMeta` (local until P1T1 lands)
+- **Actions:** `createConversation`, `deleteConversation`, `renameConversation`, `setActiveConversation`, `addUserMessage`, `addAssistantMessage`, `updateAssistantMessage`, `setMessageLoading`, `setMessageError`
+- **Auto-title** from first user message (60 char truncation)
+- **Max 50 conversations** — oldest by `lastActive` pruned on create
+- **Selectors:** `selectSortedConversations` (DESC by lastActive), `selectActiveConversation`
+[DEV:P1T2] Started: 2026-03-29T12:12:42.676026+00:00
+======================================================================
+

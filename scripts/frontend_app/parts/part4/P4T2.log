@@ -1,0 +1,22 @@
+Build passes with zero errors. Here's what was created:
+
+**`apps/web/lib/stores/compliance-store.ts`** — Zustand store with `persist` middleware (key: `gilbertus-compliance`):
+- 18 filter/tab state fields covering matters, obligations, deadlines, documents, trainings, risks, RACI, reports, and area detail
+- Individual setters for each field + `resetAllFilters()` to reset everything
+
+**`apps/web/lib/hooks/use-compliance.ts`** — 33 React Query hooks:
+- **Dashboard/Areas (3):** `useComplianceDashboard`, `useComplianceAreas`, `useComplianceArea`
+- **Matters (8):** `useMatters`, `useMatter`, `useCreateMatter`, `useResearchMatter`, `useAdvanceMatter`, `useMatterReport`, `useCommPlan`, `useExecuteComm`
+- **Obligations (4):** `useObligations`, `useOverdueObligations`, `useCreateObligation`, `useFulfillObligation`
+- **Deadlines (2):** `useDeadlines`, `useOverdueDeadlines`
+- **Documents (5):** `useDocuments`, `useStaleDocuments`, `useGenerateDocument`, `useApproveDocument`, `useSignDocument`
+- **Trainings (4):** `useTrainings`, `useTrainingStatus`, `useCreateTraining`, `useCompleteTraining`
+- **Risks (2):** `useRisks`, `useRiskHeatmap`
+- **RACI (2):** `useRaci`, `useUpsertRaci`
+- **Reports (3):** `useDailyReport`, `useWeeklyReport`, `useAreaReport`
+- **Scan (1):** `useScanRegulatory`
+
+All hooks use store selectors for filter-dependent queries, `enabled` flags for conditional fetching, and proper `invalidateQueries` on mutation success.
+[DEV:P4T2] Started: 2026-03-29T13:42:13.706706+00:00
+======================================================================
+

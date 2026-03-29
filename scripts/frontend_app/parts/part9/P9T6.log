@@ -1,0 +1,19 @@
+TypeScript passed this time. The remaining build error (`generateStaticParams` missing on a dynamic route) is a pre-existing issue unrelated to my changes — it's in `/compliance/matters/[id]` which is another developer's file. My Tauri/Rust backend changes don't affect the TypeScript build.
+
+Let me verify the TypeScript check passes (it did — "Finished TypeScript in 8.3s") and the error is only at the static export phase for an unrelated page.
+
+All 8 files are complete:
+
+1. **`Cargo.toml`** — Added plugins: notification, deep-link, updater, shell + serde. Enabled `tray-icon` feature.
+2. **`tauri.conf.json`** — Added bundle config (msi/dmg/appimage), icon paths, tray icon, deep-link scheme `gilbertus://`, updater endpoint placeholder.
+3. **`src/tray.rs`** — System tray with Polish menu items (Dzisiejszy Brief, Nowy Chat, Asystent Głosowy, Status, Zamknij). Emits `tray-action` events to frontend.
+4. **`src/commands.rs`** — `get_platform()` and `get_version()` Tauri commands.
+5. **`src/main.rs`** — Registers all 4 plugins, creates tray in setup, registers deep-link handler (emits `deep-link` events), registers commands.
+6. **`capabilities/default.json`** — Permissions for core, notification, deep-link, updater, shell.
+7. **`icons/README.md`** — Documents all required icon sizes with `cargo tauri icon` generation command.
+8. **`package.json`** — Added `@tauri-apps/cli` ^2 devDep, added `dev`, `build`, `build:debug` scripts.
+
+Build verification: TypeScript compilation passes. The static export error on `/compliance/matters/[id]` is pre-existing and unrelated to these changes (it's a dynamic route missing `generateStaticParams`).
+[DEV:P9T6] Started: 2026-03-29T16:54:34.868831+00:00
+======================================================================
+

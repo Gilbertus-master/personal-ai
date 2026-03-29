@@ -1,0 +1,11 @@
+Done. Changes made to CLAUDE.md:
+
+1. **Endpoints:** 116 → **179**
+2. **Omnius:** 3 → **4** tools (added `omnius_bridge`)
+3. **New "Strategic (12)" category** with all wave-4 tools: `gilbertus_router`, `gilbertus_calendar`, `gilbertus_authority`, `gilbertus_finance`, `gilbertus_goals`, `gilbertus_org_health`, `gilbertus_decision_patterns`, `gilbertus_delegation_chain`, `gilbertus_response_stats`, `gilbertus_competitors`, `gilbertus_market`, `gilbertus_scenarios`
+4. **Total MCP tools** stays at **44** (was already correct — the categories just weren't listing all of them)
+Task: M2 — Update CLAUDE.md — endpoints 179, tools categorization
+Level: MEDIUM
+Started: 2026-03-29T09:28:24.823249+00:00
+============================================================
+

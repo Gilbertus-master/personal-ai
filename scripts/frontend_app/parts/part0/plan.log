@@ -1,0 +1,23 @@
+Done. Created both files:
+
+**`plan.md`** — Full architecture with:
+- Component tree (visual hierarchy from html → providers → app shell)
+- Complete file tree (~55 files)
+- API integration map (LoginForm → /health, Azure AD → Omnius /admin/users)
+- RBAC per view/component (14 sidebar modules with role mappings)
+- Zustand store shapes (sidebar + command palette)
+- 5 UX flows (API key login, Azure AD login, sidebar nav, Cmd+K, theme toggle)
+- Design tokens, package dependencies, key decisions
+
+**`tasks.json`** — 9 tasks in 3 parallel groups:
+
+| Group | Tasks | Description |
+|-------|-------|-------------|
+| **1** (parallel) | P0T1-P0T7 | Monorepo root, RBAC pkg, i18n pkg, API client pkg, Next.js config, UI pkg, Tauri placeholder |
+| **2** | P0T8 | NextAuth config, login page, auth middleware, Zustand stores |
+| **3** | P0T9 | App shell: sidebar, topbar, command palette, dashboard placeholder |
+
+Zero file overlap between tasks in the same parallel group. Each task contains full context so devs can work independently.
+[ARCHITECT] Started: 2026-03-29T11:20:56.469623+00:00
+======================================================================
+

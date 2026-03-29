@@ -1,0 +1,20 @@
+Build passes with zero errors. Here's what I implemented:
+
+**`alert-item.tsx`** — Single alert component with:
+- Severity dot (red/amber/blue) on the left
+- Title (truncated), description (line-clamp-2), and alert type pill badge in the center
+- Relative timestamp in Polish (`2h temu`, `wczoraj`) and hover-visible dismiss button on the right
+- Inline `formatRelativeTime` helper — no external library
+
+**`alerts-feed.tsx`** — Alerts list container with:
+- Header with "Alerty" title, count badge (`bg-red-500/20`), and collapse toggle
+- Filters out `dismissedIds` before rendering
+- Loading state: 3 `SkeletonCard` components
+- Empty state: green `CircleCheck` icon + "Brak aktywnych alertów"
+- Error state: red `AlertCircle` + retry message
+- Scrollable content area (`max-h-96 overflow-y-auto`)
+
+Both exported via the dashboard barrel file and available as `@gilbertus/ui` imports.
+[DEV:P2T5] Started: 2026-03-29T12:39:42.866764+00:00
+======================================================================
+

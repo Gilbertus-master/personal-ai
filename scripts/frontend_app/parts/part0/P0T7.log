@@ -1,0 +1,13 @@
+The build failure is a pre-existing PostCSS/Tailwind issue unrelated to the desktop placeholder (it's a CSS import chain problem in the web app). The desktop package has no TypeScript or build step — it's purely config files.
+
+**P0T7 complete.** Created 4 files:
+
+- `frontend/apps/desktop/package.json` — `@gilbertus/desktop` with `tauri` script
+- `frontend/apps/desktop/src-tauri/tauri.conf.json` — Tauri 2.0 config pointing at the Next.js web app
+- `frontend/apps/desktop/src-tauri/Cargo.toml` — Rust crate config for `gilbertus-desktop`
+- `frontend/apps/desktop/src-tauri/src/main.rs` — Minimal Tauri entry point
+
+The web build failure is pre-existing (PostCSS/Tailwind config issue in `globals.css`) — not caused by these desktop placeholder files.
+[DEV:P0T7] Started: 2026-03-29T11:47:39.833002+00:00
+======================================================================
+

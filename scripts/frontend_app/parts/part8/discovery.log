@@ -1,0 +1,13 @@
+Discovery report written to `scripts/frontend_app/parts/part8/discovery.md`.
+
+**Key findings:**
+
+- **15 features** across 3 sub-modules (Settings, Admin, Omnius Bridge)
+- **Existing endpoints:** Crons (5), Status (1), Costs/Budget (1), Code Fixes (1), plus full Omnius admin API (users, keys, config, tasks, audit, sync)
+- **6 backend gaps** — most critical: no user profile/preferences endpoints, no Omnius bridge proxy (cross-tenant must be done client-side with parallel fetches)
+- **RBAC:** Settings for all users, Admin for gilbertus_admin + operator, Omnius Bridge for gilbertus_admin only
+- **Complexity:** Medium-High overall. Settings is simple, Cron/Status/Costs are medium, Omnius Bridge cross-tenant orchestration is the most complex part
+- **Frontend patterns** are well-established: React Query + Zustand, `customFetch` wrapper, `RbacGate` component, domain-based file organization
+[ARCHITECT] Started: 2026-03-29T16:07:31.414318+00:00
+======================================================================
+

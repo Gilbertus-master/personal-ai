@@ -1,0 +1,8 @@
+Build succeeds. Here's what was done:
+
+**`layout.tsx`** — Added `OfflineProvider` wrapping the entire layout content, and `<OfflineBanner />` positioned between the Topbar and `<main>` so it appears as a visible banner when the user goes offline.
+
+**`globals.css`** and **`index.ts`** — Already had the needed imports/exports (animations.css import and all 6 new component exports), no changes needed.
+[DEV:P9T5] Started: 2026-03-29T16:52:49.550830+00:00
+======================================================================
+

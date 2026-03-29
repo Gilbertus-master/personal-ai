@@ -1,0 +1,18 @@
+Build passes. All 7 files created and compiling successfully:
+
+1. **`lib/offline/idb.ts`** — IndexedDB wrapper with `openDB`, `get`, `put`, `getAll`, `del`, `clearStore`, `getAllByIndex`. Singleton DB instance `gilbertus-offline` v1 with 7 stores (briefs, dashboard, conversations, messages, people, outbox, meta).
+
+2. **`lib/offline/cache-manager.ts`** — TTL-aware cache layer over IDB. `cacheGet` checks timestamps in meta store, `cacheSet` writes data + timestamp, `cacheClear` clears one or all stores. Default TTLs: briefs=4h, dashboard=15m, conversations=5m, people=1h.
+
+3. **`lib/offline/message-queue.ts`** — Outbox queue with `enqueue` (UUID + createdAt), `flush` (sorted by createdAt, retries up to 3, removes on success), `getQueueSize`, `clearQueue`.
+
+4. **`public/sw.js`** — Service worker: caches app shell on install, cache-first for static assets, network-first with shell fallback for navigation, network-only for API requests (IDB handles that). Self-skipWaiting + clientsClaim.
+
+5. **`lib/offline/sw-register.ts`** — Registers `/sw.js` on app load, detects updates and posts `SKIP_WAITING` to new worker.
+
+6. **`lib/hooks/use-offline-cache.ts`** — Combines React Query with IDB cache. Loads IDB on mount (instant), then fetches via React Query. Returns `{ data, isLoading, isOfflineData, error }`.
+
+7. **`lib/hooks/use-message-queue.ts`** — Uses existing `useOffline` context and `useOfflineStore`. `sendOrQueue` sends directly when online, enqueues when offline. Auto-flushes on offline→online transition. Syncs queue count to Zustand store.
+[DEV:P9T8] Started: 2026-03-29T16:57:13.848971+00:00
+======================================================================
+

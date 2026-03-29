@@ -1,0 +1,11 @@
+No TypeScript errors in either file. 
+
+**Done.** Created both files:
+
+1. **`market-store.ts`** — Zustand store with `persist` middleware (key: `gilbertus-market`), 9 state fields with setters + `toggleSourcesExpanded()`
+2. **`use-market.ts`** — 6 query hooks (`useMarketDashboard`, `useMarketInsights`, `useMarketAlerts`, `useCompetitors`, `useCompetitorAnalysis`, `useCompetitorSignals`) + 4 mutation hooks (`useScanMarket`, `useAddMarketSource`, `useAddCompetitor`, `useScanCompetitors`) with proper cache invalidation
+
+The build failure is pre-existing (Next.js 16 Turbopack font resolution issue) — unrelated to these changes. TypeScript compilation passes with zero errors for both files.
+[DEV:P5T4] Started: 2026-03-29T14:28:40.582344+00:00
+======================================================================
+

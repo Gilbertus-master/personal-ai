@@ -1,0 +1,27 @@
+All 3 pages created and TypeScript passes. Here's a summary:
+
+**Created files:**
+
+1. **`market/competitors/page.tsx`** (213 lines) — Competitor Landscape
+   - RBAC gate: `board`, `ceo`, `gilbertus_admin` with `data:read:all`
+   - KPI row: total competitors, active count, total signals (30d)
+   - `CompetitorTable` with row click → navigate to detail
+   - Add competitor modal dialog (name, KRS, industry, watch_level)
+   - Scan button with loading state
+
+2. **`market/competitors/[id]/page.tsx`** (165 lines) — Competitor Detail
+   - Uses `use(params)` for Next.js 16 async params
+   - `SwotCard` with SWOT analysis or "Brak analizy" fallback
+   - `SignalTimeline` with type/severity filters (client-side)
+   - Loading skeletons for both sections
+   - Back button to competitor list
+
+3. **`market/competitors/signals/page.tsx`** (98 lines) — All Signals Timeline
+   - Filter bar: competitor dropdown, signal type, days range
+   - Uses Zustand store (`useMarketStore`) for persisted filter state
+   - `SignalTimeline` with `showCompetitorName={true}`
+
+Build fails only due to Google Fonts fetch error (WSL2 network), `tsc --noEmit` passes with 0 errors.
+[DEV:P5T11] Started: 2026-03-29T14:41:40.685337+00:00
+======================================================================
+

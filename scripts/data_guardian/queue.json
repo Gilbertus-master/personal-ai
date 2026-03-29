@@ -1,0 +1,107 @@
+{
+  "name": "Data Guardian — Self-Healing Import Pipeline",
+  "description": "Build bulletproof data import monitoring, auto-recovery, and quality assurance for Gilbertus",
+  "created_at": "2026-03-29T15:00:00Z",
+  "tasks": [
+    {
+      "id": "G01",
+      "level": "CRITICAL",
+      "title": "Fix insert_source upsert + all callers — unblock ALL pipelines",
+      "file": "G01_fix_insert_source",
+      "status": "done",
+      "started_at": "2026-03-29T11:40:21.734125+00:00",
+      "completed_at": "2026-03-29T11:41:40.881583+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "G02",
+      "level": "CRITICAL",
+      "title": "Graph API auth hardening — client_credentials + proactive token refresh cron",
+      "file": "G02_graph_auth_hardening",
+      "status": "done",
+      "started_at": "2026-03-29T11:41:50.882703+00:00",
+      "completed_at": "2026-03-29T11:44:18.852388+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "G03",
+      "level": "CRITICAL",
+      "title": "Retry + backoff + circuit breaker on ALL external API calls",
+      "file": "G03_retry_circuit_breaker",
+      "status": "done",
+      "started_at": "2026-03-29T11:44:28.856134+00:00",
+      "completed_at": "2026-03-29T11:55:32.648032+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "G04",
+      "level": "HIGH",
+      "title": "Data Guardian daemon — source freshness SLA monitor with auto-remediation",
+      "file": "G04_guardian_daemon",
+      "status": "done",
+      "started_at": "2026-03-29T11:55:40.875250+00:00",
+      "completed_at": "2026-03-29T12:03:40.771185+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "G05",
+      "level": "HIGH",
+      "title": "Dead letter queue + failed import capture + retry mechanism",
+      "file": "G05_dead_letter_queue",
+      "status": "done",
+      "started_at": "2026-03-29T12:03:48.682376+00:00",
+      "completed_at": "2026-03-29T12:16:16.558699+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "G06",
+      "level": "HIGH",
+      "title": "Extraction pipeline watchdog — stall detection + auto-restart workers",
+      "file": "G06_extraction_watchdog",
+      "status": "done",
+      "started_at": "2026-03-29T12:16:26.559562+00:00",
+      "completed_at": "2026-03-29T12:20:53.047230+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "G07",
+      "level": "HIGH",
+      "title": "Three-tier alert escalation — auto-fix / info / critical + human interaction",
+      "file": "G07_alert_escalation",
+      "status": "done",
+      "started_at": "2026-03-29T12:21:01.272583+00:00",
+      "completed_at": "2026-03-29T12:24:42.649019+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "G08",
+      "level": "MEDIUM",
+      "title": "Ingestion health dashboard + metrics table + cron registration",
+      "file": "G08_health_dashboard",
+      "status": "done",
+      "started_at": "2026-03-29T12:24:50.738800+00:00",
+      "completed_at": "2026-03-29T12:35:17.336442+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "G09",
+      "level": "MEDIUM",
+      "title": "Data quality checks — volume anomaly, duplicate detection, consistency",
+      "file": "G09_data_quality",
+      "status": "done",
+      "started_at": "2026-03-29T12:35:27.337565+00:00",
+      "completed_at": "2026-03-29T12:40:48.098421+00:00",
+      "session_cost_usd": null
+    },
+    {
+      "id": "G10",
+      "level": "MEDIUM",
+      "title": "End-to-end verification + non-regression gate + final cron setup",
+      "file": "G10_verification",
+      "status": "done",
+      "started_at": "2026-03-29T12:40:58.105778+00:00",
+      "completed_at": "2026-03-29T12:45:42.828540+00:00",
+      "session_cost_usd": null
+    }
+  ]
+}

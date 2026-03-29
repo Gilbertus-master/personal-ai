@@ -1,0 +1,17 @@
+Works — no SSL errors. 
+
+**H3 done.** Summary of changes:
+
+- **Created** `/home/sebastian/personal-ai/.cache/tiktoken/` with pre-populated `cl100k_base` encoding (1.6 MB)
+- **Updated 10 files** from `/tmp/tiktoken_cache` → `/home/sebastian/personal-ai/.cache/tiktoken`:
+  - `app/orchestrator/cron_registry.py`
+  - `app/ingestion/live_ingest.py`
+  - `scripts/morning_brief.sh`, `continuous_improvement.sh`, `verify_data_quality.sh`, `sync_corporate_data.sh`, `generate_summaries.sh`, `deploy_hetzner_cloud.sh`, `plaud_monitor.sh`
+  - `migration_bundle/crontab.txt`
+- **Updated crontab** — live `*/5` embed cron now uses persistent path
+- **Verified** — `index_chunks` runs without SSL errors using cached encoding
+Task: H3 — auto_embed tiktoken cache — persist across restarts
+Level: HIGH
+Started: 2026-03-29T09:23:33.083767+00:00
+============================================================
+

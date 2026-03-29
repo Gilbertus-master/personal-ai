@@ -1,0 +1,14 @@
+Discovery report written to `scripts/frontend_app/parts/part7/discovery.md`.
+
+**Key findings:**
+
+- **Backend is complete** — all 5 HTTP endpoints + WebSocket `/voice/ws` exist and are functional
+- **RBAC:** Voice restricted to `ceo` + `board` roles (already configured in navigation)
+- **No frontend voice code exists** — navigation entry registered but page missing
+- **No audio libraries needed for MVP** — native `MediaRecorder`, `WebSocket`, Canvas API suffice
+- **Main complexity:** WebSocket binary frame handling + MediaRecorder permissions/format
+- **One gap:** No backend endpoint to list past voice sessions (use local Zustand persist)
+- **Integration notes:** Need FormData support in API client, binary blob responses for TTS, dual Content-Type handling on `/voice/command`
+[ARCHITECT] Started: 2026-03-29T17:06:23.859523+00:00
+======================================================================
+

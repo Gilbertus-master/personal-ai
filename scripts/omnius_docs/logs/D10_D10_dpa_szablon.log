@@ -1,0 +1,17 @@
+**D10 DPA gotowe.** Kompletna umowa powierzenia przetwarzania danych (25,6 tys. znaków):
+
+- **§1–§10** — wszystkie wymagane elementy art. 28(3)(a-h) RODO
+- **Załącznik A** — Anthropic PBC (zero-retention, SCC, TIA z oceną FISA 702)
+- **Załącznik B** — OpenAI Inc (zero-retention embeddings, SCC, TIA)
+- **Załącznik C** — Microsoft M365 (Graph API, EU Data Boundary, istniejąca MS DPA)
+- **Załącznik D** — Hetzner (EU-only DE/FI, brak transferu do państw trzecich)
+
+Zapisane:
+- `Omnius_REH/10_DPA_Umowa_powierzenia_REH.md`
+- `Omnius_REF/10_DPA_Umowa_powierzenia_REF.md`
+- DB: matter_id=18, document_id=14
+Task: D10 — Umowa powierzenia przetwarzania danych (DPA) — szablon
+Level: HIGH
+Started: 2026-03-29T11:05:56.768134+00:00
+======================================================================
+

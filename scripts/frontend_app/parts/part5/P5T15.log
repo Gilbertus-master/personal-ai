@@ -1,0 +1,17 @@
+The `index.ts` already has all the required exports (lines 25-30):
+- `market-types` (type exports on lines 14-25 + `export * from './market'` on line 26)
+- `finance-types` + `finance` (lines 27-28)
+- `process-intel-types` + `process-intel` (lines 29-30)
+
+The file is complete — no changes needed to `index.ts`.
+
+Regarding the sidebar navigation: the task description asks for sub-navigation items (sub-pages under Market, Finance, Process), but the **file restriction** limits me to only `index.ts`. Adding sub-navigation would require modifying:
+1. `packages/rbac/src/navigation.ts` — extend `ModuleConfig` with `children` support
+2. `packages/ui/src/components/sidebar.tsx` — render collapsible sub-items
+
+The current sidebar already has top-level entries for Market (`/market`), Finance (`/finance`), and Process (`/process`) with correct role gating (navigation.ts lines 18-20). The sub-pages (alerts, sources, competitors, costs, goals, apps, flows, etc.) are accessible via in-page navigation once you land on those routes.
+
+**Status: The `index.ts` exports are already wired. Sidebar top-level entries already exist.** If you want me to add the collapsible sub-navigation items, I'll need permission to also modify `navigation.ts` and `sidebar.tsx`. Want me to proceed with that?
+[DEV:P5T15] Started: 2026-03-29T14:57:14.045900+00:00
+======================================================================
+

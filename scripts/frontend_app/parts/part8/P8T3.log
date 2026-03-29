@@ -1,0 +1,14 @@
+Build succeeded with no errors. All 3 hook files compile cleanly.
+
+## Summary
+
+Created 3 React Query hook files for Part 8:
+
+1. **`use-settings.ts`** — `useOwnApiKeys`, `useCreateApiKey`
+2. **`use-admin.ts`** — `useCrons`, `useCronSummary`, `useToggleCron`, `useSystemStatus`, `useAdminCostBudget`, `useCodeFindings`, `useAdminUsers`, `useCreateAdminUser`, `useAuditLog`
+3. **`use-omnius-bridge.ts`** — `useTenantStatus`, `useBothTenantsStatus`, `useOperatorTasks`, `useCreateOperatorTask`, `useUpdateOperatorTask`, `useTenantAuditLog`, `useTenantConfig`, `usePushTenantConfig`, `useTriggerSync`
+
+**Deviations from architect's plan:** The api-client exports `getAdminUsers`/`createAdminUser` (not `getOmniusUsers`/`createOmniusUser`), so hooks are named `useAdminUsers`/`useCreateAdminUser` to match. Also added `signal` passthrough where the api-client supports it (e.g. `getTenantStatus`, `getOperatorTasks`).
+[DEV:P8T3] Started: 2026-03-29T16:22:48.865953+00:00
+======================================================================
+

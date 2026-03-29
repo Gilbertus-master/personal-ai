@@ -1,0 +1,11 @@
+Build passes. Here's what I implemented:
+
+**Created files:**
+- `frontend/packages/api-client/src/finance-types.ts` — All TypeScript types: `CompanyFinance`, `BudgetUtilization`, `FinanceAlert`, `FinanceDashboard`, `ApiCosts`, `CostBudget`, `BudgetScope`, `CostAlert`, `GoalsSummary`, `StrategicGoal`, `GoalProgress`, `CostEstimate`, plus request types
+- `frontend/packages/api-client/src/finance.ts` — 9 API client functions: `getFinanceDashboard`, `addFinanceMetric`, `addBudget`, `estimateCost`, `getCostBudget`, `getGoals`, `getGoalDetail`, `createGoal`, `updateGoalProgress`
+
+**Modified:**
+- `frontend/packages/api-client/src/index.ts` — Added exports for finance-types and finance modules. Also fixed a pre-existing `ScanResult` name collision between compliance-types and market-types by using explicit named re-exports for market-types (renaming the market version to `MarketScanResult`).
+[DEV:P5T2] Started: 2026-03-29T14:24:36.937501+00:00
+======================================================================
+

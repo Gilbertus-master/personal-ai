@@ -1,0 +1,22 @@
+Done. Build passes successfully. Here's what was created:
+
+**Files created/modified:**
+
+1. **`packages/ui/src/components/dashboard/kpi-card.tsx`** — Single KPI metric card with:
+   - Icon, value (bold 2xl), label, trend indicator
+   - Color variants: default/success/warning/danger
+   - Loading state with pulse animation placeholders
+
+2. **`packages/ui/src/components/dashboard/kpi-grid.tsx`** — 6-card responsive grid:
+   - Dokumenty, Eventy, Encje, Otwarte zobowiązania, Koszty dziś, Aktywne alerty
+   - Budget color logic (exceeded→danger, warning→warning, else→success)
+   - Commitments >10 triggers warning color
+   - Alerts >0 triggers danger color
+   - Props-driven (data fetching happens in page/hook layer)
+   - Used local interfaces instead of importing from `@gilbertus/api-client` to avoid cross-package dependency
+
+3. **`packages/ui/src/components/dashboard/index.ts`** — Barrel export
+4. **`packages/ui/src/index.ts`** — Added `export * from './components/dashboard'`
+[DEV:P2T3] Started: 2026-03-29T12:36:41.374493+00:00
+======================================================================
+

@@ -1,0 +1,42 @@
+G03 done. Here's the summary:
+
+## Created: `app/core/resilience.py`
+- **`with_retry()`** — decorator with exponential backoff, configurable attempts/wait, structured logging per attempt
+- **`CircuitBreaker`** — per-service state machine (closed → open → half_open → closed), thread-safe
+- **`resilient_call()`** — convenience: retry + circuit breaker in one call
+- **`BREAKERS`** — 6 global circuit breakers:
+  - `graph_api`: 5 failures → 300s cooldown
+  - `anthropic`: 3 failures → 120s cooldown  
+  - `openai`: 3 failures → 120s cooldown
+  - `plaud_api`: 5 failures → 600s cooldown
+  - `whisper`: 3 failures → 60s cooldown
+  - `openclaw`: 5 failures → 300s cooldown
+
+## Wrapped (10 files):
+| File | Service | Method |
+|------|---------|--------|
+| `email_sync.py` `_graph_get` | graph_api | `resilient_call` (retry+breaker) |
+| `teams_sync.py` `_graph_get` | graph_api | `resilient_call` (retry+breaker) |
+| `calendar_sync.py` `_graph_get` | graph_api | `resilient_call` (retry+breaker) |
+| `plaud_sync.py` `list_recordings` | plaud_api | `resilient_call` (retry+breaker) |
+| `plaud_sync.py` `get_recording_details` | plaud_api | `resilient_call` (retry+breaker) |
+| `whisper_transcribe.py` `transcribe_audio` | whisper | `resilient_call` (retry+breaker) |
+| `whisper_transcribe.py` `get_plaud_audio_url` | plaud_api | `resilient_call` (retry+breaker) |
+| `llm_client.py` `extract_object` | anthropic | circuit breaker (existing retry kept) |
+| `answering.py` `_call_with_fallback` | anthropic | circuit breaker (existing retry kept) |
+| `retriever.py` `embed_query` | openai | circuit breaker |
+| `index_chunks.py` `embed_texts` | openai | circuit breaker (existing retry kept) |
+
+## `/status` endpoint
+Now returns `circuit_breakers` section with state/failures/threshold/cooldown per service.
+
+## Key design decisions:
+- Files with existing retry logic (llm_client, answering, index_chunks) got **circuit breaker only** — no duplicate retry
+- Files with no retry (graph_api, plaud, whisper) got **full retry + circuit breaker** via `resilient_call`
+- 401/403 are NOT retried (auth errors need human intervention)
+- DB operations NOT wrapped (as specified)
+Task: G03 — Retry + backoff + circuit breaker on ALL external API calls
+Level: CRITICAL
+Started: 2026-03-29T11:44:28.858534+00:00
+============================================================
+

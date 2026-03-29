@@ -1,0 +1,25 @@
+Part 5 plan complete. Created:
+
+**`parts/part5/plan.md`** — Full architecture with:
+- Component tree (16 pages, 21 UI components)
+- File tree (48 new files)
+- API integration map (42 endpoints mapped to components/hooks)
+- RBAC per view (director+ for market/process, board+ for competitors/finance/tech, ceo-only for workforce)
+- 3 Zustand store shapes
+- 7 UX flows
+- Chart specs (recharts for cost trends + goal progress, custom SVG for tech radar)
+- Backend gap workarounds
+
+**`parts/part5/tasks.json`** — 15 tasks in 4 parallel groups:
+
+| Group | Tasks | Focus |
+|-------|-------|-------|
+| **1** | P5T1-T3 | Types + API clients (market, finance, process-intel) |
+| **2** | P5T4-T9 | Hooks, stores, UI components (all 3 modules in parallel) |
+| **3** | P5T10-T14 | Pages (15 pages across market, competitors, finance, process, tech radar, workforce) |
+| **4** | P5T15 | Index exports + sidebar navigation wiring |
+
+No file overlap between parallel tasks. Each task has full implementation context so devs can work independently.
+[ARCHITECT] Started: 2026-03-29T14:17:09.898289+00:00
+======================================================================
+

@@ -1,0 +1,15 @@
+Build passes. All 6 market components created and exported:
+
+| File | Component | Purpose |
+|------|-----------|---------|
+| `insight-card.tsx` | `InsightCard` | Type-colored badge, relevance bar, expandable description, company tags |
+| `alert-item.tsx` | `MarketAlertItem` | Level icon (info/warning/critical), acknowledge button, insight context |
+| `source-table.tsx` | `SourceTable` | Table with name, URL, type badge, relative last_fetched, active status |
+| `competitor-table.tsx` | `CompetitorTable` | Clickable rows, watch_level badges, severity-colored signal counts |
+| `swot-card.tsx` | `SwotCard` | 2x2 color-coded grid (S/W/O/T), summary text, signals count |
+| `signal-timeline.tsx` | `SignalTimeline` | Vertical timeline with type/severity badges, external link, optional competitor name |
+
+All components follow existing conventions: `'use client'`, CSS variables for theming, `cn()` utility, lucide-react icons, Polish labels, types from `@gilbertus/api-client`. Barrel export at `market/index.ts`, registered in main `packages/ui/src/index.ts`.
+[DEV:P5T7] Started: 2026-03-29T14:31:43.078674+00:00
+======================================================================
+

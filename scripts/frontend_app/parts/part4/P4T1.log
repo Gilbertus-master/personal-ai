@@ -1,0 +1,12 @@
+Build passes cleanly. 
+
+**P4T1 complete.** Created:
+
+1. **`compliance-types.ts`** — 22 type aliases + 15 response interfaces + 5 request interfaces
+2. **`compliance.ts`** — 34 async API client functions covering all compliance endpoints (dashboard, areas, matters, obligations, deadlines, documents, trainings, risks, RACI, reports, regulatory scan)
+3. **`index.ts`** — updated with re-exports
+
+All following existing patterns from `people.ts`/`intelligence.ts` (customFetch, query param building, typed returns).
+[DEV:P4T1] Started: 2026-03-29T13:42:13.704801+00:00
+======================================================================
+

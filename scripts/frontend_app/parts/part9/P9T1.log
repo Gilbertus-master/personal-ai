@@ -1,0 +1,22 @@
+Build passes. Here's a summary of what was created:
+
+**7 new files created:**
+
+| File | Component | Purpose |
+|------|-----------|---------|
+| `error-fallback.tsx` | `ErrorFallback` | Error display card with red accent border, retry button, dashboard link |
+| `empty-state.tsx` | `GenericEmptyState` | Centered placeholder with icon, title, description, optional action button |
+| `page-skeleton.tsx` | `PageSkeleton` | Configurable skeleton loader (card/table/list/detail variants) |
+| `offline-banner.tsx` | `OfflineBanner` | Amber banner with WifiOff icon, uses browser online/offline events |
+| `button-loading.tsx` | `ButtonLoading` | Button with SVG spinner, extends native button props |
+| `animated-page.tsx` | `AnimatedPage` | Wraps children with `animate-fade-in` CSS class |
+| `lib/animations.css` | — | 5 keyframes (fadeIn, slideInLeft, slideInRight, slideDown, scaleIn) + utility classes |
+
+**Modified files:**
+- `packages/ui/src/index.ts` — 6 new exports added
+- `apps/web/app/globals.css` — imports animations.css
+
+**Note:** Renamed the generic empty state to `GenericEmptyState` to avoid a name collision with the existing chat-specific `EmptyState` component.
+[DEV:P9T1] Started: 2026-03-29T16:47:27.530485+00:00
+======================================================================
+

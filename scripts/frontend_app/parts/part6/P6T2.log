@@ -1,0 +1,8 @@
+Build passes. Done:
+
+- **`calendar-types.ts`** — 13 interfaces/types: `CalendarEvent`, `CalendarConflict`, `CalendarAnalytics`, `CalendarSuggestion`, `MeetingPrep`, `MeetingMinutes`, `MeetingROI`, `DeepWorkRequest`, `DeepWorkResponse`, and 3 response wrappers
+- **`calendar.ts`** — 9 API client functions using `customFetch` from `./base`, matching the specified endpoints
+- **`index.ts`** — updated with re-exports for both new modules
+[DEV:P6T2] Started: 2026-03-29T15:11:57.133131+00:00
+======================================================================
+

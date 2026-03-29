@@ -1,0 +1,12 @@
+Build passes. The Decisions page is at `frontend/apps/web/app/(app)/decisions/page.tsx` and includes:
+
+- **RbacGate** with `roles={['ceo']}` and `permission="decisions"` (CEO only)
+- **3 tabs**: Dziennik (journal with filters + decision cards), Wzorce AI (patterns panel), Intelligence (with month selector + run analysis)
+- **CreateDecisionModal** + **OutcomeModal** with mutation handling
+- Success banners ("Decyzja zapisana" / "Wynik zapisany") that auto-dismiss after 3s
+- Client-side search filtering on decision text, context, and expected outcome
+- Expanded decision state persisted in Zustand store across tab switches
+- Loading skeletons for journal tab content
+[DEV:P6T10] Started: 2026-03-29T15:45:16.347316+00:00
+======================================================================
+

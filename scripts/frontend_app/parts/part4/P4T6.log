@@ -1,0 +1,17 @@
+Build passes. All 9 files created, all routes registered:
+
+**Components (6 files in `packages/ui/src/components/compliance/`):**
+- `obligations-table.tsx` — Filterable table with area/status/overdue filters, fulfill button
+- `fulfill-modal.tsx` — Modal with evidence textarea for fulfilling obligations
+- `deadline-calendar.tsx` — Timeline view grouped by week, overdue section on top, days-ahead selector
+- `documents-table.tsx` — Table with doc type/area/status/stale filters, render slot for actions
+- `generate-doc-modal.tsx` — AI doc generation form with matter select, signers repeater, loading overlay
+- `document-actions.tsx` — Approve/Sign buttons with embedded sign modal
+
+**Pages (3 files in `apps/web/app/(app)/compliance/`):**
+- `/compliance/obligations` — RbacGate [ceo, board, director], ObligationsTable + FulfillModal
+- `/compliance/deadlines` — RbacGate [ceo, board, director], DeadlineCalendar
+- `/compliance/documents` — RbacGate [ceo, board, director], DocumentsTable + GenerateDocModal (CEO only)
+[DEV:P4T6] Started: 2026-03-29T13:54:02.867898+00:00
+======================================================================
+

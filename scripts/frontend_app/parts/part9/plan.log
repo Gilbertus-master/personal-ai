@@ -1,0 +1,26 @@
+Part 9 plan delivered. Two files created:
+
+**`plan.md`** — Full architecture covering:
+- Component tree with new shared components (ErrorFallback, EmptyState, PageSkeleton, OfflineBanner, ButtonLoading, AnimatedPage)
+- File tree across 5 phases (~60 new files)
+- API integration map (tray polling, deep links, offline cache)
+- Zustand offline-store shape + desktop context
+- 6 UX flows (error, offline, tray, deep link, empty state, transitions)
+- CSS animation system (no framer-motion — pure keyframes)
+- Tauri v2 plugin architecture (notification, deep-link, updater, shell)
+- Service worker cache strategies + IndexedDB schema (7 stores)
+- Key decision: `output: 'export'` in Next.js for Tauri static build
+
+**`tasks.json`** — 9 tasks across 4 parallel groups:
+
+| Group | Tasks | What |
+|-------|-------|------|
+| 1 | P9T1, P9T2, P9T3 | Shared components, offline hook/provider, error boundaries (16 files) |
+| 2 | P9T4, P9T5 | Loading skeletons (14 files), layout integration |
+| 3 | P9T6, P9T7, P9T8 | Tauri Rust backend, frontend bridge, offline IndexedDB+SW |
+| 4 | P9T9 | Build scripts + E2E checklist |
+
+Zero file overlap between tasks in the same parallel group. Each task is self-contained with full implementation context.
+[ARCHITECT] Started: 2026-03-29T16:42:27.142856+00:00
+======================================================================
+

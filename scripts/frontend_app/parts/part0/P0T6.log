@@ -1,0 +1,17 @@
+Both TypeScript compilations pass clean — the UI package and the web app.
+
+**Summary of created files:**
+
+1. **`packages/ui/package.json`** — Updated with all required dependencies (Radix, cmdk, cva, clsx, tailwind-merge) and peer dependencies (react, react-dom, lucide-react, next-themes)
+2. **`packages/ui/tsconfig.json`** — Extends base, resolves `@gilbertus/rbac` path
+3. **`src/lib/utils.ts`** — Standard shadcn `cn()` utility (clsx + tailwind-merge)
+4. **`src/components/theme-provider.tsx`** — `'use client'` wrapper around next-themes ThemeProvider, defaults to dark theme with class attribute
+5. **`src/components/theme-toggle.tsx`** — `'use client'` button cycling dark→light→system with Moon/Sun/Monitor icons
+6. **`src/components/skeleton-card.tsx`** — Animated pulse skeleton with configurable height/width
+7. **`src/components/rbac-gate.tsx`** — `'use client'` gate using `usePermissions()` and `useRole()` from `@gilbertus/rbac`, renders children only when permission/role matches
+8. **`src/index.ts`** — Re-exports all components and utils
+
+TypeScript compiles clean for both the UI package and the web app. The `pnpm --filter web build` fails only due to a network issue downloading the Next.js SWC binary (`ECONNRESET` on the 40MB binary download) — not a code issue.
+[DEV:P0T6] Started: 2026-03-29T11:41:07.829608+00:00
+======================================================================
+

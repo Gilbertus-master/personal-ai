@@ -1,0 +1,34 @@
+Cron is set up correctly. Here's a summary:
+
+## G06: Extraction Watchdog - Done
+
+**Created:** `app/guardian/extraction_watchdog.py`
+
+**What it monitors (every 30 min):**
+- Entity backlog: 1304 chunks pending (warning at 500, critical at 2000)
+- Event backlog: 1304 chunks pending
+- Embedding backlog: 0 (healthy)
+- Worker processes: count, type, zombie detection (>60 min)
+- Backlog trend: growing vs shrinking over time
+
+**Auto-actions:**
+- Zero workers + backlog > 100 → restart `turbo_extract.sh`
+- Critical backlog → restart appropriate workers
+- Zombie workers (>60 min) → `kill -9` + restart
+- Stall (4h no progress) → restart with reduced batch (1000 vs 3000)
+- Persistent stall → alert to DB `alerts` table
+
+**Safety:**
+- Flock on restart to prevent double-launch
+- Checks for existing workers before starting new ones
+- Max 24 workers total (12 entity + 12 event)
+- State file `.extraction_watchdog_state.json` for trend tracking
+
+**First run result:** Detected 2608 backlog with 0 workers → auto-started 24 workers via `turbo_extract.sh`.
+
+**Cron:** `*/30 * * * *` with `cd` prefix, logging to `logs/extraction_watchdog.log`.
+Task: G06 — Extraction pipeline watchdog — stall detection + auto-restart workers
+Level: HIGH
+Started: 2026-03-29T12:16:26.560114+00:00
+============================================================
+

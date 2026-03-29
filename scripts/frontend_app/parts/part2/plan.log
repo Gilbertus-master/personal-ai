@@ -1,0 +1,26 @@
+Part 2 architecture plan and tasks are ready.
+
+**Plan:** `scripts/frontend_app/parts/part2/plan.md`
+**Tasks:** `scripts/frontend_app/parts/part2/tasks.json`
+
+### Summary
+
+**8 tasks in 3 parallel groups:**
+
+| Group | Tasks | What |
+|-------|-------|------|
+| **1** (foundation) | P2T1, P2T2 | API types + client functions, Zustand store + TanStack hooks |
+| **2** (components) | P2T3, P2T4, P2T5, P2T6, P2T7 | KPI Grid, Morning Brief, Alerts Feed, Timeline + Status + QuickActions, Notification Bell |
+| **3** (assembly) | P2T8 | Dashboard page wiring, barrel exports, layout integration |
+
+**Key design decisions:**
+- TanStack Query for all data fetching (auto-refresh, caching, loading states)
+- Zustand store for user preferences (collapsed sections, dismissed alerts) — persisted to localStorage
+- RBAC via `useRole()` in page.tsx — role determines which variant renders (no per-component gates needed)
+- Alert dismiss stored client-side (localStorage) — backend gap workaround
+- Notification bell polls `/alerts` every 60s; dashboard widgets refresh every 5 min
+- Reuses existing MarkdownRenderer from P1 for brief rendering
+- 14 new files, 2 modified files, zero file overlap between parallel tasks
+[ARCHITECT] Started: 2026-03-29T12:29:22.964635+00:00
+======================================================================
+

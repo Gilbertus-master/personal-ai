@@ -1,0 +1,28 @@
+G07 done. Here's what was created:
+
+**Migration:** `migrations/013_guardian_alerts.sql` — table with tier, category, dedup, acknowledge, repeat tracking
+
+**AlertManager:** `app/guardian/alert_manager.py`
+- `send(tier, category, title, message, fix_command)` — dedup within 4h, WhatsApp delivery for T2/T3
+- `acknowledge(alert_id)` / `acknowledge_latest(category)` — stops critical repeat
+- `repeat_unacknowledged()` — re-sends T3 every 2h until ack (for cron)
+- Rate limit: max 5 WhatsApp/hour
+- CLI: `python -m app.guardian.alert_manager {list|ack|ack-all|repeat}`
+
+**API:** `app/api/alerts_guardian.py` — registered in main.py
+- `GET /alerts/guardian` — list alerts (filter by tier)
+- `POST /alerts/guardian/{id}/acknowledge` — ack single alert
+- `POST /alerts/guardian/acknowledge-all` — ack all critical
+- `GET /alerts/guardian/stats` — 7-day summary by tier
+
+**Cron (to add):**
+```
+0 */2 * * * cd /home/sebastian/personal-ai && .venv/bin/python3 -m app.guardian.alert_manager repeat >> logs/alerts.log 2>&1
+```
+
+Tested: insert, dedup, acknowledge, CLI — all working.
+Task: G07 — Three-tier alert escalation — auto-fix / info / critical + human interaction
+Level: HIGH
+Started: 2026-03-29T12:21:01.273511+00:00
+============================================================
+

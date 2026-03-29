@@ -1,0 +1,13 @@
+Discovery report written to `scripts/frontend_app/parts/part5/discovery.md`.
+
+**Summary of findings:**
+
+- **42 API endpoints** across 3 modules: Market (10), Finance (10), Process Intel (22)
+- **RBAC:** Market = director+, Competitors/Finance/Tech = board+, Workforce = CEO only
+- **10 backend gaps** identified — most critical: no alert acknowledge endpoint, no delete/edit for competitors and sources, tech radar missing quadrant field
+- **Overall complexity: Complex** — this is the largest part, requiring trend charts, radar visualization, flow diagrams, and multi-level role gating
+- **Recommended structure:** 3 route groups (`market/`, `finance/`, `process/`) with ~12 pages total
+- Follows existing patterns: `customFetch` API client, React Query hooks, Zustand stores, `RbacGate` component
+[ARCHITECT] Started: 2026-03-29T14:08:58.973691+00:00
+======================================================================
+

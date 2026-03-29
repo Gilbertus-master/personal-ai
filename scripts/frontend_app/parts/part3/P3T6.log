@@ -1,0 +1,12 @@
+Build passes. All 5 files created and verified:
+
+1. **`packages/ui/src/components/intelligence/org-health-banner.tsx`** — Full-width card with SVG circular progress ring (green/amber/red by score), trend badge (Poprawa/Spadek/Stabilnie), best/worst week comparison, "Oce\u0144 teraz" button with spinner
+2. **`packages/ui/src/components/intelligence/opportunities-table.tsx`** — Sortable table with type/status badges, PLN formatting, ROI color coding, confidence progress bars, status filter chips, scan button
+3. **`packages/ui/src/components/intelligence/inefficiency-report.tsx`** — 3 collapsible sections (repeating tasks table, escalation bottlenecks list, meeting overload list) + 4 KPI summary cards
+4. **`packages/ui/src/components/intelligence/index.ts`** — Barrel exports
+5. **`apps/web/app/(app)/intelligence/page.tsx`** — Page with RbacGate (ceo/board/admin), OrgHealthBanner, tab navigation (Szanse/Nieefektywnosci/Korelacje/Scenariusze[ceo only]/Predykcje), active tab content rendering
+
+The `/intelligence` route is now available in the build output as a static page.
+[DEV:P3T6] Started: 2026-03-29T13:12:24.408830+00:00
+======================================================================
+

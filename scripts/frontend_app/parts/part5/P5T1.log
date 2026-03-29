@@ -1,0 +1,14 @@
+The build error is a pre-existing Next.js font resolution issue unrelated to my changes — it's a Turbopack/Google Fonts configuration problem in `layout.tsx`. My types and API client files compiled without any TypeScript errors.
+
+**Done.** Created:
+
+1. **`market-types.ts`** — 11 interfaces: `MarketInsight`, `MarketAlert`, `MarketSource`, `MarketDashboard`, `Competitor`, `CompetitorSignal`, `SwotAnalysis`, `CompetitorsResponse`, `ScanResult`, `CompetitorScanResult`
+
+2. **`market.ts`** — 10 API client functions following the existing `customFetch` pattern, with query string params where the backend expects them
+
+3. **`index.ts`** — Updated with `market-types` and `market` exports
+
+The build failure is a pre-existing Turbopack font resolution error in `layout.tsx` — not related to these changes.
+[DEV:P5T1] Started: 2026-03-29T14:24:36.936071+00:00
+======================================================================
+

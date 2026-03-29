@@ -1,0 +1,8 @@
+Build passes cleanly. Both files created:
+
+- **`calendar-store.ts`** — Zustand store with `persist` middleware, key `gilbertus-calendar`. State: `weekOffset`, `eventsDays`, `activeTab`, `selectedEventId`, `analyticsDays`, `autoRefresh`, `refreshInterval`. Actions: `setWeekOffset`, `nextWeek`, `prevWeek`, `setActiveTab`, `setSelectedEventId`, `setAnalyticsDays`, `toggleAutoRefresh`.
+
+- **`use-calendar.ts`** — 7 query hooks (`useCalendarEvents`, `useCalendarConflicts`, `useCalendarAnalytics`, `useMeetingPrep`, `useMeetingMinutes`, `useMeetingSuggestions`, `useMeetingROI`) + 2 mutation hooks (`useBlockDeepWork`, `useGenerateMinutes`). All use API functions from `@gilbertus/api-client`, stale times and refetch intervals as specified.
+[DEV:P6T5] Started: 2026-03-29T15:31:15.958633+00:00
+======================================================================
+

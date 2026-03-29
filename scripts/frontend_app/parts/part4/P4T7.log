@@ -1,0 +1,12 @@
+Build passes cleanly. All 5 files created, index updated, both routes (`/compliance/trainings` and `/compliance/trainings/[id]`) are visible in the build output.
+
+**Summary of what was built:**
+
+1. **`trainings-table.tsx`** — Filterable trainings list with status chip filters + area dropdown, training type badges (color-coded: mandatory=red, awareness=blue, certification=purple, refresher=yellow, onboarding=green), audience chips (truncated to 3 + "+N"), red deadline if overdue, skeleton loading
+2. **`create-training-modal.tsx`** — Modal form with title, area, type, multi-input target audience (Enter to add, X to remove), deadline date picker, content summary textarea, AI material generation checkbox
+3. **`training-status-grid.tsx`** — Training header with badges + per-person completion table with row tinting (green=completed, red=overdue, yellow=started), inline complete button with optional score input
+4. **`trainings/page.tsx`** — List page with RBAC gate, create button (board+), wired to store filters
+5. **`trainings/[id]/page.tsx`** — Detail page with back link, RBAC gate, complete permission for director+
+[DEV:P4T7] Started: 2026-03-29T13:56:34.603723+00:00
+======================================================================
+

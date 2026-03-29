@@ -1,0 +1,29 @@
+Zero TypeScript errors. Build is clean.
+
+Here's what I implemented:
+
+**File 1: `packages/ui/src/components/people/people-toolbar.tsx`**
+- Search input with debounced (300ms) client-side filtering, Search icon from lucide
+- Relationship type filter chips (employee, partner, client, contractor, other) — pill style, accent color when active
+- Status toggle (Wszyscy/Aktywni/Nieaktywni) in a grouped button set
+- Sort dropdown (Imię, Ostatni kontakt, Status) + order toggle button
+- "Wyczyść filtry" reset button shown when any filter is active
+
+**File 2: `packages/ui/src/components/people/people-table.tsx`**
+- 7-column table: Avatar (initials + hashed color), Name, Role, Organization, Status (green/gray dot), Sentiment (colored badge), Last contact (pl-PL formatted)
+- Client-side name filtering and sorting by selected field
+- Rows are clickable Links to `/people/{slug}`
+- Loading state: 8 skeleton rows with pulse animation
+- Empty state: Users icon + "Nie znaleziono osób"
+
+**File 3: `packages/ui/src/components/people/index.ts`**
+- Barrel export for PeopleToolbar and PeopleTable
+
+**File 4: `apps/web/app/(app)/people/page.tsx`**
+- Wrapped in `RbacGate` for ceo/board/director with access denied fallback
+- Page header with "Ludzie" title + count badge
+- CEO-only "Dodaj osobę" button
+- Wired to `usePeopleStore` (zustand) and `usePeople` (react-query) hooks
+[DEV:P3T4] Started: 2026-03-29T13:06:11.600723+00:00
+======================================================================
+

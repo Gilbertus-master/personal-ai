@@ -1,0 +1,13 @@
+Discovery report written to `scripts/frontend_app/parts/part0/discovery.md`.
+
+**Key findings:**
+
+- **No frontend exists** — everything from scratch
+- **116+ API endpoints** available, OpenAPI spec at `/openapi.json` ready for orval generation
+- **7 RBAC roles** (gilbertus_admin → specialist), hierarchical levels, 14 sidebar modules with role filtering
+- **Auth gap:** No `/login` or `/me` endpoint — Sebastian's API key auth needs validation via `/health` call; Omnius users via Azure AD + user lookup
+- **3 backend gaps** identified: missing `/auth/validate`, missing `/me`, CORS limited to GET/POST only
+- **Overall complexity: Medium** — 2-3 medium items (NextAuth custom flows, RBAC package, orval setup), rest is standard scaffolding
+[ARCHITECT] Started: 2026-03-29T11:16:23.735747+00:00
+======================================================================
+

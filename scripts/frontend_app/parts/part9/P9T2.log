@@ -1,0 +1,10 @@
+Build passes. All three files created:
+
+1. **`use-online-status.ts`** — Hook using `navigator.onLine` + window events + `/health` polling every 30s. If browser says online but health check fails, marks offline.
+
+2. **`offline-provider.tsx`** — React context provider with `OfflineProvider` (named export) and `useOffline()` consumer hook. Syncs status to the Zustand store.
+
+3. **`offline-store.ts`** — Zustand store with persist middleware (key: `gilbertus-offline`). Tracks `isOnline`, `lastOnlineAt`, `queuedMessageCount`, `syncStatus` with all required setters.
+[DEV:P9T2] Started: 2026-03-29T16:47:27.530970+00:00
+======================================================================
+

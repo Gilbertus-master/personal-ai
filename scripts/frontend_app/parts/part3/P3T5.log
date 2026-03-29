@@ -1,0 +1,20 @@
+Build passes cleanly. All 6 files created, TypeScript compiles, and the `/people/[slug]` route is registered.
+
+Here's a summary of what was implemented:
+
+**UI Components (`packages/ui/src/components/people/`):**
+1. **`profile-header.tsx`** — Large avatar (initials, color-hashed), name, role@org subtitle, status/sentiment/channel badges, aliases tags, Edit + Evaluate action buttons (CEO only), back link to /people
+2. **`scorecard-kpis.tsx`** — 4 KPI cards grid (Data volume, Events 30d, Open loops with warning color >3, Weekly activity) reusing `KpiCard` from dashboard
+3. **`person-timeline.tsx`** — Vertical timeline with connector line, event type pills, source tags, inline add form (CEO), "show more" pagination at 20 items
+4. **`open-loops.tsx`** — Open/closed loop list with close button (CheckCircle), inline add input, closed loops shown muted with strikethrough
+5. **`roles-history.tsx`** — Role entries with date ranges, inline add form (CEO)
+
+**Page (`apps/web/app/(app)/people/[slug]/page.tsx`):**
+- Fetches person, scorecard, sentiment (lazy), delegation (lazy) via existing hooks
+- 5 tabs: Historia, Otwarte wątki, Role, Sentyment (board+), Delegacja (board+)
+- RBAC gated to `gilbertus_admin`, `ceo`, `board`, `director`
+- Loading skeleton and error states
+- All mutations wired (add timeline, add role, add/close loop, evaluate)
+[DEV:P3T5] Started: 2026-03-29T13:06:11.601099+00:00
+======================================================================
+

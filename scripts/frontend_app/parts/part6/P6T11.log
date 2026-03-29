@@ -1,0 +1,20 @@
+Build passes with `/calendar` route included. The page is created and compiles successfully.
+
+**Summary of changes:**
+
+1. **`frontend/apps/web/app/(app)/calendar/page.tsx`** — New calendar page with:
+   - `RbacGate permission="calendar"` wrapper (manager+)
+   - Week navigation (prev/next/today) with offset stored in `useCalendarStore`
+   - 4 tabs: Tydzien (WeekView), Przygotowanie (MeetingPrepCard), Protokoly (MinutesCard), Analityka (CalendarAnalyticsPanel)
+   - Deep Work button (CEO-only via nested RbacGate) → DeepWorkModal
+   - Generate minutes button with loading state
+   - Event click → EventDetailPopover
+   - Meeting suggestions section below tabs
+   - Success toasts for deep work blocking and minutes generation
+   - Loading skeletons for prep and minutes tabs
+   - Empty state messages
+
+2. **`frontend/packages/ui/package.json`** — Added `"./calendar"` subpath export so `@gilbertus/ui/calendar` resolves correctly.
+[DEV:P6T11] Started: 2026-03-29T15:45:16.348220+00:00
+======================================================================
+

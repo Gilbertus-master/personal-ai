@@ -1,0 +1,23 @@
+Both files created:
+
+**`plan.md`** — Full architecture with:
+- Component tree (Settings page with 3 tabs, Admin layout with 7 sub-pages, Omnius Bridge with 5 tabs)
+- Complete file tree (35+ files across api-client, ui components, stores, hooks, pages)
+- API integration map: every component mapped to its endpoint
+- RBAC matrix: Admin layout gates admin/operator, Audit + Omnius pages add gilbertus_admin gate
+- Zustand store shapes for settings-store and admin-store
+- 6 UX flows (theme change, API key view, cron toggle, status dashboard, user management, cross-tenant overview)
+- MVP vs future scope separation
+
+**`tasks.json`** — 8 tasks in 3 parallel groups:
+
+| Group | Tasks | What |
+|-------|-------|------|
+| **1** (parallel) | P8T1, P8T2, P8T3 | API types+client (7 files), Zustand stores (2 files), React Query hooks (3 files) |
+| **2** (parallel) | P8T4, P8T5 | RBAC nav update + Admin layout + Settings page (4 files), Settings components + Admin sidebar (7 files) |
+| **3** (parallel) | P8T6, P8T7, P8T8 | Crons+Status+Costs pages (6 files), Code Review+Users+Audit pages (6 files), Omnius Bridge components+page (7 files) |
+
+No file overlaps within parallel groups. Each task has full context for independent execution.
+[ARCHITECT] Started: 2026-03-29T16:15:31.294435+00:00
+======================================================================
+

@@ -1,0 +1,7 @@
+Build passes cleanly. Both files created:
+
+- **`dashboard-store.ts`** — Zustand store with persist middleware, stores collapsed sections, dismissed alert IDs, auto-refresh preferences, and timeline filter. Added dedup guard on `dismissAlert` to prevent duplicate IDs.
+- **`use-dashboard.ts`** — 7 TanStack Query hooks (`useBrief`, `useAlerts`, `useStatus`, `useTimeline`, `useCommitmentsCount`, `useBudget`, `useAlertsBell`) all importing from `@gilbertus/api-client`. Auto-refresh intervals tied to the dashboard store preferences (alerts poll at 60s, others at the configured interval).
+[DEV:P2T2] Started: 2026-03-29T12:35:18.494628+00:00
+======================================================================
+

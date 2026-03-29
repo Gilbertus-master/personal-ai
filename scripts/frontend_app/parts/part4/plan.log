@@ -1,0 +1,22 @@
+Part 4 architecture is ready. Two files created:
+
+**`parts/part4/plan.md`** — Full architecture plan covering:
+- Component tree with RBAC gates for all 12 pages
+- File tree: 24 components + 12 pages + hooks + store + API client
+- API integration map: all 34 endpoints mapped to components
+- RBAC matrix: director+ for viewing, board+ for mutations, ceo for documents
+- Zustand store shape with filters for all sub-modules
+- 7 UX flows (dashboard, matter lifecycle, doc generation, risk assessment, RACI editing, training tracking, regulatory scan)
+- Color maps and design notes
+
+**`parts/part4/tasks.json`** — 8 tasks in 2 parallel groups:
+
+| Group | Tasks | Focus |
+|-------|-------|-------|
+| **1** (foundation) | P4T1, P4T2, P4T3 | API types+client, hooks+store, shared badges/filter |
+| **2** (features) | P4T4-P4T8 | Dashboard, Matters, Obligations/Deadlines/Docs, Trainings, Risks/RACI/Reports/Scan |
+
+All 5 tasks in group 2 can run in parallel — zero file overlap between them. Each task has complete context (endpoints, props, styling, Polish labels) so devs can work independently.
+[ARCHITECT] Started: 2026-03-29T13:33:54.065549+00:00
+======================================================================
+

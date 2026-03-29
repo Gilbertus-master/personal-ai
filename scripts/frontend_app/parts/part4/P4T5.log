@@ -1,0 +1,14 @@
+Build succeeds. All 7 files created, index updated, and both new routes (`/compliance/matters` and `/compliance/matters/[id]`) are visible in the build output.
+
+**Summary of what was implemented:**
+
+1. **`matters-table.tsx`** — Filterable table with status/priority chips + area dropdown, skeleton loading, empty state, row click navigation
+2. **`create-matter-modal.tsx`** — Modal form with all 6 fields (title, type, area, priority, description, source_regulation), escape key handling, backdrop click
+3. **`phase-timeline.tsx`** — Horizontal stepper showing 11 phases with completed (green), current (accent+pulse), future (gray) states
+4. **`matter-actions.tsx`** — 5 action buttons (Research, Advance, Report, CommPlan, ExecuteComm) with loading spinners and confirm dialog for execute
+5. **`matter-detail.tsx`** — Full detail view with header, badges, phase timeline, RbacGated actions, 5-tab layout (Overview, Analysis, Action Plan, Communication, Report)
+6. **`matters/page.tsx`** — List page with RbacGate, create button (board+), filters from store
+7. **`matters/[id]/page.tsx`** — Detail page with back link, all mutation hooks wired up
+[DEV:P4T5] Started: 2026-03-29T13:49:15.958155+00:00
+======================================================================
+

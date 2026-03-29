@@ -1,0 +1,11 @@
+Build passes cleanly. All 4 files handled:
+
+1. **`packages/ui/src/components/dashboard/index.ts`** — already had correct barrel exports (verified)
+2. **`packages/ui/src/index.ts`** — already had `export * from './components/dashboard'` (verified)
+3. **`apps/web/app/(app)/dashboard/page.tsx`** — replaced placeholder with full dashboard page: role-based rendering (CEO/admin get full KPIs + brief + timeline + alerts + status + quick actions; board gets brief + timeline + alerts; operator gets system status only; specialist gets placeholder)
+4. **`apps/web/app/(app)/layout.tsx`** — wired `useAlertsBell` and `useDashboardStore` to pass notification props to `Topbar`
+
+Build: **compiled successfully**, TypeScript checks pass, all pages generated.
+[DEV:P2T8] Started: 2026-03-29T12:45:20.397881+00:00
+======================================================================
+

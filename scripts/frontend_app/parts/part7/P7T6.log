@@ -1,0 +1,13 @@
+Build passes. The `/voice` page is listed as a static route.
+
+**Done.** Created `frontend/apps/web/app/(app)/voice/page.tsx` — a client page that:
+
+- Uses `useVoice()` hook for all voice state (recording, playback, sessions, mode, WebSocket)
+- Uses `useVoiceHealth()` for health status with auto-refresh
+- Imports `createSession` directly from `useVoiceStore` (not exposed by the hook)
+- Left sidebar (hidden on mobile) with `VoiceSessionList` for session history
+- Main column: `VoiceHeader` → `VoiceCommandBar` → `VoiceConversation` (flex-1) → `VoiceControls` (sticky bottom)
+- Full height minus topbar (`calc(100vh - 8rem)`)
+[DEV:P7T6] Started: 2026-03-29T17:23:53.819163+00:00
+======================================================================
+

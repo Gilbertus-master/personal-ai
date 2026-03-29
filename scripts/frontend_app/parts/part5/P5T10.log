@@ -1,0 +1,15 @@
+Build successful. All 3 market pages compile and are registered in the route tree:
+
+- `○ /market` — Dashboard with KPIs, insights feed (filterable by type + relevance), stats by type bars, collapsible sources panel, alerts banner, scan button
+- `○ /market/alerts` — Alerts list with show-acknowledged toggle, empty state, acknowledge button (disabled with TODO — backend endpoint missing)
+- `○ /market/sources` — Sources table + inline add form (name, url, type select)
+
+All pages use:
+- `RbacGate roles={['director','board','ceo']} permission="data:read:department"`
+- Existing hooks (`useMarketDashboard`, `useScanMarket`, `useMarketAlerts`, `useAddMarketSource`)
+- Existing store (`useMarketStore`)
+- Existing UI components (`InsightCard`, `MarketAlertItem`, `SourceTable`)
+- Polish labels, loading skeletons, error states, dark theme CSS variables
+[DEV:P5T10] Started: 2026-03-29T14:41:40.684508+00:00
+======================================================================
+

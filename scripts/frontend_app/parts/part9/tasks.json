@@ -1,0 +1,150 @@
+{
+  "tasks": [
+    {
+      "id": "P9T1",
+      "title": "Shared Polish Components",
+      "description": "Create 6 shared UI components in packages/ui/src/components/. These are foundational components used by error boundaries, loading states, and offline support across all modules.\n\n1. **error-fallback.tsx**: Error display with retry button. Props: `error: Error`, `resetErrorBoundary: () => void`, `moduleName?: string`. Show error.message in a card with red accent border, a 'Sprobuj ponownie' button (calls resetErrorBoundary), and a 'Przejdz do dashboardu' link. Use lucide `AlertTriangle` icon. Import `cn` from `../lib/utils`. Style with existing Tailwind theme vars (--danger for red accents).\n\n2. **empty-state.tsx**: Generic empty state placeholder. Props: `icon: React.ReactNode`, `title: string`, `description: string`, `action?: { label: string; onClick: () => void }`. Centered layout with muted icon (48px), title in text-lg font-medium, description in text-muted-foreground, optional primary action button. Used when API returns empty arrays.\n\n3. **page-skeleton.tsx**: Configurable skeleton loader. Props: `variant: 'card' | 'table' | 'list' | 'detail'`, `rows?: number`, `columns?: number`. 'card' = grid of SkeletonCards (reuse existing), 'table' = header row + body rows, 'list' = stacked bars, 'detail' = wide header + content blocks. Use animate-pulse bg-muted pattern from existing SkeletonCard.\n\n4. **offline-banner.tsx**: Top banner when offline. No props — reads from OfflineProvider context (use-online-status hook, import from '@gilbertus/ui'). Shows yellow/amber banner: 'Jestes offline. Dane moga byc nieaktualne.' with WifiOff icon. CSS animation: slideDown on appear. Banner sits above topbar content.\n\n5. **button-loading.tsx**: Button wrapper with spinner. Props extend native button: `loading: boolean`, `children: React.ReactNode`. When loading=true, show a spinning circle (animate-spin) before children text, disable the button. Use existing button styling patterns from the codebase.\n\n6. **animated-page.tsx**: Simple CSS transition wrapper for page content. Wraps children in a div with `animate-fade-in` class (fadeIn keyframe: opacity 0→1, translateY 4px→0, 200ms ease-out). Define the @keyframes in a style tag or expect it from animations.css.\n\nAlso create **lib/animations.css** with keyframe definitions: fadeIn, slideInLeft, slideInRight, slideDown, scaleIn. Add utility classes: .animate-fade-in, .animate-slide-left, .animate-slide-right, .animate-slide-down, .animate-scale-in. This CSS should be imported in the web app's globals.css.\n\nExport all new components from packages/ui/src/index.ts (or the appropriate barrel file).",
+      "files": [
+        "frontend/packages/ui/src/components/error-fallback.tsx",
+        "frontend/packages/ui/src/components/empty-state.tsx",
+        "frontend/packages/ui/src/components/page-skeleton.tsx",
+        "frontend/packages/ui/src/components/offline-banner.tsx",
+        "frontend/packages/ui/src/components/button-loading.tsx",
+        "frontend/packages/ui/src/components/animated-page.tsx",
+        "frontend/packages/ui/src/lib/animations.css"
+      ],
+      "parallel_group": 1,
+      "status": "done"
+    },
+    {
+      "id": "P9T2",
+      "title": "Online Status Hook & Offline Provider",
+      "description": "Create the network status detection system used by OfflineBanner and offline features.\n\n1. **apps/web/lib/hooks/use-online-status.ts**: Custom hook that tracks network connectivity. Use `navigator.onLine` for initial state. Listen to window 'online' and 'offline' events. Also poll `GET /health` endpoint every 30 seconds (use the API client's base URL). Return `{ isOnline: boolean, lastOnlineAt: string | null }`. If navigator says online but /health fails, set isOnline=false (API unreachable). Cleanup listeners and interval on unmount.\n\n2. **apps/web/lib/providers/offline-provider.tsx**: React context provider that wraps the app. Uses useOnlineStatus internally. Provides `{ isOnline: boolean, lastOnlineAt: string | null }` via context. Create `OfflineContext` and `useOffline()` hook for consumers. Place this provider in the app layout (`apps/web/app/(app)/layout.tsx` — just add the import and wrap, the layout file itself is modified in a later task).\n\n3. **apps/web/lib/stores/offline-store.ts**: Zustand store with persist middleware (key: 'gilbertus-offline'). Shape: `{ isOnline: boolean, lastOnlineAt: string | null, queuedMessageCount: number, syncStatus: 'idle' | 'syncing' | 'error', setOnline: (v: boolean) => void, incrementQueue: () => void, decrementQueue: () => void, setSyncStatus: (s) => void }`. This store is written to by the offline provider and read by various UI components.\n\nThe useOnlineStatus hook should be exported from the hooks directory. The OfflineProvider should be a named export.",
+      "files": [
+        "frontend/apps/web/lib/hooks/use-online-status.ts",
+        "frontend/apps/web/lib/providers/offline-provider.tsx",
+        "frontend/apps/web/lib/stores/offline-store.ts"
+      ],
+      "parallel_group": 1,
+      "status": "done"
+    },
+    {
+      "id": "P9T3",
+      "title": "Error Boundaries — All Route Groups",
+      "description": "Create Next.js error.tsx files for every route group under apps/web/app/(app)/. Each error.tsx follows the same pattern — it's a client component that uses the ErrorFallback component from @gilbertus/ui.\n\nTemplate for each error.tsx:\n```tsx\n'use client';\n\nimport { ErrorFallback } from '@gilbertus/ui';\n\nexport default function ModuleError({\n  error,\n  reset,\n}: {\n  error: Error & { digest?: string };\n  reset: () => void;\n}) {\n  return <ErrorFallback error={error} resetErrorBoundary={reset} moduleName=\"ModuleName\" />;\n}\n```\n\nCreate error.tsx for these routes (replace ModuleName with Polish module name):\n- `(app)/error.tsx` — moduleName='Aplikacja'\n- `(app)/dashboard/error.tsx` — 'Dashboard'\n- `(app)/chat/error.tsx` — 'Chat'\n- `(app)/chat/[id]/error.tsx` — 'Rozmowa'\n- `(app)/intelligence/error.tsx` — 'Wywiad'\n- `(app)/people/error.tsx` — 'Osoby'\n- `(app)/people/[slug]/error.tsx` — 'Profil osoby'\n- `(app)/compliance/error.tsx` — 'Compliance'\n- `(app)/market/error.tsx` — 'Rynek'\n- `(app)/finance/error.tsx` — 'Finanse'\n- `(app)/process/error.tsx` — 'Procesy'\n- `(app)/decisions/error.tsx` — 'Decyzje'\n- `(app)/documents/error.tsx` — 'Dokumenty'\n- `(app)/calendar/error.tsx` — 'Kalendarz'\n- `(app)/admin/error.tsx` — 'Administracja'\n- `(app)/settings/error.tsx` — 'Ustawienia'\n\nTotal: 16 error.tsx files. All follow the exact same template, only moduleName differs.",
+      "files": [
+        "frontend/apps/web/app/(app)/error.tsx",
+        "frontend/apps/web/app/(app)/dashboard/error.tsx",
+        "frontend/apps/web/app/(app)/chat/error.tsx",
+        "frontend/apps/web/app/(app)/chat/[id]/error.tsx",
+        "frontend/apps/web/app/(app)/intelligence/error.tsx",
+        "frontend/apps/web/app/(app)/people/error.tsx",
+        "frontend/apps/web/app/(app)/people/[slug]/error.tsx",
+        "frontend/apps/web/app/(app)/compliance/error.tsx",
+        "frontend/apps/web/app/(app)/market/error.tsx",
+        "frontend/apps/web/app/(app)/finance/error.tsx",
+        "frontend/apps/web/app/(app)/process/error.tsx",
+        "frontend/apps/web/app/(app)/decisions/error.tsx",
+        "frontend/apps/web/app/(app)/documents/error.tsx",
+        "frontend/apps/web/app/(app)/calendar/error.tsx",
+        "frontend/apps/web/app/(app)/admin/error.tsx",
+        "frontend/apps/web/app/(app)/settings/error.tsx"
+      ],
+      "parallel_group": 1,
+      "status": "done"
+    },
+    {
+      "id": "P9T4",
+      "title": "Loading Skeletons — All Route Groups",
+      "description": "Create Next.js loading.tsx files for every route group under apps/web/app/(app)/. Each uses PageSkeleton from @gilbertus/ui with a variant appropriate to the module's layout.\n\nTemplate:\n```tsx\nimport { PageSkeleton } from '@gilbertus/ui';\n\nexport default function ModuleLoading() {\n  return <PageSkeleton variant=\"card\" rows={3} columns={3} />;\n}\n```\n\nCreate loading.tsx with appropriate variants:\n- `dashboard/loading.tsx` — variant='card', rows=2, columns=3 (dashboard has 6 widget cards)\n- `chat/loading.tsx` — variant='list', rows=8 (conversation list)\n- `intelligence/loading.tsx` — variant='card', rows=2, columns=2\n- `people/loading.tsx` — variant='table', rows=10, columns=5 (people directory table)\n- `people/[slug]/loading.tsx` — variant='detail' (profile detail page)\n- `compliance/loading.tsx` — variant='card', rows=2, columns=3\n- `market/loading.tsx` — variant='card', rows=2, columns=2\n- `finance/loading.tsx` — variant='card', rows=2, columns=3\n- `process/loading.tsx` — variant='card', rows=2, columns=2\n- `decisions/loading.tsx` — variant='table', rows=8, columns=4\n- `documents/loading.tsx` — variant='table', rows=10, columns=4\n- `calendar/loading.tsx` — variant='card', rows=3, columns=7 (week grid)\n- `admin/loading.tsx` — variant='card', rows=2, columns=3\n- `settings/loading.tsx` — variant='detail'\n\nAlso create `(app)/template.tsx` — the AnimatedPage wrapper:\n```tsx\nimport { AnimatedPage } from '@gilbertus/ui';\n\nexport default function Template({ children }: { children: React.ReactNode }) {\n  return <AnimatedPage>{children}</AnimatedPage>;\n}\n```\n\nTotal: 14 loading.tsx + 1 template.tsx = 15 files.",
+      "files": [
+        "frontend/apps/web/app/(app)/template.tsx",
+        "frontend/apps/web/app/(app)/dashboard/loading.tsx",
+        "frontend/apps/web/app/(app)/chat/loading.tsx",
+        "frontend/apps/web/app/(app)/intelligence/loading.tsx",
+        "frontend/apps/web/app/(app)/people/loading.tsx",
+        "frontend/apps/web/app/(app)/people/[slug]/loading.tsx",
+        "frontend/apps/web/app/(app)/compliance/loading.tsx",
+        "frontend/apps/web/app/(app)/market/loading.tsx",
+        "frontend/apps/web/app/(app)/finance/loading.tsx",
+        "frontend/apps/web/app/(app)/process/loading.tsx",
+        "frontend/apps/web/app/(app)/decisions/loading.tsx",
+        "frontend/apps/web/app/(app)/documents/loading.tsx",
+        "frontend/apps/web/app/(app)/calendar/loading.tsx",
+        "frontend/apps/web/app/(app)/admin/loading.tsx",
+        "frontend/apps/web/app/(app)/settings/loading.tsx"
+      ],
+      "parallel_group": 2,
+      "status": "done"
+    },
+    {
+      "id": "P9T5",
+      "title": "Layout Integration — Providers & Offline Banner",
+      "description": "Integrate the new providers and components into the app layout. This task modifies existing files.\n\n1. **Modify `apps/web/app/(app)/layout.tsx`**: Wrap the existing layout content with `<OfflineProvider>`. Add `<OfflineBanner />` inside the layout, positioned above the main content area (after Topbar or as first child of main). Import OfflineProvider from `../lib/providers/offline-provider` and OfflineBanner from `@gilbertus/ui`.\n\n2. **Modify `apps/web/app/globals.css`** (or equivalent): Import the animations.css file: `@import '@gilbertus/ui/src/lib/animations.css';` (or copy the keyframe definitions directly if the import path doesn't resolve in the build).\n\n3. **Modify `packages/ui/src/index.ts`** (barrel file): Add exports for all new components: ErrorFallback, EmptyState, PageSkeleton, OfflineBanner, ButtonLoading, AnimatedPage.\n\nRead the current layout.tsx first to understand the existing structure before modifying. Preserve all existing providers (ThemeProvider, QueryClientProvider, etc.) and just wrap with OfflineProvider at the appropriate level.",
+      "files": [
+        "frontend/apps/web/app/(app)/layout.tsx",
+        "frontend/apps/web/app/globals.css",
+        "frontend/packages/ui/src/index.ts"
+      ],
+      "parallel_group": 2,
+      "status": "done"
+    },
+    {
+      "id": "P9T6",
+      "title": "Tauri Desktop — Rust Backend & Config",
+      "description": "Set up the full Tauri v2 desktop application with plugins, system tray, and deep link support.\n\n1. **Update `apps/desktop/src-tauri/Cargo.toml`**:\n```toml\n[dependencies]\ntauri = { version = \"2\", features = [] }\ntauri-plugin-notification = \"2\"\ntauri-plugin-deep-link = \"2\"\ntauri-plugin-updater = \"2\"\ntauri-plugin-shell = \"2\"\nserde = { version = \"1\", features = [\"derive\"] }\nserde_json = \"1\"\n\n[build-dependencies]\ntauri-build = { version = \"2\" }\n```\n\n2. **Update `apps/desktop/src-tauri/tauri.conf.json`**: Add bundle config (targets: msi, dmg, appimage), icon paths, plugins config (deep-link schemes: [\"gilbertus\"], updater endpoint placeholder), security allowlist. Set `app.trayIcon` with icon path and tooltip. Add `bundle.active: true`.\n\n3. **Create `apps/desktop/src-tauri/src/tray.rs`**: System tray setup function. Create tray menu with items: 'Dzisiejszy Brief', 'Nowy Chat', 'Asystent Glosowy', separator, 'Status' (disabled), separator, 'Zamknij'. Handle menu item click events — emit Tauri events to frontend (e.g., 'tray-action' with payload). Export `create_tray(app: &App) -> Result<()>`.\n\n4. **Create `apps/desktop/src-tauri/src/commands.rs`**: Tauri commands: `get_platform() -> String` (returns OS), `get_version() -> String` (returns app version from Cargo.toml). Annotate with `#[tauri::command]`.\n\n5. **Update `apps/desktop/src-tauri/src/main.rs`**: Register plugins (notification, deep-link, updater, shell). Call `create_tray()` in setup. Register commands. Handle deep-link events (parse gilbertus:// URLs, emit to frontend). Full main.rs with module declarations for tray and commands.\n\n6. **Create `apps/desktop/src-tauri/capabilities/default.json`**: Tauri v2 capability file with permissions for core:default, notification:default, notification:allow-notify, deep-link:default, updater:default, shell:allow-open.\n\n7. **Create placeholder icons** in `apps/desktop/src-tauri/icons/`: Create a simple script comment noting that real icons (.ico, .icns, .png at 32x32, 128x128, 128x128@2x) need to be generated from the Gilbertus logo. For now, create a README.md in icons/ explaining required sizes.\n\n8. **Update `apps/desktop/package.json`**: Add `@tauri-apps/cli` as devDependency (version ^2). Add scripts: `dev: \"tauri dev\"`, `build: \"tauri build\"`, `build:debug: \"tauri build --debug\"`.",
+      "files": [
+        "frontend/apps/desktop/src-tauri/Cargo.toml",
+        "frontend/apps/desktop/src-tauri/tauri.conf.json",
+        "frontend/apps/desktop/src-tauri/src/tray.rs",
+        "frontend/apps/desktop/src-tauri/src/commands.rs",
+        "frontend/apps/desktop/src-tauri/src/main.rs",
+        "frontend/apps/desktop/src-tauri/capabilities/default.json",
+        "frontend/apps/desktop/src-tauri/icons/README.md",
+        "frontend/apps/desktop/package.json"
+      ],
+      "parallel_group": 3,
+      "status": "done"
+    },
+    {
+      "id": "P9T7",
+      "title": "Tauri Frontend Bridge — Hook & Provider",
+      "description": "Create the frontend-side Tauri integration that bridges desktop features to the React app.\n\n1. **apps/web/lib/hooks/use-tauri.ts**: Hook that detects if running inside Tauri (`typeof window !== 'undefined' && '__TAURI__' in window`). Returns `{ isTauri: boolean, platform: string | null, invoke: Function | null, listen: Function | null }`. When in Tauri, dynamically import `@tauri-apps/api/core` for invoke and `@tauri-apps/api/event` for listen. When not in Tauri, return null for invoke/listen (web fallback). Use useEffect + useState for async import.\n\n2. **apps/web/lib/providers/desktop-provider.tsx**: Context provider for desktop-specific state. Wraps children, provides `{ isTauri, platform, trayAlertCount, deepLinkPending }`. On mount, if isTauri: (a) call `invoke('get_platform')` to get OS, (b) listen for 'tray-action' events and handle navigation (use Next.js router), (c) listen for 'deep-link' events, parse gilbertus:// URLs into `{ action, params }`, store as deepLinkPending, navigate accordingly. Export `useDesktop()` hook.\n\n3. **Modify `apps/web/next.config.ts`**: Add `output: 'export'` to enable static export for Tauri. Add `images: { unoptimized: true }` (required for static export). Keep all existing config. NOTE: This means the app will work as static files — verify all data fetching is client-side (it is, via React Query).\n\nDeep link routing map:\n- `gilbertus://ask?q=...` → navigate to `/chat?q={q}`\n- `gilbertus://brief` → navigate to `/dashboard`\n- `gilbertus://person/{slug}` → navigate to `/people/{slug}`\n- `gilbertus://chat/{id}` → navigate to `/chat/{id}`",
+      "files": [
+        "frontend/apps/web/lib/hooks/use-tauri.ts",
+        "frontend/apps/web/lib/providers/desktop-provider.tsx",
+        "frontend/apps/web/next.config.ts"
+      ],
+      "parallel_group": 3,
+      "status": "done"
+    },
+    {
+      "id": "P9T8",
+      "title": "Offline Support — IndexedDB & Service Worker",
+      "description": "Implement offline data caching and message queuing for resilient operation when API is unreachable.\n\n1. **apps/web/lib/offline/idb.ts**: Minimal IndexedDB wrapper. Functions: `openDB(name: string, version: number, stores: StoreConfig[]) → IDBDatabase`, `get<T>(db, store, key) → T | undefined`, `put(db, store, value) → void`, `getAll<T>(db, store) → T[]`, `delete(db, store, key) → void`. StoreConfig: `{ name: string, keyPath: string, indexes?: { name: string, keyPath: string }[] }`. Initialize database 'gilbertus-offline' v1 with stores: briefs (keyPath: 'date'), dashboard (keyPath: 'key'), conversations (keyPath: 'id'), messages (keyPath: 'id', index: by-conversation on conversationId), people (keyPath: 'id'), outbox (keyPath: 'id', index: by-created on createdAt), meta (keyPath: 'key').\n\n2. **apps/web/lib/offline/cache-manager.ts**: Cache manager that wraps IDB operations with TTL. Functions: `cacheGet<T>(store, key, maxAgeMs) → T | null` (check meta for timestamp, return null if expired), `cacheSet(store, key, data) → void` (write data + timestamp to meta), `cacheClear(store?) → void`. Default TTLs: briefs=4h, dashboard=15m, conversations=5m, people=1h.\n\n3. **apps/web/lib/offline/message-queue.ts**: Offline message queue. Functions: `enqueue(message: { type: 'chat' | 'voice', payload: unknown }) → string` (generates UUID id, stores in outbox with createdAt and retries=0), `flush(sendFn: (msg) => Promise<void>) → { sent: number, failed: number }` (reads all from outbox sorted by createdAt, calls sendFn for each, removes on success, increments retries on failure, skips if retries > 3), `getQueueSize() → number`, `clearQueue() → void`.\n\n4. **apps/web/public/sw.js**: Service worker. On install: cache app shell (/, /dashboard, /chat, core JS/CSS). On fetch: for navigation requests, try network first, fallback to cached shell. For static assets (js, css, fonts, images), cache-first. For API requests, network-first with no caching (API caching handled by IDB layer). Self-skipWaiting + clientsClaim.\n\n5. **apps/web/lib/offline/sw-register.ts**: Service worker registration. Call `navigator.serviceWorker.register('/sw.js')` on app load. Handle update detection: when new SW waiting, post SKIP_WAITING message. Export `registerSW()` function.\n\n6. **apps/web/lib/hooks/use-offline-cache.ts**: Hook that combines React Query with IDB cache. `useOfflineCache<T>(queryKey, fetchFn, store, cacheKey, ttlMs)`. On mount: check IDB cache first (instant), then fetch via React Query. If fetch succeeds, update IDB. If fetch fails and IDB has data, return cached. Returns `{ data, isLoading, isOfflineData, error }`.\n\n7. **apps/web/lib/hooks/use-message-queue.ts**: Hook for offline message queuing. Uses offline-store for queue count. `useMessageQueue()` returns `{ sendOrQueue(msg), queueSize, flushQueue(), isSyncing }`. When online, sends directly. When offline, enqueues. Auto-flushes when OfflineProvider transitions from offline→online.",
+      "files": [
+        "frontend/apps/web/lib/offline/idb.ts",
+        "frontend/apps/web/lib/offline/cache-manager.ts",
+        "frontend/apps/web/lib/offline/message-queue.ts",
+        "frontend/apps/web/public/sw.js",
+        "frontend/apps/web/lib/offline/sw-register.ts",
+        "frontend/apps/web/lib/hooks/use-offline-cache.ts",
+        "frontend/apps/web/lib/hooks/use-message-queue.ts"
+      ],
+      "parallel_group": 3,
+      "status": "done"
+    },
+    {
+      "id": "P9T9",
+      "title": "Build Scripts & E2E Checklist",
+      "description": "Create build verification scripts and manual E2E test checklist.\n\n1. **frontend/scripts/verify-build.sh**: Bash script that runs all build checks sequentially. Steps:\n   - `set -e` (fail on first error)\n   - Echo step headers for visibility\n   - `pnpm --filter @gilbertus/web exec tsc --noEmit` (TypeScript check)\n   - `pnpm --filter @gilbertus/web lint` (ESLint)\n   - `pnpm --filter @gilbertus/web build` (Next.js build)\n   - `echo 'All frontend checks passed!'`\n   Make executable (chmod +x).\n\n2. **frontend/scripts/e2e-checklist.md**: Manual E2E test checklist document. Markdown with checkboxes for each test scenario:\n\n   **Auth & Access:**\n   - [ ] Login with API key → redirects to dashboard\n   - [ ] Invalid API key → shows error\n   - [ ] RBAC: CEO role sees all sidebar items\n   - [ ] RBAC: Specialist role sees limited sidebar\n\n   **Dashboard:**\n   - [ ] Dashboard loads with morning brief\n   - [ ] Widgets show real data (entities, events, chunks counts)\n   - [ ] Alerts section shows active alerts\n   - [ ] Loading skeleton appears before data\n\n   **Chat:**\n   - [ ] Create new conversation\n   - [ ] Send message, receive AI answer with sources\n   - [ ] Conversation persists in list\n   - [ ] Voice button activates push-to-talk\n\n   **People:**\n   - [ ] Directory loads with list/table\n   - [ ] Click person → profile page with sentiment chart\n   - [ ] Network graph renders\n\n   **Compliance:**\n   - [ ] Dashboard shows compliance status\n   - [ ] Matter detail page loads\n   - [ ] Obligations list renders\n\n   **Other Modules:**\n   - [ ] Intelligence page loads\n   - [ ] Market page with alerts\n   - [ ] Finance/costs page\n   - [ ] Process page\n   - [ ] Decisions page\n   - [ ] Documents page\n   - [ ] Calendar page\n   - [ ] Admin pages (status, crons, users)\n\n   **Settings & i18n:**\n   - [ ] Settings page loads\n   - [ ] Change language to English → all UI switches\n   - [ ] Change back to Polish → all UI switches\n   - [ ] Dark theme is polished (no white flashes)\n   - [ ] Light theme is functional\n\n   **Polish & UX:**\n   - [ ] Page transitions animate (fade in)\n   - [ ] Sidebar collapse animates smoothly\n   - [ ] Error boundary works (force error → retry button)\n   - [ ] Empty states show when no data\n   - [ ] Offline banner appears when API down\n   - [ ] Command palette opens with Ctrl+K\n\n   **Desktop (Tauri):**\n   - [ ] App opens in < 2s\n   - [ ] System tray icon appears\n   - [ ] Tray menu: Brief, New Chat, Voice, Close\n   - [ ] Native notification on critical alert\n   - [ ] Deep link: gilbertus://ask?q=test\n   - [ ] Idle RAM < 100MB\n   - [ ] Windows .msi installer < 50MB\n\n3. **frontend/apps/desktop/scripts/build-all.sh**: Desktop build script:\n   ```bash\n   #!/bin/bash\n   set -e\n   echo '=== Building web app (static export) ==='\n   cd ../../.. && pnpm --filter @gilbertus/web build\n   echo '=== Building Tauri desktop ==='\n   cd apps/desktop && pnpm tauri build\n   echo '=== Build complete! Artifacts in src-tauri/target/release/bundle/ ==='\n   ```\n   Make executable.",
+      "files": [
+        "frontend/scripts/verify-build.sh",
+        "frontend/scripts/e2e-checklist.md",
+        "frontend/apps/desktop/scripts/build-all.sh"
+      ],
+      "parallel_group": 4,
+      "status": "done"
+    }
+  ]
+}

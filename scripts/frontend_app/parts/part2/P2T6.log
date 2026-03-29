@@ -1,0 +1,11 @@
+Build passes. All 4 components created:
+
+1. **`timeline-event.tsx`** — Single timeline event with type-mapped Lucide icons (meeting, decision, task, email, etc.), summary with 2-line clamp, entity pills, and relative time display
+2. **`activity-timeline.tsx`** — Scrollable event list with filter dropdown (All/Meeting/Decision/Task/Email/Communication), collapsible, loading skeletons, empty state
+3. **`system-status.tsx`** — Services grid with traffic-light dots (Postgres/Qdrant/Whisper), DB stats row, embeddings progress bar, last backup timestamp
+4. **`quick-actions.tsx`** — 2x2 grid of navigation buttons (Nowy czat, Meeting Prep, Scan Market, Compliance) with router.push to `/chat?action=...`
+
+Note: Renamed the export to `DashboardQuickActions` to avoid collision with the existing `QuickActions` in the chat package.
+[DEV:P2T6] Started: 2026-03-29T12:41:40.372668+00:00
+======================================================================
+

@@ -1,0 +1,24 @@
+All done. Here's what was implemented:
+
+### auth.py — enhanced with:
+- **`--status`** — shows token health (status ok, expires in 55.6 min, delegated flow)
+- **`--refresh-proactive`** — cron-friendly: checks if token expires within 15 min, refreshes automatically. For client_credentials → re-acquires. For delegated → uses refresh_token. On failure → WhatsApp alert with reauth instructions
+- **`--reauth`** — force interactive re-authentication
+- **Structured logging** via structlog on all refresh operations
+- **WhatsApp alert** on refresh failure via OpenClaw
+
+### API — `/auth/graph/health` endpoint:
+- Returns `{status, expires_in_minutes, last_refresh, flow_type}`
+- Added to PUBLIC_PATHS (no API key needed for monitoring)
+
+### Cron:
+```
+*/30 * * * * cd /home/sebastian/personal-ai && .venv/bin/python3 -m app.ingestion.graph_api.auth --refresh-proactive >> logs/graph_auth.log 2>&1
+```
+
+The existing delegated flow is preserved as fallback. Client credentials flow is preferred for automatic syncs — when a delegated token expires and has no refresh_token, it falls back to client_credentials if `MS_GRAPH_CLIENT_SECRET` is set.
+Task: G02 — Graph API auth hardening — client_credentials + proactive token refresh cron
+Level: CRITICAL
+Started: 2026-03-29T11:41:50.885472+00:00
+============================================================
+

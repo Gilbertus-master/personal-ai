@@ -1,0 +1,12 @@
+Done. The fix is a one-line change in `app/ingestion/common/db.py:26-28` — the single `insert_source()` function that all ~20 callers use.
+
+**What changed:** `INSERT INTO sources ... RETURNING id` now has `ON CONFLICT (source_type, source_name) DO UPDATE SET imported_at = now() RETURNING id`. This:
+- Eliminates `UniqueViolation` errors from `live_ingest`, `plaud_pipeline`, and all other ingestion paths
+- Updates `imported_at` on conflict so we track when a source was last active
+- Still returns the `id` (existing or new) so all callers work unchanged
+- Parameterized SQL, uses connection pool — no constraint violations
+Task: M1 — live_ingest + plaud UniqueViolation — ON CONFLICT
+Level: MEDIUM
+Started: 2026-03-29T09:27:33.501451+00:00
+============================================================
+

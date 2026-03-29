@@ -1,0 +1,11 @@
+Build passes. The voice store is created at `frontend/apps/web/lib/stores/voice-store.ts` with:
+
+- **Types exported:** `VoiceMessage`, `VoiceSession`
+- **Store hook:** `useVoiceStore`
+- **Selectors:** `selectSortedSessions`, `selectActiveSession`
+- **Persist middleware** with `name: 'gilbertus-voice'` and `partialize` — only persists preferences (`mode`, `language`, `autoPlayTts`, `voiceName`) and sessions. Transient state (`isRecording`, `isProcessing`, `isPlaying`, `error`, `wsConnected`, `conversationId`) resets on page load.
+- **Session management:** max 30 sessions, auto-title from first user message (50 chars), UUID-based IDs
+- Follows the same pattern as `chat-store.ts`
+[DEV:P7T2] Started: 2026-03-29T17:16:09.014975+00:00
+======================================================================
+

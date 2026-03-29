@@ -1,0 +1,14 @@
+Build passes. Here's what was done:
+
+**Created 2 files, modified 1:**
+
+1. **`packages/api-client/src/people-types.ts`** — 22 TypeScript interfaces covering: Person/Relationship (directory listing), PersonFull (profile with roles_history/timeline/open_loops), Scorecard, SentimentTrend, SentimentAlert, DelegationScore, NetworkGraph, EvaluateRequest/EvaluationResult, WellbeingResponse, and all Create/Update DTOs.
+
+2. **`packages/api-client/src/people.ts`** — 16 API client functions following the existing `customFetch` pattern: `fetchPeople`, `fetchPerson`, `createPerson`, `updatePerson`, `deletePerson`, `fetchScorecard`, `fetchSentiment`, `fetchDelegation`, `fetchNetwork`, `triggerEvaluation`, `addTimelineEvent`, `addRoleHistory`, `addOpenLoop`, `closeOpenLoop`, `fetchWellbeing`, `fetchSentimentAlerts`.
+
+3. **`packages/api-client/src/index.ts`** — Added re-exports for both new modules.
+
+**Note:** Renamed `TimelineEvent` → `PersonTimelineEvent` in people-types to resolve a name collision with the existing `TimelineEvent` in `dashboard-types.ts`.
+[DEV:P3T1] Started: 2026-03-29T13:03:18.986858+00:00
+======================================================================
+

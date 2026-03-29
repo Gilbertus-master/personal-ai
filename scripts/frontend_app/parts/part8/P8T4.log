@@ -1,0 +1,12 @@
+Build succeeds. All four files are in place:
+
+1. **`packages/rbac/src/navigation.ts`** — Added `admin` module (ShieldCheck icon, gilbertus_admin + operator roles, `/admin` path) before settings. Changed omnius path from `/omnius` to `/admin/omnius`.
+
+2. **`apps/web/app/(app)/admin/layout.tsx`** — Client layout with `RbacGate` restricting to gilbertus_admin/operator, inline sidebar placeholder (P8T5 will provide `AdminSidebar`), and `AccessDenied` fallback.
+
+3. **`apps/web/app/(app)/admin/page.tsx`** — Server component that redirects `/admin` to `/admin/crons`.
+
+4. **`apps/web/app/(app)/settings/page.tsx`** — Client page with tab bar (Profil/Preferencje/Klucze API) wired to `useSettingsStore`. Includes inline `ProfileCard`, `PreferencesForm` (language + notification toggles), and `ApiKeyManager` placeholder — all ready to be replaced by P8T5's shared UI components.
+[DEV:P8T4] Started: 2026-03-29T16:25:12.967428+00:00
+======================================================================
+

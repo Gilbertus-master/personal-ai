@@ -1,0 +1,21 @@
+All 8 files created. Here's the summary:
+
+**`@gilbertus/api-client` package — complete (8 files)**
+
+| File | Purpose |
+|------|---------|
+| `package.json` | Package config with `@tanstack/react-query` + `orval` deps |
+| `tsconfig.json` | Extends base tsconfig, matches sibling package pattern |
+| `orval.config.ts` | Orval config pointing to `openapi.json` → `src/gilbertus.ts` |
+| `scripts/generate.sh` | Fetches OpenAPI spec from backend + runs orval |
+| `src/base.ts` | `customFetch` mutator with API key auth, error handling, login redirect |
+| `src/types.ts` | Manual types: `HealthResponse`, `VersionResponse`, `OmniusUser` |
+| `src/gilbertus.ts` | Placeholder + `validateApiKey()` function |
+| `src/index.ts` | Re-exports everything |
+
+**TypeScript check: PASS** (`tsc --noEmit` — zero errors)
+
+**Build verification:** `pnpm --filter web build` cannot run due to persistent `ECONNRESET` downloading `next@15.5.14` — this is a network/WSL issue unrelated to our code. Once `pnpm install` succeeds, the build should work as our package types check clean.
+[DEV:P0T4] Started: 2026-03-29T11:33:19.331607+00:00
+======================================================================
+

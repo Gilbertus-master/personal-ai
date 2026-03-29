@@ -1,0 +1,18 @@
+Working. Here's what changed in `app/db/postgres.py`:
+
+**Before:** Pool opened eagerly at import time (`open=True`), no health check, no reconnect config. If Postgres was down when a cron script imported the module → immediate crash with no recovery.
+
+**After — 3 fixes:**
+
+1. **Lazy open with retry+backoff** (`open=False` + `_ensure_pool_open()`): First call to `get_pg_connection()` opens the pool. If Postgres isn't ready yet, retries up to 10 times with exponential backoff (2s, 4s, 8s, ... capped at 30s). Total wait ~3.5 min — enough for a Docker/WSL restart.
+
+2. **Health check** (`check=_check_connection`): Runs `SELECT 1` before handing out a connection. Stale/broken connections after a Postgres restart are discarded and replaced instead of causing `OperationalError` in application code.
+
+3. **Explicit reconnect config** (`reconnect_timeout=300`, `num_workers=3`): Pool background workers keep trying to replenish connections for 5 minutes after a disconnect, so the pool self-heals without needing a process restart.
+
+**Re: the 3 scripts with raw `psycopg.connect()`** (`dedup_entities.py`, `dedup_chunks.py`, `group_teams_messages.py`): These are one-off maintenance scripts, not cron jobs. They use long-running transactions that hold locks, so a dedicated connection (not from the pool) is appropriate. No change needed there.
+Task: H1 — Pool recovery after WSL restart — graceful reconnect
+Level: HIGH
+Started: 2026-03-29T09:19:43.693366+00:00
+============================================================
+

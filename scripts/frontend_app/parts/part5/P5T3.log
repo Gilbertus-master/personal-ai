@@ -1,0 +1,8 @@
+Build succeeded. All files created:
+
+- **`process-intel-types.ts`** — 20 types covering Business Lines, Processes, Apps (inventory + deep analysis + costs + ranking), Data Flows, Optimizations, Employee Work Profiles, Automation (overview + roadmap), Tech Solutions (radar + roadmap + alignment), and Discovery results
+- **`process-intel.ts`** — 27 API client functions matching all specified endpoints
+- **`index.ts`** — updated to re-export both new modules
+[DEV:P5T3] Started: 2026-03-29T14:25:47.454512+00:00
+======================================================================
+

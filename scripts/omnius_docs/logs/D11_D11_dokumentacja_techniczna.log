@@ -1,0 +1,11 @@
+D11 gotowe. Dokumentacja techniczna systemu AI (Art. 11 AI Act) wygenerowana i zapisana:
+
+- `Omnius_REH/11_Dokumentacja_techniczna_AI_REH.md`
+- `Omnius_REF/11_Dokumentacja_techniczna_AI_REF.md`
+
+Matter ID: 20, Document ID: 15. Jedyna poprawka: `matter_type='other'` (zamiast `'documentation'` którego constraint nie akceptuje) i kolumna `content_text` zamiast `content`.
+Task: D11 — Dokumentacja techniczna systemu AI (Art. 11 AI Act)
+Level: HIGH
+Started: 2026-03-29T11:11:22.948824+00:00
+======================================================================
+

@@ -1,0 +1,11 @@
+Build passes cleanly. Done.
+
+**Created files:**
+- `packages/api-client/src/dashboard-types.ts` — All response interfaces (MorningBriefResponse, AlertItem, AlertsResponse, StatusResponse, TimelineEvent/Request/Response, CommitmentItem, CommitmentsListResponse, BudgetResponse, KpiCardData)
+- `packages/api-client/src/dashboard.ts` — 6 API client functions (fetchBrief, fetchAlerts, fetchStatus, fetchTimeline, fetchCommitments, fetchBudget) using `customFetch` pattern
+- `packages/api-client/src/index.ts` — Updated with re-exports
+
+Build verified: `pnpm --filter web build` compiles successfully with no TypeScript errors.
+[DEV:P2T1] Started: 2026-03-29T12:35:18.494338+00:00
+======================================================================
+

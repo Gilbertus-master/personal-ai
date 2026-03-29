@@ -1,0 +1,10 @@
+Build succeeded with no errors. All 5 files created and the barrel export updated:
+
+1. **`push-to-talk-button.tsx`** — Circular PTT button with mic icon, pulsing red ring animation while recording, spinner while processing, mouse + touch events
+2. **`voice-waveform.tsx`** — Canvas-based frequency visualizer using Web Audio API `AnalyserNode`, draws bars with `requestAnimationFrame` loop, static flat line when inactive
+3. **`voice-controls.tsx`** — Sticky bottom bar with HTTP/WebSocket mode toggle (green/red WS indicator), centered PTT flanked by waveforms, stop playback button, "Przytrzymaj spację" hint
+4. **`voice-command-bar.tsx`** — Horizontal scrollable chips for quick commands (Brief, Status, Rynek, Konkurencja, Scenariusze, Alerty)
+5. **`index.ts`** — Barrel exports for all components + types, and `packages/ui/src/index.ts` updated with `export * from './components/voice'`
+[DEV:P7T3] Started: 2026-03-29T17:17:05.951183+00:00
+======================================================================
+

@@ -1,0 +1,14 @@
+Build passes cleanly. Here's what was created:
+
+**4 files created/modified:**
+
+1. **`packages/ui/src/components/chat/markdown-renderer.tsx`** — `<MarkdownRenderer>` component using `react-markdown` + `remarkGfm` + `rehypeHighlight`. Custom overrides for code blocks (dark bg, copy button), links (new tab), tables (bordered), blockquotes (accent left border), and all heading/list elements with proper Tailwind spacing.
+
+2. **`packages/ui/src/components/chat/source-card.tsx`** — `<SourceCard>` displaying a single source with icon by type (Mail/Users/MessageCircle/FileText/Mic/Calendar/Bot), truncated title, source name, and formatted date. Exports `SourceItem` interface.
+
+3. **`packages/ui/src/components/chat/source-panel.tsx`** — `<SourcePanel>` collapsible panel showing "{N} źródeł" toggle with smooth max-height animation. Expands to a responsive 1-2 column grid of `SourceCard` components.
+
+4. **`packages/ui/src/components/chat/index.ts`** + updated **`packages/ui/src/index.ts`** — Re-exports all chat components.
+[DEV:P1T3] Started: 2026-03-29T12:13:17.461981+00:00
+======================================================================
+

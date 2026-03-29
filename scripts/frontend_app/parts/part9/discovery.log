@@ -1,0 +1,15 @@
+Discovery report written to `/home/sebastian/personal-ai/scripts/frontend_app/parts/part9/discovery.md`.
+
+**Key findings:**
+
+- **Tauri desktop**: Bare scaffold exists (v2 config + empty `main.rs`). No plugins, no tray, no icons, no build scripts.
+- **No error boundaries, no service worker, no IndexedDB, no animations library, no testing framework** — all need to be built from scratch.
+- **Strong existing patterns** to follow: Zustand + persist, TanStack Query, Radix UI, CSS variable theming, i18n with next-intl.
+- **131 UI components** already exist in `packages/ui`, plus `SkeletonCard` as a starting point.
+- **API surface** is solid — `/health`, `/status`, `/alerts/guardian`, `/brief/today`, `/voice/ws` cover all desktop quick-action needs.
+- **RBAC** is frontend-enforced via `packages/rbac` (7 roles, module-level visibility).
+
+**Recommended implementation order**: Polish (error boundaries, skeletons, empty states) → Animations → Tauri plugins & tray → Offline support → Build gates.
+[ARCHITECT] Started: 2026-03-29T16:38:18.205374+00:00
+======================================================================
+

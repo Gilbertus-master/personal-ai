@@ -1,0 +1,23 @@
+Done. Created both files:
+
+**`parts/part1/plan.md`** — Full architecture covering:
+- Component tree with visual hierarchy
+- Complete file tree (18 files across 3 packages)
+- API integration map (7 endpoints)
+- RBAC rules (no frontend gating needed — backend handles it)
+- Zustand store shape (ChatStore with conversations, messages, CRUD)
+- 6 UX flows (new chat, continue, send, quick actions, sources, delete/rename)
+- Key decisions: no assistant-ui (overkill without streaming), no backend CRUD (localStorage), markdown via react-markdown
+
+**`parts/part1/tasks.json`** — 8 tasks in 3 parallel groups:
+
+| Group | Tasks | Description |
+|-------|-------|-------------|
+| **1** (parallel) | P1T1-P1T5 | API types, Zustand store, markdown/sources, message bubble/empty state, sidebar/header/input — all independent, no file overlap |
+| **2** (parallel) | P1T6-P1T7 | useChat hook (orchestration) + MessageList — depend on group 1 |
+| **3** | P1T8 | Final assembly: pages + layout — depends on everything |
+
+Each task has detailed descriptions with exact interfaces, implementation notes, and all context a dev needs to build independently.
+[ARCHITECT] Started: 2026-03-29T12:07:20.858774+00:00
+======================================================================
+

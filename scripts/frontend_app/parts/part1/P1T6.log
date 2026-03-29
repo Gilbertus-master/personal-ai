@@ -1,0 +1,14 @@
+**P1T6 complete.** Build passes. Here's what was implemented:
+
+**`apps/web/lib/hooks/use-chat.ts`** — orchestration hook connecting Zustand store with API client:
+
+- **`sendMessage(text, conversationId?)`** — creates conversation if needed, adds user message, creates loading assistant placeholder, calls `/ask` via `askGilbertus`, updates message on response or sets error
+- **`handleQuickAction(actionId, conversationId?)`** — dispatches to `getBriefToday`, `getAlerts`, `getCommitments`, `getMeetingPrep`, or `postTimeline` with smart response formatting (extracts `brief`/`prep` fields from objects)
+- **`abort()`** — cancels in-flight request via `AbortController`
+- **Abort handling** — new requests automatically abort previous ones; `AbortError` is silently swallowed
+- **Type mapping** — `mapSources()` and `mapMeta()` bridge the api-client's `AskResponse` types to the store's `SourceItem`/`AskResponseMeta` shapes
+- **RBAC-aware** — `answer_length` is `'long'` for roleLevel >= 60, `'medium'` otherwise
+- **Loading state** — uses `getLastMessageId()` to retrieve the ID from Zustand's synchronous state after `addAssistantMessage`, then sets loading/error states properly
+[DEV:P1T6] Started: 2026-03-29T12:19:03.335757+00:00
+======================================================================
+

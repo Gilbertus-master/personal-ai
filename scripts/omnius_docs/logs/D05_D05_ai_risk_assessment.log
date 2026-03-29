@@ -1,0 +1,34 @@
+FRIA kompletna. Podsumowanie:
+
+**D05: FRIA — Ocena wpływu AI na prawa podstawowe**
+
+**Zarejestrowane w DB:**
+- Matter #9 (compliance_matters) — `critical`, area: RODO, regulation: EU 2024/1689 Art. 27
+- 10 ryzyk w compliance_risk_assessments (5x RED, 3x ORANGE, 2x YELLOW)
+- Document #6 (compliance_documents) — 28 464 znaków, pełny tekst
+
+**Struktura dokumentu (8 części, ~4000 słów):**
+1. **Identyfikacja systemu** — Omnius, High-Risk (Annex III pkt 4), 120+ osób
+2. **Podstawa prawna** — AI Act, KPP, RODO, Kodeks pracy, ustawa o związkach
+3. **Ocena 10 praw podstawowych** — Art. 1, 7, 8, 11, 12, 15, 20/21, 31, 47 KPP + Art. 5(1)(f) AI Act
+4. **Matryca ryzyk** — tabela z risk scores
+5. **Środki ograniczające** — techniczne (7), organizacyjne (7), prawne (5)
+6. **Plan monitorowania** — 7 metryk, 5 typów przeglądów
+7. **Konsultacje z pracownikami** — 6-etapowy plan
+8. **Wnioski** — 5 warunków dalszego wdrożenia, 6 zaleceń modyfikacji
+
+**5 ryzyk krytycznych (RED, natychmiastowe działanie):**
+- R2: Prywatność (0,64) — masowe przetwarzanie komunikacji
+- R4: Wolność wypowiedzi (0,64) — chilling effect
+- R7: Niedyskryminacja (0,60) — bias algorytmiczny
+- R8: Warunki pracy (0,64) — permanentny monitoring
+- R10: Art. 5(1)(f) AI Act (0,60) — **sentiment/wellbeing = potencjalna zakazana praktyka**
+
+**Zapisano:**
+- `Omnius_REH/05_Ocena_ryzyka_AI_FRIA_REH.md`
+- `Omnius_REF/05_Ocena_ryzyka_AI_FRIA_REF.md`
+Task: D05 — Ocena ryzyka AI — Fundamental Rights Impact Assessment
+Level: CRITICAL
+Started: 2026-03-29T10:42:15.710795+00:00
+======================================================================
+

@@ -1,0 +1,18 @@
+Build succeeds. The `/people/network` route is registered as a static page.
+
+**Done.** Created:
+
+1. **`packages/ui/src/components/people/network-graph.tsx`** — SVG force-directed graph using `d3-force`:
+   - Nodes sized by `event_count`, colored by organization (hash-based HSL)
+   - Edges with thickness/opacity proportional to weight
+   - Drag to reposition nodes, scroll to zoom
+   - Hover tooltip showing name, role, org, activity count
+   - Click node fires `onNodeClick` callback
+   - Loading spinner + empty state handling
+
+2. **`apps/web/app/(app)/people/network/page.tsx`** — Page with `RbacGate` (ceo/board only), back-link to `/people`, click-to-navigate to person profile
+
+3. **Updated `packages/ui/src/components/people/index.ts`** — exports `NetworkGraph`
+[DEV:P3T9] Started: 2026-03-29T13:24:57.776767+00:00
+======================================================================
+

@@ -1,0 +1,18 @@
+Build compiles successfully — the remaining error is a pre-existing font module issue (not related to our changes).
+
+**Summary of created/modified files:**
+
+1. **`settings-types.ts`** — `SessionInfo`, `ApiKeyInfo`, `CreateApiKeyResponse`
+2. **`settings.ts`** — `getOwnApiKeys()`, `createApiKey()`
+3. **`admin-types.ts`** — `CronJob`, `CronListResponse`, `CronSummary`, `CronToggleResponse`, `SystemStatus`, `BudgetItem`, `BudgetAlert` (renamed from `CostAlert` to avoid conflict with `finance-types`), `BudgetStatus`, `CodeFinding`, `AdminUser` (renamed from `OmniusUser` to avoid conflict with `types.ts`), `CreateUserRequest`, `CreateUserResponse`, `AuditLogEntry`
+4. **`admin.ts`** — `getCrons()`, `getCronSummary()`, `enableCron()`, `disableCron()`, `getSystemStatus()`, `getCodeFindings()`, `getAdminUsers()`, `createAdminUser()`, `getAuditLog()`
+5. **`omnius-bridge-types.ts`** — `OmniusTenant`, `OmniusTenantStatus`, `OperatorTask`, `CreateTaskRequest`, `UpdateTaskRequest`, `OmniusConfigEntry`, `SyncTriggerResponse`
+6. **`omnius-bridge.ts`** — `tenantFetch()` helper + `getTenantStatus()`, `getOperatorTasks()`, `createOperatorTask()`, `updateOperatorTask()`, `getTenantAuditLog()`, `getTenantConfig()`, `pushTenantConfig()`, `triggerTenantSync()`
+7. **`index.ts`** — Added 6 new export lines
+
+Two naming changes to avoid export conflicts:
+- `CostAlert` → `BudgetAlert` (conflict with `finance-types.ts`)
+- `OmniusUser` → `AdminUser` (conflict with `types.ts`)
+[DEV:P8T1] Started: 2026-03-29T16:22:02.386263+00:00
+======================================================================
+

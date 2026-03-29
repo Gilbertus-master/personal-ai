@@ -1,0 +1,16 @@
+Build succeeded with no errors. All 9 document components compile cleanly.
+
+**Created files:**
+
+1. **search-bar.tsx** — Debounced input (500ms) with Search/Loader2 icon swap, Enter triggers onSubmit
+2. **source-type-filter.tsx** — 8 source type chips with Lucide icons, multi-select toggle, optional count badges
+3. **document-result-card.tsx** — Card with title, colored source badge, score bar (0-100%), text snippet, date
+4. **documents-table.tsx** — Sortable table (5 columns), skeleton loading, empty state, clickable rows
+5. **upload-modal.tsx** — Modal with DropZone, file preview, classification select, progress bar
+6. **drop-zone.tsx** — Drag-and-drop area with dashed border, visual feedback, hidden file input
+7. **ingestion-status.tsx** — Source health cards, extraction backlog bars, DLQ stats, guardian alerts with critical highlighting
+8. **document-detail-panel.tsx** — Side panel with document header, numbered chunks, entities chips, events timeline
+9. **index.ts** — Barrel exports for all components and their prop types
+[DEV:P6T9] Started: 2026-03-29T15:40:10.585151+00:00
+======================================================================
+

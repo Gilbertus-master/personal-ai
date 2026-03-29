@@ -1,0 +1,29 @@
+**D06 Rejestr Czynności Przetwarzania -- gotowy.**
+
+Zapisane pliki:
+- `Omnius_REH/06_Rejestr_czynnosci_przetwarzania_REH.md` (REH jako administrator)
+- `Omnius_REF/06_Rejestr_czynnosci_przetwarzania_REF.md` (REF jako administrator)
+
+Kompletność: **18/18 czynności**, każda z pełnymi 10 kolumnami:
+
+| # | Czynność | Transfer? |
+|---|----------|-----------|
+| 1-2 | Email + Teams indexing | TAK (Anthropic USA, SCC) |
+| 3 | Kalendarz | NIE (Hetzner EOG) |
+| 4 | WhatsApp Business | NIE |
+| 5 | Transkrypcja audio Plaud | NIE (Whisper local) |
+| 6 | Dokumenty | NIE |
+| 7-8 | NER + event extraction | TAK (Anthropic SCC) |
+| 9 | Embeddings | TAK (OpenAI SCC) |
+| 10-13 | Analizy, zobowiązania, raporty, meeting prep | TAK (Anthropic SCC) |
+| 14 | Alerty | NIE |
+| 15 | Ocena efektywności | TAK (Anthropic SCC) |
+| 16 | Mapowanie relacji | NIE |
+| 17-18 | Backup + logi audytowe | NIE |
+
+Dodatkowe sekcje: podsumowanie transferów do państw trzecich, ogólne środki bezpieczeństwa (Art. 32), klauzula przeglądowa. Matter ID=11, Document ID=7 w compliance DB.
+Task: D06 — Rejestr czynnosci przetwarzania danych (Art. 30 RODO)
+Level: CRITICAL
+Started: 2026-03-29T10:49:00.400925+00:00
+======================================================================
+

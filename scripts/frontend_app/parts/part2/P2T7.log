@@ -1,0 +1,21 @@
+Done. Here's what was implemented:
+
+**New file:** `packages/ui/src/components/dashboard/notification-bell.tsx`
+- Bell button with red badge showing unfiltered alert count (hidden when 0, caps at "9+")
+- Dropdown panel with header ("Powiadomienia" + count), up to 5 alerts with severity dots, timestamps, and dismiss buttons
+- Empty state with bell icon + "Brak nowych powiadomień"
+- Loading state
+- Click-outside and Escape-to-close handlers
+- "Pokaż wszystkie" footer link calling `onViewAll`
+
+**Updated:** `packages/ui/src/components/topbar.tsx`
+- Added 4 new optional props for notification data/callbacks
+- Conditional rendering: NotificationBell when `notificationAlerts` is provided, original placeholder button otherwise (backward compatible)
+
+**Updated:** `packages/ui/src/components/dashboard/index.ts`
+- Added `NotificationBell` export
+
+Build passes cleanly.
+[DEV:P2T7] Started: 2026-03-29T12:42:42.374986+00:00
+======================================================================
+

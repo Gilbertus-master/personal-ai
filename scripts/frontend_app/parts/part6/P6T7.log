@@ -1,0 +1,16 @@
+Build passed successfully. All 9 files created:
+
+1. **confidence-slider.tsx** — Range 0-100, color gradient (red/amber/green), labeled ticks
+2. **star-rating.tsx** — 5 Lucide stars, hover preview, 3 size variants, readonly mode
+3. **decision-card.tsx** — Expandable card with area badge, confidence bar, outcomes list, "Dodaj wynik" button
+4. **decision-filters.tsx** — Area dropdown + debounced search input (300ms)
+5. **create-decision-modal.tsx** — Full form with ConfidenceSlider, all fields, validation
+6. **outcome-modal.tsx** — Decision reference display, StarRating, textarea, date picker
+7. **patterns-panel.tsx** — Markdown rendering via react-markdown + remark-gfm, skeleton loading, meta bar
+8. **decision-intelligence.tsx** — Months selector (3/6/12), run analysis button, adaptive data rendering with JSON fallback
+9. **index.ts** — Barrel exports for all components + their prop types
+
+All components follow existing conventions: `'use client'`, CSS variables for theming, Polish labels, types from `@gilbertus/api-client`.
+[DEV:P6T7] Started: 2026-03-29T15:36:01.105684+00:00
+======================================================================
+

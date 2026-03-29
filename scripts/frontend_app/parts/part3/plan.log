@@ -1,0 +1,28 @@
+Both files created. Here's the summary:
+
+## Part 3: People & Intelligence — Plan Complete
+
+### Architecture
+- **2 modules**, **4 routes**: `/people`, `/people/[slug]`, `/people/network`, `/intelligence`
+- **27 new component files** across `packages/ui/src/components/people/` and `intelligence/`
+- **4 new API client files**: types + functions for People and Intelligence
+- **4 new state files**: 2 Zustand stores + 2 React Query hook files
+
+### 9 Tasks in 3 Parallel Groups
+
+| Group | Tasks | What |
+|-------|-------|------|
+| **1** (foundation) | P3T1, P3T2, P3T3 | API types/clients for People + Intelligence, stores + hooks |
+| **2** (pages) | P3T4, P3T5, P3T6 | People directory, Person profile, Intelligence dashboard |
+| **3** (advanced) | P3T7, P3T8, P3T9 | Sentiment/Evaluation, Scenarios/Correlations/Predictions, Network graph |
+
+### Key Design Decisions
+- **POST /scenarios** uses query params (not body) — documented explicitly in task P3T2
+- **Client-side search** for people (no backend search endpoint)
+- **Lazy tab loading** — sentiment/delegation only fetched when tab selected (`enabled` flag)
+- **Reuses** KpiCard, MarkdownRenderer, SkeletonCard from existing Parts
+- **react-force-graph-2d** for network visualization with d3-force fallback
+- **recharts** for sentiment trend charts (already in deps from dashboard)
+[ARCHITECT] Started: 2026-03-29T12:54:13.761558+00:00
+======================================================================
+

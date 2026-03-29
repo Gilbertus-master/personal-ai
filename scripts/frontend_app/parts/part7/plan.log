@@ -1,0 +1,33 @@
+Part 7 architecture is ready. Here's the summary:
+
+## Part 7: Voice & Real-time — 8 tasks, 3 parallel groups
+
+### Group 1 (parallel — foundation)
+| Task | Title | Files |
+|------|-------|-------|
+| P7T1 | Voice API types + client | `voice-types.ts`, `voice.ts`, `index.ts` |
+| P7T2 | Voice Zustand store | `voice-store.ts` |
+| P7T3 | PTT button + waveform + controls | 6 UI component files |
+| P7T4 | Message + conversation + session list | 6 UI component files |
+| P7T8 | i18n translations | `pl.json`, `en.json` |
+
+### Group 2 (depends on group 1)
+| Task | Title | Files |
+|------|-------|-------|
+| P7T5 | Voice hooks (recording, WS, health) | `use-voice.ts`, `use-voice-health.ts` |
+
+### Group 3 (depends on group 2)
+| Task | Title | Files |
+|------|-------|-------|
+| P7T6 | Voice page composition | `voice/page.tsx` |
+| P7T7 | FAB + quick panel + layout integration | `voice-fab.tsx`, `voice-quick-panel.tsx`, `layout.tsx` |
+
+### Key decisions:
+- **Canvas API** for waveform (no extra dependency)
+- **Dual mode** — HTTP (default, simple) + WebSocket (real-time toggle)
+- **Dedicated voice fetch** — `customFetch` can't handle FormData/blob, so `voice.ts` builds its own
+- **No new npm packages** — native MediaRecorder, WebSocket, AudioContext
+- **Zustand partialize** — only preferences + sessions persisted, transient recording state resets
+[ARCHITECT] Started: 2026-03-29T17:10:45.895164+00:00
+======================================================================
+

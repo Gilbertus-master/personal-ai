@@ -1,0 +1,15 @@
+Done. Here's what was found and fixed:
+
+**Root cause:** All 6 cron entries already had log redirects, but:
+- **compliance_weekly** and **training_check** used relative paths (`>> logs/...`) — fixed to absolute (`>> /home/sebastian/personal-ai/logs/...`)
+- **weekly_report**, **weekly_analysis**, **response_drafter** had correct absolute paths but simply haven't fired yet (weekly schedules, or recently added)
+- **daily_digest** had correct path and a 0-byte log (ran but produced no output)
+
+**Bonus fix:** 5 additional cron entries (non_regression_monitor, plaud_pipeline, legal_compliance_daily, regulatory_scanner, compliance_monthly) also had relative log paths — all converted to absolute.
+
+**Updated:** `migration_bundle/crontab.txt` synced. Zero relative log paths remain.
+Task: H4 — Fix 6 crons with missing log output
+Level: HIGH
+Started: 2026-03-29T09:26:10.368205+00:00
+============================================================
+

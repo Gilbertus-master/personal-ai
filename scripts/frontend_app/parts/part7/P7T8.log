@@ -1,0 +1,10 @@
+Build passes. 
+
+**Done.** Added the `"voice"` translation block (33 keys) to both:
+- `frontend/packages/i18n/messages/pl.json` — Polish translations
+- `frontend/packages/i18n/messages/en.json` — English translations
+
+No existing translations were modified. Build verified successfully.
+[DEV:P7T8] Started: 2026-03-29T17:19:31.523576+00:00
+======================================================================
+

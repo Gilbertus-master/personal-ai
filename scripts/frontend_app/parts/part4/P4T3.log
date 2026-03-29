@@ -1,0 +1,14 @@
+The build failure is a pre-existing Next.js 16 / Turbopack font resolution issue — not caused by my changes. TypeScript compilation passes cleanly.
+
+**Summary of created files:**
+
+1. **`compliance-badge.tsx`** — Universal badge component with 12 badge types (priority, status, phase, risk, area, compliance, doc_status, signature, training, matter_type, obligation_type, deadline), each with color maps and Polish labels. Uses `cn()` for styling, supports `sm`/`md` sizes.
+
+2. **`area-filter.tsx`** — Reusable area code dropdown with all 9 compliance areas, colored dot indicators, null-first "Wszystkie obszary" option. Styled with CSS variables for dark theme compatibility.
+
+3. **`index.ts`** — Barrel export for both components and their types.
+
+4. **Updated `packages/ui/src/index.ts`** — Added `export * from './components/compliance'` to the root barrel.
+[DEV:P4T3] Started: 2026-03-29T13:44:15.978114+00:00
+======================================================================
+

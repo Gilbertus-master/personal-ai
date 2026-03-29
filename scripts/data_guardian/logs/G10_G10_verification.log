@@ -1,0 +1,8 @@
+G09 quality checks background task completed successfully — already captured its output earlier (volume drops detected due to stale Graph API sources, as expected).
+
+All G10 verification tasks are done. The key blocker for full green status is re-authenticating the Graph API token.
+Task: G10 — End-to-end verification + non-regression gate + final cron setup
+Level: MEDIUM
+Started: 2026-03-29T12:40:58.106189+00:00
+============================================================
+

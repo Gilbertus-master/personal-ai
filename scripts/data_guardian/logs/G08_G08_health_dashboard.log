@@ -1,0 +1,31 @@
+G08 done. Summary:
+
+### 1. Migration `014_ingestion_health.sql`
+- Table already existed — added `trend` column (`growing`/`stable`/`declining`)
+- UNIQUE constraint `uq_ingestion_health_date_source` was already present
+- Updated `data_guardian.py:save_health_metrics()` to compute and persist trend (based on `docs_24h` vs `docs_7d_avg` ratio)
+
+### 2. API endpoint `GET /ingestion/dashboard`
+- New file `app/api/ingestion_dashboard.py` with full dashboard:
+  - **sources**: 8 source types with status, freshness, SLA, docs_24h, trend, circuit breaker, DLQ, last error
+  - **extraction**: entity/event/embedding backlogs + running workers
+  - **alerts**: unacknowledged critical + recent auto-fixes
+  - **overall_health**: worst source status
+- Registered in `main.py` (also wired `alerts_guardian` and `dlq` routers that were missing)
+
+### 3. Guardian crons
+- 4/5 already existed in crontab. Added missing **Critical Alert Repeat** (co 2h):
+  ```
+  0 */2 * * * cd /home/sebastian/personal-ai && .venv/bin/python3 -c "from app.guardian.alert_manager import AlertManager; AlertManager().repeat_unacknowledged()"
+  ```
+
+### 4. MCP tool `gilbertus_data_health`
+- Added to `mcp_gilbertus/server.py` — tool #45 in "system" group
+- Actions: `dashboard`, `sources`, `dlq`, `alerts`, `fix`
+- Also added `ingestion_health`, `ingestion_dlq`, `guardian_alerts` to SQL whitelist
+- Added routing keywords: health, ingestion, pipeline, dlq, freshness, backlog
+Task: G08 — Ingestion health dashboard + metrics table + cron registration
+Level: MEDIUM
+Started: 2026-03-29T12:24:50.739194+00:00
+============================================================
+

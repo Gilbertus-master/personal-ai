@@ -1,0 +1,14 @@
+Build passes. All 4 files created and working:
+
+1. **`packages/ui/src/components/compliance/compliance-dashboard.tsx`** — Dashboard with KPI row (4 cards: Obowiązki, Sprawy otwarte, Zaległe terminy, Ryzyko ogólne), area status grid (3×3), and quick links (8 buttons with lucide icons)
+
+2. **`packages/ui/src/components/compliance/area-status-card.tsx`** — Clickable card showing area name, risk badge, governing body, and truncated regulations list
+
+3. **`apps/web/app/(app)/compliance/page.tsx`** — Dashboard page with RbacGate (ceo/board/director/gilbertus_admin), fetches data via `useComplianceDashboard()` and `useComplianceAreas()`
+
+4. **`apps/web/app/(app)/compliance/areas/[code]/page.tsx`** — Area detail page with 8 tabs (Przegląd, Obowiązki, Sprawy, Dokumenty, Terminy, Szkolenia, Ryzyka, RACI), Overview tab implemented with basic info + key regulations, other tabs show placeholder pending P4T5-P4T8 components
+
+5. **`packages/ui/src/components/compliance/index.ts`** — Updated with exports for `AreaStatusCard` and `ComplianceDashboard`
+[DEV:P4T4] Started: 2026-03-29T13:49:15.957396+00:00
+======================================================================
+

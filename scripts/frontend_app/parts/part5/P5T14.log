@@ -1,0 +1,26 @@
+Build succeeds. Both pages are compiled and registered:
+- `/process/tech-radar` 
+- `/process/workforce`
+
+**Tech Radar page** (`process/tech-radar/page.tsx`):
+- RBAC: `board`/`ceo` + `config:write:system`
+- KPI row: total solutions, total estimated savings (PLN), top ROI solution name
+- `TechRadarChart` SVG quadrant visualization
+- Type filter (build/buy/extend) + status filter from `useProcessStore`
+- Filterable `TechSolutionCard` list with approve/reject buttons via `useUpdateTechStatus`
+- `RoadmapTimeline` with tech roadmap data
+- Strategic alignment section showing goals with supporting solutions
+- "Odkryj technologie" button with loading/success/error states
+
+**Workforce page** (`process/workforce/page.tsx`):
+- RBAC: `ceo` only + `evaluations:read:all`
+- Warning banner: "Dane poufne — tylko CEO"
+- KPI row: total employees, analyzed, avg automatable %, potential savings
+- `WorkforceTable` with row click to select employee
+- Expandable employee detail: name, role, automatable % bar, replaceability score, work activities table, automation roadmap cards
+- "Analizuj" button per employee, "Analizuj wszystkich" button
+- `RoadmapTimeline` with quarterly automation initiatives
+- Loading skeletons, error handling, Polish labels throughout
+[DEV:P5T14] Started: 2026-03-29T14:50:54.301733+00:00
+======================================================================
+

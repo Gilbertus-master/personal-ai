@@ -1,0 +1,8 @@
+Build passes. All three files created/updated:
+
+1. **`voice-types.ts`** — Types for all 5 HTTP endpoints + WebSocket messages
+2. **`voice.ts`** — Dedicated `voiceFetch` helper (no Content-Type for FormData, auth via `getApiKey()`), plus 6 exported functions: `transcribeAudio`, `voiceAsk`, `voiceCommand`, `textToSpeech`, `getVoiceHealth`, `getVoiceWsUrl`
+3. **`index.ts`** — Added voice exports
+[DEV:P7T1] Started: 2026-03-29T17:16:09.014537+00:00
+======================================================================
+

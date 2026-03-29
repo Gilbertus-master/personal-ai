@@ -1,0 +1,30 @@
+Wszystko poprawnie. Podsumowanie:
+
+## D02: Klauzula informacyjna RODO — gotowe
+
+**Zarejestrowane w module compliance:**
+- Matter ID: 6 (`policy_update`, area: RODO, priority: critical)
+- Document ID: 2 (draft, wymaga zatwierdzenia)
+
+**Wygenerowane pliki (240 linii, ~1500 słów, wszystkie 10 sekcji):**
+- `/mnt/c/Users/jablo/Desktop/Omnius_REH/02_Klauzula_informacyjna_RODO_REH.md`
+- `/mnt/c/Users/jablo/Desktop/Omnius_REF/02_Klauzula_informacyjna_RODO_REF.md`
+
+**Pokryte sekcje:**
+1. Administrator danych (z IOD)
+2. Cele przetwarzania + podstawy prawne (4 cele, balancing test)
+3. Kategorie danych
+4. Źródła danych (Graph API, Plaud, dokumenty)
+5. Odbiorcy (Anthropic, OpenAI, Microsoft, Hetzner)
+6. Transfer do państw trzecich (SCC, szyfrowanie)
+7. Okresy przechowywania (tabela per kategoria)
+8. Prawa osoby (8 praw: art. 15-22 + skarga UODO)
+9. Zautomatyzowane przetwarzanie (logika AI, brak autonomicznych decyzji, interwencja człowieka)
+10. Obowiązek podania danych (KP art. 22§3)
+
+**Do uzupełnienia przez Ciebie:** pola oznaczone `[●]` — adresy, NIP, REGON, telefony, KRS dla REF.
+Task: D02 — Klauzula informacyjna dla pracownikow (RODO Art. 13/14)
+Level: CRITICAL
+Started: 2026-03-29T10:26:16.188892+00:00
+======================================================================
+

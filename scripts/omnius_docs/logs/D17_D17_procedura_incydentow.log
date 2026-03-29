@@ -1,0 +1,12 @@
+D17 gotowe:
+
+- **Matter ID:** 29 (RODO, policy_update, high priority)
+- **Document ID:** 21 — Procedura reagowania na incydenty naruszenia ochrony danych osobowych
+- **Saved:** `17_Procedura_incydentow_REH.md` (10 639 znaków) + `17_Procedura_incydentow_REF.md` (z podmienioną nazwą spółki)
+
+Procedura obejmuje §1-§11: wykrywanie, klasyfikacja 3-poziomowa, zgłoszenie UODO 72h (Art. 33), powiadomienie osób (Art. 34), działania naprawcze, dokumentowanie, post-mortem, szkolenia + scenariusze specyficzne dla Omnius (wyciek przez API AI, nieuprawniony dostęp, błąd AI ujawniający dane).
+Task: D17 — Procedura reagowania na incydenty (breach notification)
+Level: HIGH
+Started: 2026-03-29T11:25:33.151064+00:00
+======================================================================
+

@@ -1,0 +1,8 @@
+The background `--verbose` run failed because the full remediation cycle tried to restart sync commands that fail (Graph API sources have been down since Mar 24). This is expected behavior — the guardian correctly diagnosed them, attempted auto-fix, failed, and escalated via WhatsApp. The alert save failure (severity "critical" not in alerts check constraint) was already fixed in the code.
+
+The guardian is working correctly — check-only mode, JSON output, and metrics saving all verified successfully.
+Task: G04 — Data Guardian daemon — source freshness SLA monitor with auto-remediation
+Level: HIGH
+Started: 2026-03-29T11:55:40.876559+00:00
+============================================================
+

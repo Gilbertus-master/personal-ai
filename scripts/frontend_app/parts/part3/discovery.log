@@ -1,0 +1,12 @@
+Discovery report written to `scripts/frontend_app/parts/part3/discovery.md`.
+
+**Key findings:**
+
+- **33 relevant API endpoints found** (20 People + 13 Intelligence) — more than the spec listed, including CRUD operations on timeline/roles/loops and extra delegation-chain endpoints
+- **RBAC:** People → director+, Evaluations → CEO only, Sentiment/Wellbeing/Network/Intelligence → board+, Scenarios → CEO+
+- **Notable gaps:** POST /scenarios uses query params (not body), no text search on people, no SSE, correlation responses vary by type (union type needed), network graph response shape needs investigation
+- **Complexity:** 2 simple, 4 medium, 4 complex features — Network Graph and Correlation Explorer are the hardest pieces
+- **All existing frontend patterns documented:** monorepo structure, customFetch wrapper, Zustand + React Query, shadcn/ui components, CSS variables
+[ARCHITECT] Started: 2026-03-29T12:47:13.617017+00:00
+======================================================================
+

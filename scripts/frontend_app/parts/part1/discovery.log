@@ -1,0 +1,20 @@
+Discovery report written to `scripts/frontend_app/parts/part1/discovery.md`.
+
+**Key findings:**
+
+1. **API surface is solid** — `POST /ask` supports conversation context via `channel` + `session_id`, and `GET /conversation/windows` lists active sessions. Quick action endpoints (`/brief/today`, `/timeline`, `/meeting-prep`) exist and are ready.
+
+2. **Main gaps:**
+   - **No SSE/streaming** — `/ask` returns full response synchronously (2-8s). Need good loading states instead of token-by-token streaming.
+   - **No file upload** for chat attachments — Phase 2.
+   - **Sources require `debug=true`** — must always send this flag to get source references.
+   - **No conversation CRUD API** — conversations managed client-side (Zustand + localStorage), backend only stores sliding window context.
+
+3. **RBAC** — All authenticated users can access chat (`roles: ['*']` in navigation). Source filtering is backend-enforced via classification + department + ownership. No frontend filtering needed.
+
+4. **Frontend patterns** are well-established — Orval API client, Zustand stores with persist, shadcn-style components, `cn()` utility, RbacGate, NextAuth v5 sessions with role augmentation.
+
+5. **Overall complexity: Medium** — Most features are straightforward. The lack of streaming is the biggest UX challenge.
+[ARCHITECT] Started: 2026-03-29T12:03:40.270211+00:00
+======================================================================
+

@@ -1,0 +1,28 @@
+G05 done. Summary:
+
+## Dead Letter Queue — Completed
+
+### Nowe pliki
+- **`app/ingestion/common/db.py`** — dodano `classify_error()` + `insert_into_dlq()` 
+- **`app/guardian/dlq_worker.py`** — retry worker (co 2h via cron), abandoned → WhatsApp alert (max 1x/dzień)
+- **`app/api/dlq.py`** — 4 endpointy: `GET /dlq`, `GET /dlq/stats`, `POST /dlq/{id}/retry`, `POST /dlq/retry-all`
+
+### Zmodyfikowane importery (7 plików)
+- `email/importer.py` — parse + insert errors → DLQ
+- `teams/importer.py` — thread import errors → DLQ  
+- `docs/importer.py` — document import errors → DLQ
+- `audio/importer.py` — parse + import errors → DLQ
+- `whatsapp/importer.py` — full import wrapped → DLQ
+- `plaud_sync.py` — API fetch + per-recording errors → DLQ
+- `live_ingest.py` — WhatsApp live + Claude Code sessions → DLQ
+
+### Infrastruktura
+- **Tabela:** `ingestion_dlq` (14 kolumn, 2 indeksy)
+- **Cron:** `15 */2 * * *` — retry worker co 2h
+- **Error classification:** 8 typów (parse, db, api, timeout, auth, format, size, unknown)
+- **Retry logic:** max 3 retries per item, then `abandoned` + WhatsApp alert
+Task: G05 — Dead letter queue + failed import capture + retry mechanism
+Level: HIGH
+Started: 2026-03-29T12:03:48.683307+00:00
+============================================================
+

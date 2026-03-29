@@ -1,0 +1,16 @@
+Done. Here's the summary:
+
+**Fix applied:** `app/ingestion/common/db.py:22` — `insert_source()` now uses `ON CONFLICT (source_type, source_name) DO UPDATE SET imported_at = NOW()` instead of a blind INSERT.
+
+**Verification:**
+- Only one definition of `insert_source` exists (in `common/db.py`)
+- All 20+ callers pass `conn=None` — no caller changes needed (function already ignores `conn` and uses pool internally)
+- Upsert test passed: same `(source_type, source_name)` returns the same `id` on repeated calls
+- `live_ingest` smoke test ran without UniqueViolation crashes
+
+All pipelines (email, Teams, WhatsApp, Plaud, Calendar, ChatGPT, Claude Code sessions) should stop crashing immediately.
+Task: G01 — Fix insert_source upsert + all callers — unblock ALL pipelines
+Level: CRITICAL
+Started: 2026-03-29T11:40:21.735583+00:00
+============================================================
+

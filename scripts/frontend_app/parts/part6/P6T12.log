@@ -1,0 +1,16 @@
+Build passes. Here's what I created:
+
+**`frontend/apps/web/app/(app)/documents/page.tsx`** — Documents page with:
+- `RbacGate permission="documents"` wrapping the entire page
+- 3 tabs: Szukaj (search), Przeglądaj (browse), Ingestion
+- **Search tab**: `SearchBar` + `SourceTypeFilter` + date range inputs, debounced via `useDocumentSearch`. Shows AI answer + `DocumentResultCard` list
+- **Browse tab**: `SourceTypeFilter` + `DocumentsTable`. Graceful 404 handling with "Ta funkcja wymaga aktualizacji backendu" banner
+- **Ingestion tab**: `IngestionStatus` showing real-time pipeline health
+- **Upload**: director+ only button, `UploadModal` with success toast that auto-switches to ingestion tab
+- **Document detail**: clicking any document opens `DocumentDetailPanel` side panel
+- All state managed via `useDocumentsStore` (Zustand, persisted)
+
+**Also fixed**: Added `"./documents"` export to `@gilbertus/ui/package.json` (required for the build to resolve the import).
+[DEV:P6T12] Started: 2026-03-29T15:48:15.484226+00:00
+======================================================================
+

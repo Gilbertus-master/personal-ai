@@ -1,0 +1,24 @@
+All 7 files implemented, build passes. Here's what was created:
+
+**Files created:**
+
+1. **`apps/web/lib/auth.ts`** — NextAuth v5 config with CredentialsProvider (`api-key` — validates against `/health` endpoint) and MicrosoftEntraID provider. JWT/session callbacks propagate role, roleLevel, permissions, tenant, authType. Module augmentation extends `next-auth` User and Session types.
+
+2. **`apps/web/app/api/auth/[...nextauth]/route.ts`** — Exports GET/POST handlers from auth config.
+
+3. **`apps/web/middleware.ts`** — Uses NextAuth `auth` as middleware. Matcher excludes `/login`, `/api/auth`, `/_next`, `/favicon.ico`, and static files.
+
+4. **`apps/web/app/(auth)/layout.tsx`** — Centered dark background layout for auth pages.
+
+5. **`apps/web/app/(auth)/login/page.tsx`** — Login page with API key input + Azure AD button. Polish strings inline (ready to swap for `useTranslations` once next-intl provider is wired).
+
+6. **`apps/web/lib/stores/sidebar-store.ts`** — Zustand store with `collapsed`/`toggle`/`setCollapsed`, persisted to localStorage `gilbertus-sidebar`.
+
+7. **`apps/web/lib/stores/command-palette-store.ts`** — Zustand store with `open`/`query`/`setOpen`/`setQuery`.
+
+**Additional changes:**
+- Added `@auth/core` dependency to fix type portability in pnpm monorepo
+- Set `declaration: false` in web tsconfig (app doesn't emit declarations, avoids type portability errors from `next-auth/lib`)
+[DEV:P0T8] Started: 2026-03-29T11:50:03.762585+00:00
+======================================================================
+

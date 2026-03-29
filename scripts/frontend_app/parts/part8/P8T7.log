@@ -1,0 +1,16 @@
+Build passes with all 3 new admin routes registered. Here's what was implemented:
+
+**3 UI components** (`packages/ui/src/components/admin/`):
+- **`code-review-queue.tsx`** — Stats bar with severity badges, severity/category dropdown filters, expandable table rows showing full file path + description
+- **`user-manager.tsx`** — User table with role-colored badges, active indicator dots, modal dialog for creating new users with form validation
+- **`audit-log.tsx`** — Filterable log table (user search, action/result dropdowns), sorted newest-first, color-coded result badges
+
+**3 page files** (`apps/web/app/(app)/admin/`):
+- **`code-review/page.tsx`** — Wires `useCodeFindings` hook + admin store filters to `CodeReviewQueue`
+- **`users/page.tsx`** — Wires `useAdminUsers` + `useCreateAdminUser` to `UserManager`
+- **`audit/page.tsx`** — Wrapped in `RbacGate roles={['gilbertus_admin']}`, wires `useAuditLog` + store filters to `AuditLog`
+
+**Updated** `packages/ui/src/components/admin/index.ts` barrel export with all 3 new components.
+[DEV:P8T7] Started: 2026-03-29T16:28:32.871076+00:00
+======================================================================
+
