@@ -1,0 +1,53 @@
+name: Publish Update Notification
+on:
+  release:
+    types: [published]
+
+jobs:
+  notify-update-server:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine app name
+        id: app
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          if [[ "$TAG" == omnius-v* ]]; then
+            echo "name=omnius" >> $GITHUB_OUTPUT
+            echo "version=${TAG#omnius-v}" >> $GITHUB_OUTPUT
+          else
+            echo "name=gilbertus" >> $GITHUB_OUTPUT
+            echo "version=${TAG#v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Collect MSI artifact info
+        id: artifacts
+        run: |
+          # Get release assets via GitHub API
+          ASSETS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/${{ github.event.release.id }}/assets")
+
+          # Find MSI URL and signature
+          MSI_URL=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith(".msi.zip")) | .browser_download_url' | head -1)
+          SIG_URL=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith(".msi.zip.sig")) | .browser_download_url' | head -1)
+          SIG=$(curl -sL "$SIG_URL" 2>/dev/null || echo "")
+
+          echo "msi_url=$MSI_URL" >> $GITHUB_OUTPUT
+          echo "signature=$SIG" >> $GITHUB_OUTPUT
+
+      - name: Publish to update server
+        if: steps.artifacts.outputs.msi_url != ''
+        run: |
+          curl -X POST "${{ secrets.GILBERTUS_API_URL }}/updates/${{ steps.app.outputs.name }}/publish" \
+            -H "X-API-Key: ${{ secrets.GILBERTUS_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "version": "${{ steps.app.outputs.version }}",
+              "notes": "${{ github.event.release.body }}",
+              "pub_date": "${{ github.event.release.published_at }}",
+              "platforms": {
+                "windows-x86_64": {
+                  "url": "${{ steps.artifacts.outputs.msi_url }}",
+                  "signature": "${{ steps.artifacts.outputs.signature }}"
+                }
+              }
+            }'

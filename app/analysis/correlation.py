@@ -160,7 +160,7 @@ def person_event_profile(
                 JOIN event_entities ee ON ee.event_id = e.id
                 WHERE ee.entity_id = %s
                   AND e.event_time IS NOT NULL
-                  AND e.event_time > NOW() - INTERVAL '%s months'
+                  AND e.event_time > NOW() - make_interval(months => %s)
                 GROUP BY week, event_type
                 ORDER BY week DESC, count DESC
             """, (entity_id, months))

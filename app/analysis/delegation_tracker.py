@@ -42,7 +42,7 @@ def calculate_delegation_score(person_name: str, months: int = 3) -> dict[str, A
                     COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled
                 FROM commitments
                 WHERE LOWER(person_name) = LOWER(%s)
-                  AND created_at > NOW() - INTERVAL '%s months'
+                  AND created_at > NOW() - make_interval(months => %s)
             """, (person_name, months))
             row = cur.fetchone()
             total, fulfilled, broken, overdue, open_count, cancelled = row
@@ -64,7 +64,7 @@ def calculate_delegation_score(person_name: str, months: int = 3) -> dict[str, A
                 FROM commitments
                 WHERE LOWER(person_name) = LOWER(%s)
                   AND status = 'fulfilled'
-                  AND created_at > NOW() - INTERVAL '%s months'
+                  AND created_at > NOW() - make_interval(months => %s)
             """, (person_name, months))
             avg_days_row = cur.fetchone()
             avg_days = round(float(avg_days_row[0]), 1) if avg_days_row and avg_days_row[0] else None
@@ -78,7 +78,7 @@ def calculate_delegation_score(person_name: str, months: int = 3) -> dict[str, A
                 WHERE LOWER(person_name) = LOWER(%s)
                   AND status = 'fulfilled'
                   AND deadline IS NOT NULL
-                  AND created_at > NOW() - INTERVAL '%s months'
+                  AND created_at > NOW() - make_interval(months => %s)
             """, (person_name, months))
             ot_row = cur.fetchone()
             on_time, with_deadline = ot_row

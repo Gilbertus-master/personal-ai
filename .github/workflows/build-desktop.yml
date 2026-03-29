@@ -1,0 +1,111 @@
+name: Build Desktop Apps
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'Which app to build'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - gilbertus
+          - omnius
+          - both
+
+jobs:
+  build-gilbertus:
+    if: ${{ github.event_name == 'push' || inputs.app == 'gilbertus' || inputs.app == 'both' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        run: cd frontend && pnpm install --frozen-lockfile
+
+      - name: Build web (static export)
+        run: cd frontend && TAURI_BUILD=1 pnpm --filter @gilbertus/web build
+        env:
+          TAURI_BUILD: '1'
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        with:
+          projectPath: frontend/apps/desktop
+          tagName: v__VERSION__
+          releaseName: 'Gilbertus v__VERSION__'
+          releaseBody: 'Desktop app release — Gilbertus Albans'
+          releaseDraft: true
+          prerelease: false
+
+  build-omnius:
+    if: ${{ github.event_name == 'push' || inputs.app == 'omnius' || inputs.app == 'both' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        run: cd frontend && pnpm install --frozen-lockfile
+
+      - name: Build web (static export)
+        run: cd frontend && TAURI_BUILD=1 pnpm --filter @gilbertus/web build
+        env:
+          TAURI_BUILD: '1'
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        with:
+          projectPath: frontend/apps/desktop
+          tauriScript: cargo tauri
+          configPath: tauri-omnius.conf.json
+          args: --features omnius
+          tagName: omnius-v__VERSION__
+          releaseName: 'Omnius v__VERSION__'
+          releaseBody: 'Desktop app release — Omnius'
+          releaseDraft: true
+          prerelease: false

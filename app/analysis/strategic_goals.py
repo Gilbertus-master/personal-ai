@@ -138,7 +138,8 @@ def create_goal(
                 (title, description, company, area, target_value, unit, deadline,
                  parent_goal_id, metric_source),
             )
-            row = cur.fetchone()
+            rows = cur.fetchall()
+            row = rows[0] if rows else None
         conn.commit()
 
     result = {
@@ -173,7 +174,8 @@ def update_goal_progress(
                 """,
                 (goal_id, value, note, auto_detected),
             )
-            progress_row = cur.fetchone()
+            progress_rows = cur.fetchall()
+            progress_row = progress_rows[0] if progress_rows else None
 
             # Update current_value on the goal
             cur.execute(
@@ -189,7 +191,8 @@ def update_goal_progress(
                 """,
                 (goal_id,),
             )
-            goal = cur.fetchone()
+            goal_rows = cur.fetchall()
+            goal = goal_rows[0] if goal_rows else None
             if not goal:
                 conn.rollback()
                 return {"error": f"Goal {goal_id} not found"}
@@ -346,7 +349,8 @@ def _fetch_metric_value(metric_source: str, company: str | None) -> float | None
                 log.warning("strategic_goal.unknown_metric_source", source=metric_source)
                 return None
 
-            row = cur.fetchone()
+            rows = cur.fetchall()
+            row = rows[0] if rows else None
             return float(row[0]) if row and row[0] is not None else None
 
 
@@ -522,7 +526,8 @@ def analyze_goal_risks() -> list[dict]:
                             """,
                             (f"%{company}%",),
                         )
-                        overdue = cur.fetchone()[0]
+                        overdue_rows = cur.fetchall()
+                        overdue = overdue_rows[0][0] if overdue_rows else 0
                         if overdue > 0:
                             goal_risks.append({
                                 "risk": f"{overdue} przeterminowanych zobowiazan dla {company}",
@@ -579,7 +584,7 @@ def _llm_risk_analysis(goal_row) -> list[dict]:
                         for r in cur.fetchall()
                     ]
     except Exception:
-        pass
+        log.warning("goal_risk.recent_events_failed", goal_id=goal_id, exc_info=True)
 
     prompt = f"""Cel: {title}
 Opis: {description or 'brak'}

@@ -100,8 +100,8 @@ def get_unchecked_communications(
                        sc.follow_up_sent, sc.follow_up_count
                 FROM sent_communications sc
                 WHERE sc.response_received = FALSE
-                  AND sc.sent_at > NOW() - INTERVAL '%s hours'
-                  AND sc.sent_at < NOW() - INTERVAL '%s hours'
+                  AND sc.sent_at > NOW() - (%s * INTERVAL '1 hour')
+                  AND sc.sent_at < NOW() - (%s * INTERVAL '1 hour')
                   AND (sc.checked_at IS NULL
                        OR sc.checked_at < NOW() - INTERVAL '12 hours')
                 ORDER BY sc.sent_at ASC
@@ -335,26 +335,29 @@ def get_response_stats(days: int = 30) -> dict:
             # Total sent
             cur.execute("""
                 SELECT COUNT(*) FROM sent_communications
-                WHERE sent_at > NOW() - INTERVAL '%s days'
+                WHERE sent_at > NOW() - (%s * INTERVAL '1 day')
             """, (days,))
-            total_sent = cur.fetchone()[0]
+            rows = cur.fetchall()
+            total_sent = rows[0][0] if rows else 0
 
             # Total responded
             cur.execute("""
                 SELECT COUNT(*) FROM sent_communications
-                WHERE sent_at > NOW() - INTERVAL '%s days'
+                WHERE sent_at > NOW() - (%s * INTERVAL '1 day')
                   AND response_received = TRUE
             """, (days,))
-            responded = cur.fetchone()[0]
+            rows = cur.fetchall()
+            responded = rows[0][0] if rows else 0
 
             # Average response time
             cur.execute("""
                 SELECT AVG(response_time_hours)
                 FROM sent_communications
-                WHERE sent_at > NOW() - INTERVAL '%s days'
+                WHERE sent_at > NOW() - (%s * INTERVAL '1 day')
                   AND response_time_hours IS NOT NULL
             """, (days,))
-            avg_row = cur.fetchone()
+            rows = cur.fetchall()
+            avg_row = rows[0] if rows else None
             avg_hours = round(float(avg_row[0]), 1) if avg_row and avg_row[0] else None
 
             # By channel
@@ -364,7 +367,7 @@ def get_response_stats(days: int = 30) -> dict:
                        COUNT(*) FILTER (WHERE response_received = TRUE) as responded,
                        AVG(response_time_hours) FILTER (WHERE response_time_hours IS NOT NULL) as avg_hours
                 FROM sent_communications
-                WHERE sent_at > NOW() - INTERVAL '%s days'
+                WHERE sent_at > NOW() - (%s * INTERVAL '1 day')
                 GROUP BY channel
                 ORDER BY sent DESC
             """, (days,))
@@ -387,7 +390,7 @@ def get_response_stats(days: int = 30) -> dict:
                        AVG(response_time_hours) FILTER (WHERE response_time_hours IS NOT NULL) as avg_hours,
                        MODE() WITHIN GROUP (ORDER BY response_sentiment) FILTER (WHERE response_sentiment IS NOT NULL) as common_sentiment
                 FROM sent_communications
-                WHERE sent_at > NOW() - INTERVAL '%s days'
+                WHERE sent_at > NOW() - (%s * INTERVAL '1 day')
                 GROUP BY recipient
                 HAVING COUNT(*) >= 2
                 ORDER BY sent DESC
@@ -410,7 +413,7 @@ def get_response_stats(days: int = 30) -> dict:
                     SELECT recipient, channel, response_received, sent_at,
                            ROW_NUMBER() OVER (PARTITION BY recipient ORDER BY sent_at DESC) as rn
                     FROM sent_communications
-                    WHERE sent_at > NOW() - INTERVAL '%s days'
+                    WHERE sent_at > NOW() - (%s * INTERVAL '1 day')
                 ),
                 streaks AS (
                     SELECT recipient,

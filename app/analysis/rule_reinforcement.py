@@ -158,11 +158,11 @@ def log_rule_outcome(application_id: int, outcome: str, evidence: str = "") -> N
                 WHERE id = %s
                 RETURNING rule_id
             """, (outcome, evidence, application_id))
-            row = cur.fetchone()
-            if not row:
+            rows = cur.fetchall()
+            if not rows:
                 log.warning("rule_reinforcement.application_not_found", application_id=application_id)
                 return
-            rule_id = row[0]
+            rule_id = rows[0][0]
 
             # Update outcome counts on self_rules
             if outcome == "positive":

@@ -212,7 +212,7 @@ def check_email_response(action: dict, check_type: str) -> dict:
                 JOIN sources s ON s.id = d.source_id
                 WHERE s.source_type = 'email'
                   AND d.created_at > %s
-                  AND d.created_at < %s + INTERVAL '%s hours'
+                  AND d.created_at < %s + (%s * INTERVAL '1 hour')
                   AND (d.title ILIKE %s OR c.text ILIKE %s)
                 LIMIT 5
             """, (executed_at, executed_at, window_hours, search_patterns[0], search_patterns[1]))
@@ -260,7 +260,7 @@ def check_topic_follow_up(action: dict, check_type: str) -> dict:
                 SELECT e.id, e.event_type, e.summary, e.event_time
                 FROM events e
                 WHERE (e.created_at > %s OR e.event_time > %s)
-                  AND e.created_at < %s + INTERVAL '%s hours'
+                  AND e.created_at < %s + (%s * INTERVAL '1 hour')
                 ORDER BY e.created_at DESC
                 LIMIT 30
             """, (executed_at, executed_at, executed_at, window_hours))
@@ -274,7 +274,7 @@ def check_topic_follow_up(action: dict, check_type: str) -> dict:
                 FROM chunks c
                 JOIN documents d ON d.id = c.document_id
                 WHERE d.created_at > %s
-                  AND d.created_at < %s + INTERVAL '%s hours'
+                  AND d.created_at < %s + (%s * INTERVAL '1 hour')
                   AND length(c.text) > 100
                 ORDER BY d.created_at DESC
                 LIMIT 20
@@ -459,25 +459,27 @@ def get_action_effectiveness_summary(days: int = 30) -> dict:
             cur.execute("""
                 SELECT COUNT(*) FROM action_items
                 WHERE status = 'executed'
-                  AND executed_at > NOW() - INTERVAL '%s days'
+                  AND executed_at > NOW() - (%s * INTERVAL '1 day')
             """, (days,))
-            total_actions = cur.fetchone()[0]
+            rows = cur.fetchall()
+            total_actions = rows[0][0] if rows else 0
 
             # Checked actions with outcomes
             cur.execute("""
                 SELECT COUNT(DISTINCT ao.action_item_id)
                 FROM action_outcomes ao
                 JOIN action_items ai ON ai.id = ao.action_item_id
-                WHERE ai.executed_at > NOW() - INTERVAL '%s days'
+                WHERE ai.executed_at > NOW() - (%s * INTERVAL '1 day')
             """, (days,))
-            checked = cur.fetchone()[0]
+            rows = cur.fetchall()
+            checked = rows[0][0] if rows else 0
 
             # Success rate (from latest check per action)
             cur.execute("""
                 SELECT ao.outcome, COUNT(*)
                 FROM action_outcomes ao
                 JOIN action_items ai ON ai.id = ao.action_item_id
-                WHERE ai.executed_at > NOW() - INTERVAL '%s days'
+                WHERE ai.executed_at > NOW() - (%s * INTERVAL '1 day')
                   AND ao.check_type = (
                       SELECT MAX(ao2.check_type) FROM action_outcomes ao2
                       WHERE ao2.action_item_id = ao.action_item_id
@@ -495,10 +497,11 @@ def get_action_effectiveness_summary(days: int = 30) -> dict:
                 SELECT AVG(ao.response_time_hours)
                 FROM action_outcomes ao
                 JOIN action_items ai ON ai.id = ao.action_item_id
-                WHERE ai.executed_at > NOW() - INTERVAL '%s days'
+                WHERE ai.executed_at > NOW() - (%s * INTERVAL '1 day')
                   AND ao.response_time_hours IS NOT NULL
             """, (days,))
-            avg_response_row = cur.fetchone()
+            rows = cur.fetchall()
+            avg_response_row = rows[0] if rows else None
             avg_response_time = round(float(avg_response_row[0]), 1) if avg_response_row and avg_response_row[0] else None
 
             # By action type
@@ -512,7 +515,7 @@ def get_action_effectiveness_summary(days: int = 30) -> dict:
                 FROM action_items ai
                 LEFT JOIN action_outcomes ao ON ao.action_item_id = ai.id
                 WHERE ai.status = 'executed'
-                  AND ai.executed_at > NOW() - INTERVAL '%s days'
+                  AND ai.executed_at > NOW() - (%s * INTERVAL '1 day')
                 GROUP BY ai.action_type
                 ORDER BY total DESC
             """, (days,))
@@ -538,7 +541,7 @@ def get_action_effectiveness_summary(days: int = 30) -> dict:
                 FROM action_items ai
                 LEFT JOIN action_outcomes ao ON ao.action_item_id = ai.id
                 WHERE ai.status = 'executed'
-                  AND ai.executed_at > NOW() - INTERVAL '%s days'
+                  AND ai.executed_at > NOW() - (%s * INTERVAL '1 day')
                 GROUP BY person
                 HAVING COUNT(*) >= 2
                 ORDER BY total DESC

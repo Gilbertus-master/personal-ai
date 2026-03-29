@@ -284,7 +284,7 @@ def analyze_confidence_calibration(months: int = 6) -> dict:
                 SELECT d.id, d.area, d.confidence, do.rating
                 FROM decisions d
                 JOIN decision_outcomes do ON do.decision_id = d.id
-                WHERE d.decided_at > NOW() - INTERVAL '%s months'
+                WHERE d.decided_at > NOW() - make_interval(months => %s)
             """, (months,))
             rows = cur.fetchall()
 
@@ -382,7 +382,7 @@ def analyze_decision_patterns(months: int = 6) -> dict:
                 LEFT JOIN events e ON e.id = d.source_event_id
                 LEFT JOIN event_entities ee ON ee.event_id = e.id
                 LEFT JOIN entities en ON en.id = ee.entity_id
-                WHERE d.decided_at > NOW() - INTERVAL '%s months'
+                WHERE d.decided_at > NOW() - make_interval(months => %s)
                 GROUP BY d.id, d.decision_text, d.area, d.confidence, d.decided_at,
                          d.context, d.expected_outcome, do.rating, do.actual_outcome
                 ORDER BY d.decided_at DESC

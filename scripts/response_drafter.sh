@@ -16,9 +16,8 @@ fi
 touch "$LOCKFILE"
 
 cd /home/sebastian/personal-ai
-source .venv/bin/activate 2>/dev/null || true
 
 MINUTES=${1:-30}
 echo "[$(date)] Running response drafter (last ${MINUTES}min)..."
-python -m app.orchestrator.response_drafter "$MINUTES"
+.venv/bin/python -m app.orchestrator.response_drafter "$MINUTES"
 echo "[$(date)] Done."

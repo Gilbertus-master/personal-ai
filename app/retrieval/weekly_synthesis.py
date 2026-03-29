@@ -445,7 +445,8 @@ def _fetch_market_insights_week(week_start: str, week_end: str) -> list[dict]:
                 """, (week_start, week_end))
                 return [{"type": r[0], "title": r[1], "description": r[2],
                          "impact": r[3], "relevance": r[4]} for r in cur.fetchall()]
-    except Exception:
+    except Exception as e:
+        logger.warning("fetch_market_insights_week failed", extra={"error": str(e)})
         return []
 
 
@@ -471,7 +472,8 @@ def _fetch_competitor_landscape_week(week_start: str, week_end: str) -> list[dic
                 """, (week_start, week_end))
                 return [{"name": r[0], "signals": r[1], "high_severity": r[2],
                          "swot_summary": r[3]} for r in cur.fetchall()]
-    except Exception:
+    except Exception as e:
+        logger.warning("fetch_competitor_landscape_week failed", extra={"error": str(e)})
         return []
 
 
@@ -491,7 +493,8 @@ def _fetch_scenarios_week(week_start: str, week_end: str) -> list[dict]:
                 """, (week_start, week_end))
                 return [{"title": r[0], "type": r[1], "status": r[2],
                          "total_impact": float(r[3]) if r[3] else 0} for r in cur.fetchall()]
-    except Exception:
+    except Exception as e:
+        logger.warning("fetch_scenarios_week failed", extra={"error": str(e)})
         return []
 
 
@@ -779,10 +782,10 @@ def save_synthesis(week_start: str, text: str) -> int:
                 """,
                 (summary_type, week_start, week_end, text),
             )
-            row = cur.fetchone()
+            rows = cur.fetchall()
         conn.commit()
 
-    return row[0]
+    return rows[0][0]
 
 
 # ============================================================
