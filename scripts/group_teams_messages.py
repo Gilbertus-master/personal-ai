@@ -15,6 +15,7 @@ Flow:
 4. Delete old individual message docs+chunks
 5. Add text_hash to prevent future dupes
 """
+import structlog
 import hashlib
 import os
 import sys
@@ -24,6 +25,8 @@ from pathlib import Path
 
 import psycopg
 from dotenv import load_dotenv
+
+log = structlog.get_logger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 load_dotenv(BASE_DIR / ".env")
@@ -149,13 +152,13 @@ def main():
         WHERE s.source_type = 'teams'
     """)
     docs_before, chunks_before = cur.fetchone()
-    print(f"=== BEFORE: {docs_before} docs, {chunks_before} chunks (Teams) ===")
+    log.info(f"=== BEFORE: {docs_before} docs, {chunks_before} chunks (Teams) ===")
 
     if DRY_RUN:
-        print("[DRY RUN] No changes will be made.\n")
+        log.info("[DRY RUN] No changes will be made.\n")
 
     # Step 1: Fetch all Teams messages with chat context (both Graph API and PST)
-    print("Step 1: Fetching all Teams messages...")
+    log.info("Step 1: Fetching all Teams messages...")
     cur.execute("""
         SELECT d.id as doc_id, d.title, d.created_at, d.author, d.raw_path,
                c.id as chunk_id, c.text, c.timestamp_start,
@@ -167,15 +170,15 @@ def main():
         ORDER BY d.created_at
     """)
     rows = cur.fetchall()
-    print(f"  Found {len(rows)} Teams message chunks")
+    log.info(f"  Found {len(rows)} Teams message chunks")
 
     if not rows:
-        print("No Teams messages to group.")
+        log.info("No Teams messages to group.")
         conn.close()
         return
 
     # Step 2: Group by chat_id
-    print("Step 2: Grouping by chat...")
+    log.info("Step 2: Grouping by chat...")
     chats = defaultdict(list)
     source_id = rows[0][8]
 
@@ -192,10 +195,10 @@ def main():
             "raw_path": raw_path,
         })
 
-    print(f"  {len(chats)} unique chats")
+    log.info(f"  {len(chats)} unique chats")
 
     # Step 3: Group into windows and create new docs
-    print("Step 3: Creating conversation documents...")
+    log.info("Step 3: Creating conversation documents...")
     new_docs = 0
     new_chunks = 0
     old_doc_ids = set()
@@ -260,11 +263,11 @@ def main():
 
             new_docs += 1
 
-    print(f"  Created {new_docs} conversation docs, {new_chunks} chunks")
-    print(f"  Old: {len(old_doc_ids)} docs, {len(old_chunk_ids)} chunks to delete")
+    log.info(f"  Created {new_docs} conversation docs, {new_chunks} chunks")
+    log.info(f"  Old: {len(old_doc_ids)} docs, {len(old_chunk_ids)} chunks to delete")
 
     # Step 4: Migrate events and entities from old chunks to best-matching new chunks
-    print("Step 4: Migrating events and entities...")
+    log.info("Step 4: Migrating events and entities...")
 
     if not DRY_RUN:
         # For events on old chunks: find the new conversation chunk that contains the same time window
@@ -286,10 +289,10 @@ def main():
             DELETE FROM chunks_entity_checked WHERE chunk_id = ANY(%s::bigint[])
         """, (list(old_chunk_ids),))
 
-        print(f"  Cleared {ev_deleted} events, {ce_deleted} chunk_entities (will re-extract from conversations)")
+        log.info(f"  Cleared {ev_deleted} events, {ce_deleted} chunk_entities (will re-extract from conversations)")
 
     # Step 5: Delete old individual message docs + chunks
-    print("Step 5: Deleting old individual message docs...")
+    log.info("Step 5: Deleting old individual message docs...")
 
     if not DRY_RUN:
         # Chunks CASCADE from documents, but be explicit
@@ -297,7 +300,7 @@ def main():
         chunks_deleted = cur.rowcount
         cur.execute("DELETE FROM documents WHERE id = ANY(%s::bigint[])", (list(old_doc_ids),))
         docs_deleted = cur.rowcount
-        print(f"  Deleted {docs_deleted} old docs, {chunks_deleted} old chunks")
+        log.info(f"  Deleted {docs_deleted} old docs, {chunks_deleted} old chunks")
 
     # Step 6: Final counts
     cur.execute("""
@@ -309,17 +312,17 @@ def main():
     """)
     docs_after, chunks_after = cur.fetchone()
 
-    print(f"\n=== AFTER: {docs_after} docs, {chunks_after} chunks (Teams) ===")
-    print(f"  Reduction: {docs_before} → {docs_after} docs ({docs_before - docs_after} fewer)")
-    print(f"  Reduction: {chunks_before} → {chunks_after} chunks ({chunks_before - chunks_after} fewer)")
+    log.info(f"\n=== AFTER: {docs_after} docs, {chunks_after} chunks (Teams) ===")
+    log.info(f"  Reduction: {docs_before} → {docs_after} docs ({docs_before - docs_after} fewer)")
+    log.info(f"  Reduction: {chunks_before} → {chunks_after} chunks ({chunks_before - chunks_after} fewer)")
 
     if DRY_RUN:
-        print("\n[DRY RUN] Rolling back.")
+        log.info("\n[DRY RUN] Rolling back.")
         conn.rollback()
     else:
-        print("\n[COMMIT] Saving...")
+        log.info("\n[COMMIT] Saving...")
         conn.commit()
-        print("Done! New conversation chunks need embedding (status=pending).")
+        log.info("Done! New conversation chunks need embedding (status=pending).")
 
     conn.close()
 

@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.db.postgres import get_pg_connection
+from app.orchestrator.action_confidence import score_signal_confidence
 
 
 def _propose_action(action_type: str, description: str, params: dict) -> int | None:
@@ -53,6 +54,14 @@ def check_market_triggers() -> list[dict[str, Any]]:
             """)
             for r in cur.fetchall():
                 mid, title, impact, relevance, itype = r
+                confidence = score_signal_confidence("market_insight", {
+                    "relevance_score": relevance, "action_type": "create_ticket",
+                    "severity": "high" if relevance >= 90 else "medium",
+                })
+                if confidence["confidence"] < 0.3:
+                    log.info("auto_actions.market_skip_low_confidence",
+                             insight_id=mid, confidence=confidence["confidence"])
+                    continue
                 if itype == "regulation":
                     desc = f"Nowa regulacja: {title}. {impact}. Sugeruję sprawdzić wpływ na kontrakty."
                     action_type = "send_email"
@@ -95,6 +104,13 @@ def check_competitor_triggers() -> list[dict[str, Any]]:
             """)
             for r in cur.fetchall():
                 sid, comp_name, title, description = r
+                confidence = score_signal_confidence("competitor_signal", {
+                    "severity": "high", "action_type": "create_ticket",
+                })
+                if confidence["confidence"] < 0.3:
+                    log.info("auto_actions.competitor_skip_low_confidence",
+                             signal_id=sid, confidence=confidence["confidence"])
+                    continue
                 from app.analysis.scenario_analyzer import create_scenario, analyze_scenario
                 scenario = create_scenario(
                     title=f"[Auto] {comp_name}: {title[:60]}",
@@ -123,6 +139,14 @@ def check_goal_triggers() -> list[dict[str, Any]]:
             """)
             for r in cur.fetchall():
                 gid, title, company, status, deadline = r
+                confidence = score_signal_confidence("goal_at_risk", {
+                    "severity": "high" if status == "behind" else "medium",
+                    "action_type": "create_ticket",
+                })
+                if confidence["confidence"] < 0.3:
+                    log.info("auto_actions.goal_skip_low_confidence",
+                             goal_id=gid, confidence=confidence["confidence"])
+                    continue
                 desc = f"Cel '{title}' ({company}) jest {status}. Deadline: {deadline}. Sugeruję delegację sprawdzenia statusu."
                 aid = _propose_action("create_ticket", desc, {
                     "title": f"Goal at risk: {title}",
@@ -154,6 +178,13 @@ def check_commitment_triggers() -> list[dict[str, Any]]:
                 """)
                 for r in cur.fetchall():
                     cid, person, desc_text, due = r
+                    confidence = score_signal_confidence("overdue_commitment", {
+                        "action_type": "send_whatsapp", "recipient": person or "",
+                    })
+                    if confidence["confidence"] < 0.3:
+                        log.info("auto_actions.commitment_skip_low_confidence",
+                                 commitment_id=cid, confidence=confidence["confidence"])
+                        continue
                     desc = f"Przeterminowane zobowiązanie: {person} miał(a) '{desc_text}' do {due}."
                     aid = _propose_action("send_whatsapp", desc, {
                         "target": person,

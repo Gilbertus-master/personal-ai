@@ -857,13 +857,15 @@ def research_regulation(matter_id: int, query: str | None = None) -> dict[str, A
     try:
         response = client.messages.create(
             model=ANTHROPIC_MODEL,
-            max_tokens=4000,
+            max_tokens=8000,
             system=[
                 {"type": "text", "text": _SYSTEM_RESEARCH, "cache_control": {"type": "ephemeral"}},
             ],
             messages=[{"role": "user", "content": prompt}],
         )
         log_anthropic_cost(ANTHROPIC_MODEL, "legal_research", response.usage)
+        if response.stop_reason == "max_tokens":
+            log.warning("legal_research_truncated", matter_id=matter_id, stop_reason=response.stop_reason)
         log.info("cache_stats",
                  cache_creation=getattr(response.usage, "cache_creation_input_tokens", 0),
                  cache_read=getattr(response.usage, "cache_read_input_tokens", 0))
@@ -966,13 +968,15 @@ def generate_compliance_report(matter_id: int) -> dict[str, Any]:
     try:
         response = client.messages.create(
             model=ANTHROPIC_MODEL,
-            max_tokens=6000,
+            max_tokens=10000,
             system=[
                 {"type": "text", "text": _SYSTEM_REPORT, "cache_control": {"type": "ephemeral"}},
             ],
             messages=[{"role": "user", "content": prompt}],
         )
         log_anthropic_cost(ANTHROPIC_MODEL, "compliance_report", response.usage)
+        if response.stop_reason == "max_tokens":
+            log.warning("compliance_report_truncated", matter_id=matter_id, stop_reason=response.stop_reason)
         log.info("cache_stats",
                  cache_creation=getattr(response.usage, "cache_creation_input_tokens", 0),
                  cache_read=getattr(response.usage, "cache_read_input_tokens", 0))
@@ -1108,7 +1112,7 @@ def advance_matter_phase(matter_id: int, force_phase: str | None = None) -> dict
 
         resp = client.messages.create(
             model=ANTHROPIC_MODEL,
-            max_tokens=2000,
+            max_tokens=4000,
             temperature=0.1,
             system=[
                 {"type": "text", "text": _SYSTEM_PLAN, "cache_control": {"type": "ephemeral"}},
@@ -1117,6 +1121,8 @@ def advance_matter_phase(matter_id: int, force_phase: str | None = None) -> dict
         )
         plan_text = resp.content[0].text.strip()
         log_anthropic_cost(ANTHROPIC_MODEL, "legal_action_plan", resp.usage)
+        if resp.stop_reason == "max_tokens":
+            log.warning("action_plan_truncated", matter_id=matter_id, stop_reason=resp.stop_reason)
         log.info("cache_stats",
                  cache_creation=getattr(resp.usage, "cache_creation_input_tokens", 0),
                  cache_read=getattr(resp.usage, "cache_read_input_tokens", 0))

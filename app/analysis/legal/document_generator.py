@@ -449,3 +449,305 @@ def run_document_freshness_check() -> dict[str, Any]:
     stale = get_stale_documents(days_overdue=0)
     log.info("document_freshness_check", stale_count=len(stale))
     return {"stale_count": len(stale), "documents": stale}
+
+
+# ---------------------------------------------------------------------------
+# Multipass document generation
+# ---------------------------------------------------------------------------
+
+def _generate_single_shot(
+    ai_client: Anthropic,
+    model: str,
+    matter_id: int,
+    doc_type: str,
+    title: str,
+    company_context: str | None = None,
+) -> dict[str, Any]:
+    """Single-shot generation with max_tokens=16000 and truncation detection."""
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT m.id, m.title, m.legal_analysis, m.obligations_report,
+                       m.area_id, a.code as area_code, a.key_regulations
+                FROM compliance_matters m
+                LEFT JOIN compliance_areas a ON a.id = m.area_id
+                WHERE m.id = %s
+            """, (matter_id,))
+            row = cur.fetchone()
+            if not row:
+                return {"error": "matter_not_found", "matter_id": matter_id}
+
+    matter = {
+        "id": row[0], "title": row[1], "legal_analysis": row[2],
+        "obligations_report": row[3], "area_id": row[4],
+    }
+    area = {"code": row[5], "key_regulations": row[6] or []}
+
+    signers = [{"name": "Sebastian Jabłoński", "role": "Prezes Zarządu"}]
+    today = date.today().isoformat()
+
+    system_prompt = _build_system_prompt(doc_type, matter, area, title, signers, today)
+    if company_context:
+        system_prompt += f"\n\nKONTEKST FIRMOWY:\n{company_context}"
+
+    user_msg = f"Wygeneruj kompletny dokument: {title}"
+
+    _STATIC_ROLE = (
+        "Jesteś prawnikiem korporacyjnym specjalizującym się w prawie polskim. "
+        "Generujesz dokumenty compliance dla polskiej spółki energetycznej."
+    )
+
+    resp = ai_client.messages.create(
+        model=model,
+        max_tokens=16000,
+        temperature=0.2,
+        system=[
+            {"type": "text", "text": _STATIC_ROLE, "cache_control": {"type": "ephemeral"}},
+            {"type": "text", "text": system_prompt},
+        ],
+        messages=[{"role": "user", "content": user_msg}],
+    )
+    content_text = resp.content[0].text
+    log_anthropic_cost(model, "legal_document_single_shot", resp.usage)
+
+    is_complete = resp.stop_reason != "max_tokens"
+    if resp.stop_reason == "max_tokens":
+        log.warning("single_shot_truncated", matter_id=matter_id, title=title,
+                     stop_reason=resp.stop_reason)
+
+    word_count = len(content_text.split())
+    sections = [line for line in content_text.split("\n") if line.strip().startswith("§") or line.strip().startswith("#")]
+
+    return {
+        "content": content_text,
+        "is_complete": is_complete,
+        "word_count": word_count,
+        "section_count": len(sections),
+        "stop_reason": resp.stop_reason,
+    }
+
+
+def generate_document_multipass(
+    matter_id: int,
+    doc_type: str,
+    title: str,
+    company_context: str | None = None,
+) -> dict[str, Any]:
+    """3-pass document generation: outline -> per-section -> quality check.
+
+    Pass 1: Generate outline (2000 tokens)
+    Pass 2: Generate each section (4000 tokens each, continuation if truncated)
+    Pass 3: Quality check and score
+
+    Returns: {content, is_complete, word_count, section_count, quality_score, generation_method}
+    """
+    if doc_type not in DOC_TYPE_PL:
+        return {"error": "invalid_doc_type", "valid_types": list(DOC_TYPE_PL.keys())}
+
+    # Fetch matter context
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT m.id, m.title, m.legal_analysis, m.obligations_report,
+                       m.area_id, a.code as area_code, a.key_regulations
+                FROM compliance_matters m
+                LEFT JOIN compliance_areas a ON a.id = m.area_id
+                WHERE m.id = %s
+            """, (matter_id,))
+            row = cur.fetchone()
+            if not row:
+                return {"error": "matter_not_found", "matter_id": matter_id}
+
+    matter = {
+        "id": row[0], "title": row[1], "legal_analysis": row[2],
+        "obligations_report": row[3], "area_id": row[4],
+    }
+    area = {"code": row[5], "key_regulations": row[6] or []}
+
+    doc_type_pl = DOC_TYPE_PL.get(doc_type, doc_type)
+    legal_analysis = matter.get("legal_analysis") or "Brak analizy prawnej."
+
+    log.info("multipass_start", matter_id=matter_id, doc_type=doc_type, title=title)
+
+    _STATIC_ROLE = (
+        "Jesteś prawnikiem korporacyjnym specjalizującym się w prawie polskim. "
+        "Generujesz dokumenty compliance dla polskiej spółki energetycznej."
+    )
+
+    context_block = ""
+    if company_context:
+        context_block = f"\nKONTEKST FIRMOWY:\n{company_context}\n"
+
+    # ── PASS 1: Outline ──────────────────────────────────────────────────
+    outline_prompt = (
+        f"Wygeneruj szczegółowy OUTLINE (spis treści z opisami sekcji) "
+        f"dla dokumentu typu {doc_type_pl}.\n"
+        f"Tytuł: {title}\n"
+        f"Analiza prawna:\n{legal_analysis[:3000]}\n{context_block}\n"
+        f"Format: lista sekcji z krótkim opisem zawartości każdej sekcji. "
+        f"Każda sekcja w formacie: '## SEKCJA N: Tytuł sekcji\\nOpis zawartości'"
+    )
+
+    try:
+        resp_outline = client.messages.create(
+            model=ANTHROPIC_MODEL,
+            max_tokens=2000,
+            temperature=0.2,
+            system=[
+                {"type": "text", "text": _STATIC_ROLE, "cache_control": {"type": "ephemeral"}},
+            ],
+            messages=[{"role": "user", "content": outline_prompt}],
+        )
+        log_anthropic_cost(ANTHROPIC_MODEL, "legal_multipass_outline", resp_outline.usage)
+        outline_text = resp_outline.content[0].text.strip()
+        if resp_outline.stop_reason == "max_tokens":
+            log.warning("multipass_outline_truncated", matter_id=matter_id)
+    except Exception as e:
+        log.error("multipass_outline_error", error=str(e), matter_id=matter_id)
+        # Fallback to single-shot
+        result = _generate_single_shot(client, ANTHROPIC_MODEL, matter_id, doc_type, title, company_context)
+        result["generation_method"] = "single_shot_fallback"
+        result["quality_score"] = 0.0
+        return result
+
+    # Parse sections from outline
+    sections = []
+    for line in outline_text.split("\n"):
+        stripped = line.strip()
+        if stripped.startswith("## SEKCJA") or stripped.startswith("## ") or stripped.startswith("# "):
+            sections.append(stripped.lstrip("#").strip())
+
+    if not sections:
+        # Fallback: split by numbered items
+        for line in outline_text.split("\n"):
+            stripped = line.strip()
+            if stripped and (stripped[0].isdigit() or stripped.startswith("§")):
+                sections.append(stripped)
+
+    if not sections:
+        log.warning("multipass_no_sections_found", matter_id=matter_id)
+        result = _generate_single_shot(client, ANTHROPIC_MODEL, matter_id, doc_type, title, company_context)
+        result["generation_method"] = "single_shot_fallback"
+        result["quality_score"] = 0.0
+        return result
+
+    log.info("multipass_outline_done", sections=len(sections))
+
+    # ── PASS 2: Per-section generation ────────────────────────────────────
+    full_content_parts = []
+    signers = [{"name": "Sebastian Jabłoński", "role": "Prezes Zarządu"}]
+    today = date.today().isoformat()
+
+    system_prompt = _build_system_prompt(doc_type, matter, area, title, signers, today)
+    if company_context:
+        system_prompt += f"\n\nKONTEKST FIRMOWY:\n{company_context}"
+
+    for i, section_title in enumerate(sections):
+        section_prompt = (
+            f"Wygeneruj TYLKO sekcję {i+1}/{len(sections)} dokumentu '{title}'.\n"
+            f"Sekcja: {section_title}\n\n"
+            f"OUTLINE DOKUMENTU:\n{outline_text}\n\n"
+            f"Pisz TYLKO tę sekcję. Zachowaj numerację paragrafów spójną z dokumentem."
+        )
+
+        try:
+            resp_section = client.messages.create(
+                model=ANTHROPIC_MODEL,
+                max_tokens=4000,
+                temperature=0.2,
+                system=[
+                    {"type": "text", "text": _STATIC_ROLE, "cache_control": {"type": "ephemeral"}},
+                    {"type": "text", "text": system_prompt},
+                ],
+                messages=[{"role": "user", "content": section_prompt}],
+            )
+            log_anthropic_cost(ANTHROPIC_MODEL, "legal_multipass_section", resp_section.usage)
+            section_text = resp_section.content[0].text.strip()
+
+            # Continuation if truncated
+            if resp_section.stop_reason == "max_tokens":
+                log.warning("multipass_section_truncated", section=i+1, title=section_title)
+                cont_prompt = (
+                    f"Kontynuuj generowanie sekcji '{section_title}'. "
+                    f"Dotychczasowa treść:\n{section_text[-1000:]}\n\n"
+                    f"Kontynuuj od miejsca przerwania."
+                )
+                resp_cont = client.messages.create(
+                    model=ANTHROPIC_MODEL,
+                    max_tokens=4000,
+                    temperature=0.2,
+                    system=[
+                        {"type": "text", "text": _STATIC_ROLE, "cache_control": {"type": "ephemeral"}},
+                        {"type": "text", "text": system_prompt},
+                    ],
+                    messages=[{"role": "user", "content": cont_prompt}],
+                )
+                log_anthropic_cost(ANTHROPIC_MODEL, "legal_multipass_continuation", resp_cont.usage)
+                section_text += "\n" + resp_cont.content[0].text.strip()
+                if resp_cont.stop_reason == "max_tokens":
+                    log.warning("multipass_continuation_also_truncated", section=i+1)
+
+            full_content_parts.append(section_text)
+        except Exception as e:
+            log.error("multipass_section_error", section=i+1, error=str(e))
+            full_content_parts.append(f"[SEKCJA {i+1}: {section_title} — BŁĄD GENEROWANIA]")
+
+    full_content = "\n\n".join(full_content_parts)
+
+    # ── PASS 3: Quality check ────────────────────────────────────────────
+    quality_score = 0.0
+    try:
+        qc_prompt = (
+            f"Oceń jakość poniższego dokumentu prawnego typu {doc_type_pl}.\n"
+            f"Tytuł: {title}\n\n"
+            f"DOKUMENT:\n{full_content[:8000]}\n\n"
+            f"Oceń w skali 0.0-1.0 pod kątem:\n"
+            f"1. Kompletność (czy wszystkie sekcje są)\n"
+            f"2. Poprawność prawna (odwołania do ustaw)\n"
+            f"3. Spójność (numeracja, format)\n"
+            f"4. Praktyczność (czy nadaje się do użytku)\n\n"
+            f"Odpowiedz TYLKO jedną liczbą (np. 0.85)."
+        )
+
+        resp_qc = client.messages.create(
+            model=os.getenv("ANTHROPIC_FAST_MODEL", ANTHROPIC_MODEL),
+            max_tokens=100,
+            temperature=0.0,
+            messages=[{"role": "user", "content": qc_prompt}],
+        )
+        log_anthropic_cost(
+            os.getenv("ANTHROPIC_FAST_MODEL", ANTHROPIC_MODEL),
+            "legal_multipass_qc", resp_qc.usage,
+        )
+        qc_text = resp_qc.content[0].text.strip()
+        # Extract float from response
+        for token in qc_text.replace(",", ".").split():
+            try:
+                quality_score = float(token)
+                if 0.0 <= quality_score <= 1.0:
+                    break
+            except ValueError:
+                continue
+    except Exception as e:
+        log.error("multipass_qc_error", error=str(e))
+        quality_score = 0.0
+
+    word_count = len(full_content.split())
+    section_count = len(sections)
+    is_complete = all(
+        "BŁĄD GENEROWANIA" not in part for part in full_content_parts
+    )
+
+    log.info("multipass_done",
+             matter_id=matter_id, word_count=word_count,
+             section_count=section_count, quality_score=quality_score,
+             is_complete=is_complete)
+
+    return {
+        "content": full_content,
+        "is_complete": is_complete,
+        "word_count": word_count,
+        "section_count": section_count,
+        "quality_score": quality_score,
+        "generation_method": "multipass",
+    }

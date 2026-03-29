@@ -56,7 +56,10 @@ def _ensure_table():
                     decided_at TIMESTAMPTZ,
                     executed_at TIMESTAMPTZ,
                     result TEXT,
-                    decided_by TEXT DEFAULT 'sebastian'
+                    decided_by TEXT DEFAULT 'sebastian',
+                    confidence_score NUMERIC(4,3),
+                    authority_level INTEGER,
+                    auto_execute_at TIMESTAMPTZ
                 )
             """)
         conn.commit()
@@ -397,6 +400,61 @@ def handle_approval_message(text: str, sender_phone: str = "") -> dict[str, Any]
         return approve_action(int(match.group(1)), edit_text=match.group(2).strip())
 
     return None
+
+
+# ================================================================
+# Auto-execute timeout check
+# ================================================================
+
+def check_auto_execute_timeouts() -> list[dict[str, Any]]:
+    """Check for actions whose auto_execute_at has passed and execute them.
+
+    Actions with authority_level 1 (notify + auto-execute after delay)
+    get auto_execute_at set when proposed. Once the timeout passes
+    without rejection, they are auto-executed.
+    """
+    _ensure_table()
+    executed = []
+
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, action_type, description, draft_params
+                FROM action_items
+                WHERE status = 'pending'
+                  AND auto_execute_at IS NOT NULL
+                  AND auto_execute_at <= NOW()
+                ORDER BY auto_execute_at ASC
+                LIMIT 10
+            """)
+            rows = cur.fetchall()
+
+    for action_id, action_type, description, params in rows:
+        _log.info("auto_execute_timeout_reached",
+                   action_id=action_id, action_type=action_type)
+        result = approve_action(action_id)
+        executed.append({
+            "action_id": action_id,
+            "action_type": action_type,
+            "result": result,
+        })
+
+        # Record feedback for confidence learning
+        try:
+            from app.orchestrator.action_confidence import record_feedback
+            record_feedback(
+                action_id=action_id,
+                approved=True,
+                executed=True,
+                outcome="auto_executed_timeout",
+            )
+        except Exception:
+            pass
+
+    if executed:
+        _log.info("auto_execute_timeouts_processed", count=len(executed))
+
+    return executed
 
 
 # ================================================================

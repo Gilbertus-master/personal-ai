@@ -379,6 +379,24 @@ def fetch_compliance_status() -> dict[str, Any]:
         return {}
 
 
+def fetch_strategic_radar() -> dict[str, Any] | None:
+    """Fetch latest strategic radar snapshot for morning brief."""
+    try:
+        from app.analysis.strategic_radar import get_radar_history
+        history = get_radar_history(days=1)
+        if history:
+            latest = history[0]
+            return {
+                "patterns": latest.get("patterns", []),
+                "recommendations": latest.get("recommendations", []),
+                "radar_summary": latest.get("radar_data", {}).get("summary", {}),
+                "created_at": latest.get("created_at"),
+            }
+    except Exception as e:
+        logger.warning("Strategic radar fetch failed: %s", e)
+    return None
+
+
 def fetch_recent_summaries(
     date_from: str,
     date_to: str,
@@ -465,6 +483,7 @@ def build_brief_context(
     competitor_signals: list[dict[str, Any]] | None = None,
     predictive_alerts: list[dict[str, Any]] | None = None,
     compliance_status: dict[str, Any] | None = None,
+    strategic_radar: dict[str, Any] | None = None,
 ) -> str:
     """Assemble all data into a single context string for Claude."""
     all_parts: list[str] = []
@@ -512,6 +531,29 @@ def build_brief_context(
                 all_parts.append(f"Nadchodzące terminy (7d): {upcoming}")
             if open_matters:
                 all_parts.append(f"Otwarte sprawy: {open_matters}")
+            all_parts.append("")
+
+    # Strategic Radar
+    if strategic_radar:
+        radar_patterns = strategic_radar.get("patterns", [])
+        radar_recs = strategic_radar.get("recommendations", [])
+        radar_summary = strategic_radar.get("radar_summary", {})
+        if radar_patterns or radar_recs:
+            all_parts.append("=== STRATEGICZNY RADAR ===")
+            if radar_summary:
+                all_parts.append(f"Sygnały: rynek {radar_summary.get('market_count', 0)}, "
+                                 f"konkurencja {radar_summary.get('competitor_count', 0)}, "
+                                 f"cele zagrożone {radar_summary.get('goals_at_risk_count', 0)}, "
+                                 f"zobowiązania przeterminowane {radar_summary.get('overdue_commitments_count', 0)}")
+            for p in radar_patterns[:5]:
+                urgency = p.get("urgency", "?")
+                all_parts.append(f"[WZORZEC {urgency.upper()}] {p.get('pattern', '?')}")
+                all_parts.append(f"  Źródła: {', '.join(p.get('sources', []))}")
+                all_parts.append(f"  Działanie: {p.get('recommended_action', '?')}")
+            for rec in radar_recs[:3]:
+                all_parts.append(f"[REKOMENDACJA P{rec.get('priority', '?')}] {rec.get('action', '?')}")
+                all_parts.append(f"  Uzasadnienie: {rec.get('rationale', '?')}")
+                all_parts.append(f"  Termin: {rec.get('deadline_suggestion', '?')}")
             all_parts.append("")
 
     # Alerts
@@ -819,6 +861,7 @@ def generate_morning_brief(
     competitors = fetch_competitor_signals()
     predictions = fetch_predictive_alerts()
     compliance = fetch_compliance_status()
+    radar = fetch_strategic_radar()
 
     total_data = len(events) + len(open_loops) + len(entities) + len(summaries) + len(calendar) + len(market) + len(competitors)
 
@@ -845,6 +888,7 @@ def generate_morning_brief(
         alerts=active_alerts, calendar=calendar,
         market_insights=market, competitor_signals=competitors,
         predictive_alerts=predictions, compliance_status=compliance,
+        strategic_radar=radar,
     )
     date_label = datetime.fromisoformat(date).strftime("%A, %d %B %Y")
     brief_text = generate_brief_text(context, date_label)
@@ -872,6 +916,7 @@ def generate_morning_brief(
         "competitor_count": len(competitors),
         "predictions_count": len(predictions),
         "alerts_count": alerts_result["total_detected"] if alerts_result else 0,
+        "radar_patterns": len(radar.get("patterns", [])) if radar else 0,
         "compliance_overdue": compliance.get("overdue_count", 0) if compliance else 0,
         "text": brief_text,
     }

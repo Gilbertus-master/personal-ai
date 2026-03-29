@@ -25,6 +25,10 @@ from dotenv import load_dotenv
 
 from app.db.postgres import get_pg_connection
 from app.db.cost_tracker import log_anthropic_cost
+from app.analysis.decision_outcome_detector import (
+    detect_outcomes_for_pending_decisions,
+    cascade_confidence_adjustment,
+)
 
 load_dotenv()
 
@@ -156,16 +160,27 @@ def auto_capture_decisions(hours: int = 24) -> list[dict]:
                 decision_id = cur.fetchone()[0]
             conn.commit()
 
+        # Cascade confidence warning: check if area has bias
+        area_name = meta.get("area", "general")
+        try:
+            adj = cascade_confidence_adjustment(area_name)
+            if adj["sample_size"] >= 3 and abs(adj["adjustment"]) > 0.05:
+                log.warning("cascade_confidence_warning",
+                            decision_id=decision_id, area=area_name,
+                            bias=adj["bias"], adjustment=adj["adjustment"])
+        except Exception:
+            pass  # non-critical
+
         record = {
             "id": decision_id,
             "decision_text": summary[:200],
-            "area": meta.get("area", "general"),
+            "area": area_name,
             "confidence": confidence_val,
             "source_event_id": event_id,
         }
         captured.append(record)
         log.info("decision_captured", decision_id=decision_id, event_id=event_id,
-                 area=meta.get("area"))
+                 area=area_name)
 
     return captured
 
@@ -688,6 +703,15 @@ def run_decision_intelligence() -> dict:
         log.error("auto_capture_failed", error=str(e))
         result["captured"] = 0
         result["capture_error"] = str(e)
+
+    # 1b. Auto-detect outcomes for older pending decisions
+    try:
+        outcome_suggestions = detect_outcomes_for_pending_decisions()
+        result["outcome_suggestions"] = len(outcome_suggestions)
+    except Exception as e:
+        log.error("outcome_detection_failed", error=str(e))
+        result["outcome_suggestions"] = 0
+        result["outcome_detection_error"] = str(e)
 
     # 2. Reminders
     try:

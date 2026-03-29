@@ -106,6 +106,10 @@ from app.api.updates import router as updates_router
 app.include_router(updates_router)
 from app.api.roi import router as roi_router
 app.include_router(roi_router)
+from app.api.feedback import router as feedback_router
+app.include_router(feedback_router)
+from app.api.strategic_radar import router as strategic_radar_router
+app.include_router(strategic_radar_router)
 
 
 # =========================
@@ -1056,6 +1060,20 @@ def ask(body: AskRequest, request: Request) -> AskResponse:
                     feedback=eval_result.feedback,
                     query=ask_req.query[:100],
                 )
+            # Persist evaluation for trend analysis
+            if eval_result:
+                try:
+                    from app.analysis.feedback_persistence import save_answer_evaluation as _save_eval
+                    _save_eval(
+                        ask_run_id=None,  # will be set after persist_ask_run
+                        relevance=eval_result.relevance,
+                        grounding=eval_result.grounding,
+                        depth=eval_result.depth,
+                        overall=eval_result.avg_score,
+                        feedback=eval_result.feedback,
+                    )
+                except Exception:
+                    pass  # feedback persistence is non-critical
             timer.end("evaluate")
         except Exception:
             pass  # evaluator jest opcjonalny — nie blokuj głównego flow

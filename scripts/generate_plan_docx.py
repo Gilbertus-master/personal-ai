@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Generate Gilbertus Masterplan V5 as DOCX."""
+import structlog
 from docx import Document
 from docx.shared import Pt, RGBColor
 from docx.enum.table import WD_TABLE_ALIGNMENT
+
+log = structlog.get_logger(__name__)
 
 doc = Document()
 
@@ -331,4 +334,4 @@ add_table(
 # Save
 output = '/mnt/c/Users/jablo/Desktop/Gilbertus_Masterplan_V5.docx'
 doc.save(output)
-print(f'Saved to {output}')
+log.info(f'Saved to {output}')

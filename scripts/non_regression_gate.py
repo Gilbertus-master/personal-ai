@@ -76,6 +76,20 @@ def get_current_metrics() -> dict:
         count = _pg(f"SELECT COUNT(*) FROM {table}")
         metrics[table] = int(count) if count.isdigit() else 0
 
+    # Extraction coverage percentage
+    coverage_remaining = _pg(
+        "SELECT COUNT(*) FROM chunks c "
+        "LEFT JOIN events e ON e.chunk_id=c.id "
+        "LEFT JOIN chunks_event_checked cec ON cec.chunk_id=c.id "
+        "WHERE e.id IS NULL AND cec.chunk_id IS NULL"
+    )
+    total_chunks = _pg("SELECT COUNT(*) FROM chunks")
+    if total_chunks.isdigit() and int(total_chunks) > 0 and coverage_remaining.isdigit():
+        covered = int(total_chunks) - int(coverage_remaining)
+        metrics["extraction_coverage_pct"] = round((covered / int(total_chunks)) * 100, 2)
+    else:
+        metrics["extraction_coverage_pct"] = 0.0
+
     # App modules
     app_dir = PROJECT_DIR / "app"
     if app_dir.exists():
@@ -129,6 +143,16 @@ def check_gilbertus_baseline() -> dict:
                 violations.append(
                     f"{metric}: {curr_val} < baseline {base_val} (dropped by {base_val - curr_val})"
                 )
+
+    # Extraction coverage — must not drop more than 5%
+    base_coverage = baseline.get("extraction_coverage_pct", 0)
+    curr_coverage = current.get("extraction_coverage_pct", 0)
+    if isinstance(base_coverage, (int, float)) and isinstance(curr_coverage, (int, float)):
+        if base_coverage > 0 and (base_coverage - curr_coverage) > 5.0:
+            violations.append(
+                f"extraction_coverage_pct: {curr_coverage}% < baseline {base_coverage}% "
+                f"(dropped by {round(base_coverage - curr_coverage, 2)}%)"
+            )
 
     # Health metrics — must be healthy
     if current.get("api_healthy") == 0 and baseline.get("api_healthy") == 1:
