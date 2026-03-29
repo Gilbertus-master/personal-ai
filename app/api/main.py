@@ -104,6 +104,8 @@ from app.api.observability import router as observability_router
 app.include_router(observability_router)
 from app.api.updates import router as updates_router
 app.include_router(updates_router)
+from app.api.roi import router as roi_router
+app.include_router(roi_router)
 
 
 # =========================
