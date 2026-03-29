@@ -29,6 +29,30 @@ TS() { date '+%F %T'; }
 echo "" >> "$LOG"
 echo "[$(TS)] ========== Corporate data sync started ==========" >> "$LOG"
 
+# --- 0. Proactive Graph API token refresh (przed każdym sync) ---
+# get_access_token() odświeża token jeśli wygasł lub wygasa za <5 min.
+# Wywołanie tutaj gwarantuje świeży token dla wszystkich kroków poniżej.
+echo "[$(TS)] Step 0/5: Refreshing Graph API token" >> "$LOG"
+"$PROJECT_DIR/.venv/bin/python" -c "
+from app.ingestion.graph_api.auth import get_access_token, _load_token
+import time
+t = _load_token()
+saved_at = t.get('saved_at', 0) if t else 0
+expires_in = t.get('expires_in', 3600) if t else 0
+expires_at = saved_at + expires_in
+secs_left = expires_at - time.time()
+print(f'Token przed refresh: wygasa za {secs_left:.0f}s ({secs_left/3600:.2f}h)')
+token = get_access_token()
+t2 = _load_token()
+saved_at2 = t2.get('saved_at', 0)
+expires_in2 = t2.get('expires_in', 3600)
+secs_left2 = (saved_at2 + expires_in2) - time.time()
+print(f'Token po refresh:    wygasa za {secs_left2:.0f}s ({secs_left2/3600:.2f}h)')
+print('OK' if token else 'ERROR')
+" >> "$LOG" 2>&1 || {
+    echo "[$(TS)] ERROR: Token refresh failed — syncs may fail" >> "$LOG"
+}
+
 # --- 1. Sync inbox email (with attachments, integrated in email_sync.py) ---
 echo "[$(TS)] Step 1/5: Syncing inbox email" >> "$LOG"
 "$PROJECT_DIR/.venv/bin/python" -m app.ingestion.graph_api.email_sync \

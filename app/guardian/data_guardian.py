@@ -296,15 +296,19 @@ def diagnose_source(source: dict[str, Any]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def _try_refresh_graph_token() -> bool:
-    """Attempt to refresh Graph API token."""
+    """Attempt to refresh Graph API token via get_access_token() which auto-refreshes."""
     try:
         result = subprocess.run(
-            [".venv/bin/python3", "-m", "app.ingestion.graph_api.auth", "--refresh-proactive"],
+            [".venv/bin/python3", "-c",
+             "from app.ingestion.graph_api.auth import get_access_token; "
+             "t = get_access_token(); "
+             "print('ok' if t else 'empty')"],
             capture_output=True, text=True, timeout=30,
             cwd=str(PROJECT_DIR),
         )
-        success = result.returncode == 0
-        log.info("token_refresh_attempt", success=success, stderr=result.stderr[:200] if result.stderr else "")
+        success = result.returncode == 0 and "ok" in result.stdout
+        log.info("token_refresh_attempt", success=success,
+                 stdout=result.stdout[:100], stderr=result.stderr[:200] if result.stderr else "")
         return success
     except Exception as e:
         log.error("token_refresh_failed", error=str(e))
