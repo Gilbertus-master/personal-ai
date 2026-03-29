@@ -3,6 +3,9 @@
 __pycache__/
 *.pyc
 backups/
+data/
+frontend/
+omnius/frontend/
 logs/*.log
 .task_monitor_state.json
 *.dump
