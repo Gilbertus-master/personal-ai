@@ -192,15 +192,27 @@ def generate_document(
 
     log.info("document_generate_start", matter_id=matter_id, doc_type=doc_type, title=title)
 
+    # Split system: static role prefix (cacheable) + dynamic context
+    _STATIC_ROLE = (
+        "Jesteś prawnikiem korporacyjnym specjalizującym się w prawie polskim. "
+        "Generujesz dokumenty compliance dla polskiej spółki energetycznej."
+    )
+
     resp = client.messages.create(
         model=ANTHROPIC_MODEL,
         max_tokens=4000,
         temperature=0.2,
-        system=system_prompt,
+        system=[
+            {"type": "text", "text": _STATIC_ROLE, "cache_control": {"type": "ephemeral"}},
+            {"type": "text", "text": system_prompt},
+        ],
         messages=[{"role": "user", "content": user_msg}],
     )
     content_text = resp.content[0].text
     log_anthropic_cost(ANTHROPIC_MODEL, "legal_document_generator", resp.usage)
+    log.info("cache_stats",
+             cache_creation=getattr(resp.usage, "cache_creation_input_tokens", 0),
+             cache_read=getattr(resp.usage, "cache_read_input_tokens", 0))
 
     # 5. Determine version
     from dateutil.relativedelta import relativedelta

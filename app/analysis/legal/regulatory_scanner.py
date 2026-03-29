@@ -64,10 +64,10 @@ def _build_keyword_ilike_conditions() -> tuple[str, list[str]]:
 
 def _classify_with_ai(text: str, source_info: str) -> dict[str, Any] | None:
     """Wywołaj Claude Haiku do klasyfikacji tekstu regulacyjnego."""
-    prompt = (
-        "Przeanalizuj poniższy tekst. Czy zawiera informację o nowej lub zmienionej regulacji "
-        "prawnej dotyczącej spółki energetycznej w Polsce?\n\n"
-        "Jeśli tak, zwróć WYŁĄCZNIE JSON (bez markdown):\n"
+    _SYSTEM_CLASSIFY = (
+        "Analizujesz teksty pod kątem nowych lub zmienionych regulacji prawnych "
+        "dotyczących spółki energetycznej w Polsce.\n\n"
+        "Jeśli tekst zawiera regulację, zwróć WYŁĄCZNIE JSON (bez markdown):\n"
         '{"is_regulatory": true, "title": "krótki tytuł regulacji", '
         '"area_code": "URE|RODO|AML|KSH|ESG|LABOR|TAX|CONTRACT|INTERNAL_AUDIT", '
         '"matter_type": "new_regulation|regulation_change", '
@@ -75,18 +75,24 @@ def _classify_with_ai(text: str, source_info: str) -> dict[str, Any] | None:
         '"source_reference": "Dz.U. ... lub inny identyfikator", '
         '"priority": "low|medium|high|critical"}\n\n'
         'Jeśli tekst NIE zawiera informacji o regulacji — zwróć WYŁĄCZNIE:\n'
-        '{"is_regulatory": false}\n\n'
-        f"ŹRÓDŁO: {source_info}\n\n"
-        f"TEKST:\n{text[:3000]}"
+        '{"is_regulatory": false}'
     )
+
+    prompt = f"ŹRÓDŁO: {source_info}\n\nTEKST:\n{text[:3000]}"
 
     try:
         response = client.messages.create(
             model=ANTHROPIC_FAST,
             max_tokens=500,
+            system=[
+                {"type": "text", "text": _SYSTEM_CLASSIFY, "cache_control": {"type": "ephemeral"}},
+            ],
             messages=[{"role": "user", "content": prompt}],
         )
         log_anthropic_cost(ANTHROPIC_FAST, "regulatory_scanner", response.usage)
+        log.info("cache_stats",
+                 cache_creation=getattr(response.usage, "cache_creation_input_tokens", 0),
+                 cache_read=getattr(response.usage, "cache_read_input_tokens", 0))
 
         raw = response.content[0].text.strip()
         # Strip markdown code fences if present

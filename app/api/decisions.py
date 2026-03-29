@@ -273,26 +273,32 @@ def analyze_patterns() -> PatternsResponse:
 
     prompt_data = "\n".join(summary_parts)
 
+    _SYSTEM = (
+        "Jesteś osobistym doradcą analitycznym. Analizujesz dziennik decyzji "
+        "i podajesz wnioski w języku polskim.\n\n"
+        "Szukaj wzorców takich jak:\n"
+        "- Trafność decyzji w poszczególnych obszarach\n"
+        "- Decyzje podejmowane pod presją vs. przemyślane\n"
+        "- Korelacja pewności siebie z faktycznymi wynikami\n"
+        "- Obszary wymagające poprawy\n"
+        "- Powtarzające się błędy\n\n"
+        "Odpowiedź sformatuj czytelnie z nagłówkami i konkretnymi wnioskami."
+    )
+
+    import structlog
+    _log = structlog.get_logger("api.decisions")
+
     client = Anthropic()
     response = client.messages.create(
         model=ANTHROPIC_MODEL,
         max_tokens=2048,
+        system=[
+            {"type": "text", "text": _SYSTEM, "cache_control": {"type": "ephemeral"}},
+        ],
         messages=[
             {
                 "role": "user",
-                "content": (
-                    "Jesteś osobistym doradcą analitycznym. Przeanalizuj poniższy dziennik decyzji "
-                    "i podaj wnioski w języku polskim.\n\n"
-                    "Szukaj wzorców takich jak:\n"
-                    "- Trafność decyzji w poszczególnych obszarach\n"
-                    "- Decyzje podejmowane pod presją vs. przemyślane\n"
-                    "- Korelacja pewności siebie z faktycznymi wynikami\n"
-                    "- Obszary wymagające poprawy\n"
-                    "- Powtarzające się błędy\n\n"
-                    "Dane:\n\n"
-                    f"{prompt_data}\n\n"
-                    "Odpowiedź sformatuj czytelnie z nagłówkami i konkretnymi wnioskami."
-                ),
+                "content": f"Przeanalizuj poniższy dziennik decyzji:\n\n{prompt_data}",
             }
         ],
     )
@@ -300,6 +306,9 @@ def analyze_patterns() -> PatternsResponse:
     from app.db.cost_tracker import log_anthropic_cost
     if hasattr(response, "usage"):
         log_anthropic_cost(ANTHROPIC_MODEL, "api.decisions", response.usage)
+        _log.info("cache_stats",
+                  cache_creation=getattr(response.usage, "cache_creation_input_tokens", 0),
+                  cache_read=getattr(response.usage, "cache_read_input_tokens", 0))
 
     insights = response.content[0].text
     latency_ms = int((time.time() - started_at) * 1000)

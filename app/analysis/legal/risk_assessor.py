@@ -83,31 +83,40 @@ def assess_risk_for_matter(matter_id: int) -> list[dict[str, Any]]:
     context = "\n\n".join(context_parts)
 
     # 2. AI risk identification
-    prompt = (
+    _SYSTEM_RISK = (
         "Jesteś ekspertem od ryzyk prawnych w polskiej spółce energetycznej (trading energetyczny, "
         "koncesje URE, CSRD/ESG, AML, RODO).\n\n"
-        f"Obszar compliance: {area_name or area_code or 'ogólny'}\n\n"
-        f"SPRAWA:\n{context}\n\n"
-        "Zidentyfikuj 3-7 ryzyk compliance związanych z tą sprawą. "
+        "Zidentyfikuj 3-7 ryzyk compliance związanych ze sprawą. "
         "Dla każdego ryzyka podaj:\n"
-        '- risk_title: krótki tytuł\n'
-        '- risk_description: opis ryzyka (2-3 zdania)\n'
-        '- likelihood: very_low | low | medium | high | very_high\n'
-        '- impact: negligible | minor | moderate | major | catastrophic\n'
-        '- current_controls: jakie kontrole mogą istnieć (1 zdanie)\n'
-        '- mitigation_plan: co zrobić żeby zminimalizować ryzyko (1-2 zdania)\n\n'
+        "- risk_title: krótki tytuł\n"
+        "- risk_description: opis ryzyka (2-3 zdania)\n"
+        "- likelihood: very_low | low | medium | high | very_high\n"
+        "- impact: negligible | minor | moderate | major | catastrophic\n"
+        "- current_controls: jakie kontrole mogą istnieć (1 zdanie)\n"
+        "- mitigation_plan: co zrobić żeby zminimalizować ryzyko (1-2 zdania)\n\n"
         "Zwróć WYŁĄCZNIE JSON array (bez markdown):\n"
         '[{"risk_title": "...", "risk_description": "...", "likelihood": "...", '
         '"impact": "...", "current_controls": "...", "mitigation_plan": "..."}]'
+    )
+
+    prompt = (
+        f"Obszar compliance: {area_name or area_code or 'ogólny'}\n\n"
+        f"SPRAWA:\n{context}"
     )
 
     try:
         response = client.messages.create(
             model=ANTHROPIC_MODEL,
             max_tokens=2000,
+            system=[
+                {"type": "text", "text": _SYSTEM_RISK, "cache_control": {"type": "ephemeral"}},
+            ],
             messages=[{"role": "user", "content": prompt}],
         )
         log_anthropic_cost(ANTHROPIC_MODEL, "risk_assessor", response.usage)
+        log.info("cache_stats",
+                 cache_creation=getattr(response.usage, "cache_creation_input_tokens", 0),
+                 cache_read=getattr(response.usage, "cache_read_input_tokens", 0))
 
         raw = response.content[0].text.strip()
         if raw.startswith("```"):

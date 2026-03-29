@@ -136,18 +136,28 @@ Porównuj, kontrastuj, wyciągaj wnioski.
     max_tokens_map = {"short": 800, "medium": 1500, "long": 3000}
     max_tokens = max_tokens_map.get(answer_length or "long", 3000)
 
+    _SYSTEM = (
+        "Jesteś analitykiem Gilbertus. Syntetyzujesz wiele sub-odpowiedzi "
+        "w jedną spójną całość. Pisz po polsku, konkretnie, z wnioskami."
+    )
+
     try:
         response = client.messages.create(
             model=ANTHROPIC_MODEL,
             max_tokens=max_tokens,
             temperature=0.2,
-            system="Jesteś analitykiem Gilbertus. Syntetyzujesz wiele sub-odpowiedzi w jedną spójną całość. Pisz po polsku, konkretnie, z wnioskami.",
+            system=[
+                {"type": "text", "text": _SYSTEM, "cache_control": {"type": "ephemeral"}},
+            ],
             messages=[{"role": "user", "content": user_prompt}],
         )
 
         from app.db.cost_tracker import log_anthropic_cost
         if hasattr(response, "usage"):
             log_anthropic_cost(ANTHROPIC_MODEL, "retrieval.orchestrator", response.usage)
+            log.info("cache_stats",
+                     cache_creation=getattr(response.usage, "cache_creation_input_tokens", 0),
+                     cache_read=getattr(response.usage, "cache_read_input_tokens", 0))
 
         return "".join(b.text for b in response.content if getattr(b, "type", None) == "text").strip()
 

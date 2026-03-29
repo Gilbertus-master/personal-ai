@@ -163,26 +163,32 @@ def insights_summary(
 
     prompt_data = "\n".join(parts)
 
+    _SYSTEM = (
+        "Jestes osobistym doradca analitycznym Sebastiana. "
+        "Na podstawie listy insightow wyekstrahowanych z jego archiwum "
+        "przygotowujesz zwiezle podsumowanie wykonawcze (executive summary) w jezyku polskim.\n\n"
+        "Skup sie na:\n"
+        "- Najwazniejszych wnioskach i trendach\n"
+        "- Obszarach wymagajacych uwagi\n"
+        "- Powtarzajacych sie wzorcach\n"
+        "- Rekomendacjach\n\n"
+        "Odpowiedz czytelnie, zwiezle, z naglowkami."
+    )
+
+    import structlog
+    _log = structlog.get_logger("api.insights")
+
     client = Anthropic()
     response = client.messages.create(
         model=ANTHROPIC_MODEL,
         max_tokens=2048,
+        system=[
+            {"type": "text", "text": _SYSTEM, "cache_control": {"type": "ephemeral"}},
+        ],
         messages=[
             {
                 "role": "user",
-                "content": (
-                    "Jestes osobistym doradca analitycznym Sebastiana. "
-                    "Ponizej znajduje sie lista insightow wyekstrahowanych z jego archiwum. "
-                    "Przygotuj zwiezle podsumowanie wykonawcze (executive summary) w jezyku polskim.\n\n"
-                    "Skup sie na:\n"
-                    "- Najwazniejszych wnioskach i trendach\n"
-                    "- Obszarach wymagajacych uwagi\n"
-                    "- Powtarzajacych sie wzorcach\n"
-                    "- Rekomendacjach\n\n"
-                    f"Insighty ({len(rows)} szt.):\n\n"
-                    f"{prompt_data}\n\n"
-                    "Odpowiedz czytelnie, zwiezle, z naglowkami."
-                ),
+                "content": f"Insighty ({len(rows)} szt.):\n\n{prompt_data}",
             }
         ],
     )
@@ -190,6 +196,9 @@ def insights_summary(
     from app.db.cost_tracker import log_anthropic_cost
     if hasattr(response, "usage"):
         log_anthropic_cost(ANTHROPIC_MODEL, "api.insights", response.usage)
+        _log.info("cache_stats",
+                  cache_creation=getattr(response.usage, "cache_creation_input_tokens", 0),
+                  cache_read=getattr(response.usage, "cache_read_input_tokens", 0))
 
     summary_text = response.content[0].text
     latency_ms = int((time.time() - started_at) * 1000)

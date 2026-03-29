@@ -832,15 +832,9 @@ def research_regulation(matter_id: int, query: str | None = None) -> dict[str, A
     # 3-4. AI analysis
     question = query or "Jakie są obowiązki prawne wynikające z tej regulacji?"
 
-    prompt = (
+    _SYSTEM_RESEARCH = (
         "Jesteś prawnikiem specjalizującym się w polskim prawie energetycznym. "
-        "Przeanalizuj następujące źródła i odpowiedz na pytanie prawne.\n\n"
-        f"SPRAWA: {title}\n"
-        f"OPIS: {description or 'brak'}\n"
-        f"OBSZAR: {area_name or area_code or 'ogólny'}\n"
-        f"REGULACJA ŹRÓDŁOWA: {source_regulation or 'brak'}\n"
-        f"PYTANIE: {question}\n\n"
-        f"ŹRÓDŁA:\n{context or '(brak źródeł)'}\n\n"
+        "Analizujesz źródła i odpowiadasz na pytania prawne.\n\n"
         "Odpowiedz w strukturze:\n"
         "1. STRESZCZENIE REGULACJI\n"
         "2. OBOWIĄZKI (lista konkretnych obowiązków z podstawą prawną)\n"
@@ -851,13 +845,28 @@ def research_regulation(matter_id: int, query: str | None = None) -> dict[str, A
         "Bądź konkretny, podawaj artykuły ustaw. Pisz po polsku."
     )
 
+    prompt = (
+        f"SPRAWA: {title}\n"
+        f"OPIS: {description or 'brak'}\n"
+        f"OBSZAR: {area_name or area_code or 'ogólny'}\n"
+        f"REGULACJA ŹRÓDŁOWA: {source_regulation or 'brak'}\n"
+        f"PYTANIE: {question}\n\n"
+        f"ŹRÓDŁA:\n{context or '(brak źródeł)'}"
+    )
+
     try:
         response = client.messages.create(
             model=ANTHROPIC_MODEL,
             max_tokens=4000,
+            system=[
+                {"type": "text", "text": _SYSTEM_RESEARCH, "cache_control": {"type": "ephemeral"}},
+            ],
             messages=[{"role": "user", "content": prompt}],
         )
         log_anthropic_cost(ANTHROPIC_MODEL, "legal_research", response.usage)
+        log.info("cache_stats",
+                 cache_creation=getattr(response.usage, "cache_creation_input_tokens", 0),
+                 cache_read=getattr(response.usage, "cache_read_input_tokens", 0))
         legal_analysis = response.content[0].text.strip()
     except Exception as e:
         log.error("legal_research_ai_error", error=str(e), matter_id=matter_id)
@@ -925,14 +934,9 @@ def generate_compliance_report(matter_id: int) -> dict[str, Any]:
         }
 
     # 2. Generate report
-    prompt = (
-        "Na podstawie poniższej analizy prawnej wygeneruj kompletny raport compliance.\n\n"
-        f"SPRAWA: {title}\n"
-        f"OPIS: {description or 'brak'}\n"
-        f"OBSZAR: {area_name or area_code or 'ogólny'}\n\n"
-        f"ANALIZA PRAWNA:\n{legal_analysis[:6000]}\n\n"
-        f"Wygeneruj raport w formacie markdown:\n\n"
-        f"# RAPORT COMPLIANCE: {title}\n\n"
+    _SYSTEM_REPORT = (
+        "Generujesz kompletne raporty compliance w formacie markdown, po polsku.\n"
+        "Struktura raportu:\n"
         "## I. PODSUMOWANIE WYKONAWCZE\n"
         "## II. OBOWIĄZKI PRAWNE\n"
         "(tabela: obowiązek | podstawa prawna | termin | kara)\n"
@@ -951,13 +955,27 @@ def generate_compliance_report(matter_id: int) -> dict[str, Any]:
         "Jako spółkę przyjmij REH (Respect Energy Holding) — spółka energetyczna, trading."
     )
 
+    prompt = (
+        f"# RAPORT COMPLIANCE: {title}\n\n"
+        f"SPRAWA: {title}\n"
+        f"OPIS: {description or 'brak'}\n"
+        f"OBSZAR: {area_name or area_code or 'ogólny'}\n\n"
+        f"ANALIZA PRAWNA:\n{legal_analysis[:6000]}"
+    )
+
     try:
         response = client.messages.create(
             model=ANTHROPIC_MODEL,
             max_tokens=6000,
+            system=[
+                {"type": "text", "text": _SYSTEM_REPORT, "cache_control": {"type": "ephemeral"}},
+            ],
             messages=[{"role": "user", "content": prompt}],
         )
         log_anthropic_cost(ANTHROPIC_MODEL, "compliance_report", response.usage)
+        log.info("cache_stats",
+                 cache_creation=getattr(response.usage, "cache_creation_input_tokens", 0),
+                 cache_read=getattr(response.usage, "cache_read_input_tokens", 0))
         report = response.content[0].text.strip()
     except Exception as e:
         log.error("compliance_report_ai_error", error=str(e), matter_id=matter_id)
@@ -1073,30 +1091,35 @@ def advance_matter_phase(matter_id: int, force_phase: str | None = None) -> dict
                 "hint": "Run analysis phase first (obligations_report is empty)",
             }
         # Generate action_plan via Claude
-        plan_prompt = f"""Na podstawie raportu compliance wygeneruj action_plan jako JSON array.
+        _SYSTEM_PLAN = (
+            "Generujesz action_plan jako JSON array na podstawie raportów compliance.\n\n"
+            "Wygeneruj JSON array (TYLKO JSON, bez markdown):\n"
+            '[{"step": 1, "action": "opis działania", "assignee": "rola/osoba",\n'
+            '   "deadline": "YYYY-MM-DD", "document_needed": "policy|procedure|form|none",\n'
+            '   "priority": "low|medium|high|critical"}]\n\n'
+            "Uwzględnij wszystkie obowiązki z raportu. Deadline'y realistyczne (30-180 dni od dziś)."
+        )
 
-RAPORT COMPLIANCE:
-{report[:3000]}
-
-ANALIZA PRAWNA:
-{(legal_analysis or '')[:2000]}
-
-Wygeneruj JSON array (TYLKO JSON, bez markdown):
-[{{"step": 1, "action": "opis działania", "assignee": "rola/osoba",
-   "deadline": "YYYY-MM-DD", "document_needed": "policy|procedure|form|none",
-   "priority": "low|medium|high|critical"}}]
-
-Uwzględnij wszystkie obowiązki z raportu. Deadline'y realistyczne (30-180 dni od dziś).
-Dzisiejsza data: {date.today().isoformat()}"""
+        plan_prompt = (
+            f"RAPORT COMPLIANCE:\n{report[:3000]}\n\n"
+            f"ANALIZA PRAWNA:\n{(legal_analysis or '')[:2000]}\n\n"
+            f"Dzisiejsza data: {date.today().isoformat()}"
+        )
 
         resp = client.messages.create(
             model=ANTHROPIC_MODEL,
             max_tokens=2000,
             temperature=0.1,
+            system=[
+                {"type": "text", "text": _SYSTEM_PLAN, "cache_control": {"type": "ephemeral"}},
+            ],
             messages=[{"role": "user", "content": plan_prompt}],
         )
         plan_text = resp.content[0].text.strip()
         log_anthropic_cost(ANTHROPIC_MODEL, "legal_action_plan", resp.usage)
+        log.info("cache_stats",
+                 cache_creation=getattr(resp.usage, "cache_creation_input_tokens", 0),
+                 cache_read=getattr(resp.usage, "cache_read_input_tokens", 0))
 
         # Parse JSON from response
         try:

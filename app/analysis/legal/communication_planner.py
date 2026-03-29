@@ -148,34 +148,42 @@ def generate_communication_plan(matter_id: int) -> dict[str, Any]:
     action_plan_text = json.dumps(action_plan, ensure_ascii=False, indent=2) if action_plan else "Brak action_plan"
 
     # 3. Call Claude
-    prompt = f"""Na podstawie sprawy compliance i macierzy RACI, wygeneruj plan komunikacji.
-Sprawa: {title}
-Obszar: {area_name} ({area_code})
-RACI:
-{raci_text}
-Action plan:
-{action_plan_text[:3000]}
+    prompt = (
+        f"Sprawa: {title}\n"
+        f"Obszar: {area_name} ({area_code})\n"
+        f"RACI:\n{raci_text}\n"
+        f"Action plan:\n{action_plan_text[:3000]}\n\n"
+        f"Dzisiejsza data: {date.today().isoformat()}"
+    )
 
-Dla każdego interesariusza określ:
-- Kogo poinformować (imię, rola RACI)
-- O czym (treść komunikatu — 2-3 zdania)
-- Jakim kanałem (email dla formalnych, Teams dla operacyjnych, WhatsApp dla pilnych)
-- Kiedy (data YYYY-MM-DD lub "natychmiast" / "po zatwierdzeniu" / "po szkoleniu")
-- Cel (inform/request_action/request_signature/train)
-
-Dzisiejsza data: {date.today().isoformat()}
-
-Zwróć TYLKO JSON array (bez markdown):
-[{{"recipient_name": "...", "recipient_role": "responsible|accountable|consulted|informed", "channel": "email|teams|whatsapp", "subject": "...", "content": "...", "when": "YYYY-MM-DD lub opis", "purpose": "inform|request_action|request_signature|train"}}]"""
+    _SYSTEM_COMM = (
+        "Generujesz plany komunikacji compliance dla polskiej spółki energetycznej.\n\n"
+        "Dla każdego interesariusza określ:\n"
+        "- Kogo poinformować (imię, rola RACI)\n"
+        "- O czym (treść komunikatu — 2-3 zdania)\n"
+        "- Jakim kanałem (email dla formalnych, Teams dla operacyjnych, WhatsApp dla pilnych)\n"
+        "- Kiedy (data YYYY-MM-DD lub 'natychmiast' / 'po zatwierdzeniu' / 'po szkoleniu')\n"
+        "- Cel (inform/request_action/request_signature/train)\n\n"
+        "Zwróć TYLKO JSON array (bez markdown):\n"
+        '[{"recipient_name": "...", "recipient_role": "responsible|accountable|consulted|informed", '
+        '"channel": "email|teams|whatsapp", "subject": "...", "content": "...", '
+        '"when": "YYYY-MM-DD lub opis", "purpose": "inform|request_action|request_signature|train"}]'
+    )
 
     resp = client.messages.create(
         model=ANTHROPIC_MODEL,
         max_tokens=2000,
         temperature=0.2,
+        system=[
+            {"type": "text", "text": _SYSTEM_COMM, "cache_control": {"type": "ephemeral"}},
+        ],
         messages=[{"role": "user", "content": prompt}],
     )
     plan_text = resp.content[0].text.strip()
     log_anthropic_cost(ANTHROPIC_MODEL, "compliance_comm_plan", resp.usage)
+    log.info("cache_stats",
+             cache_creation=getattr(resp.usage, "cache_creation_input_tokens", 0),
+             cache_read=getattr(resp.usage, "cache_read_input_tokens", 0))
 
     # Parse JSON
     try:
