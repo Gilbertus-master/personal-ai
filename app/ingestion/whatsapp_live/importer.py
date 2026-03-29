@@ -257,9 +257,25 @@ def import_group(
     first_dt = sorted_msgs[0].get("_dt")
     last_dt = sorted_msgs[-1].get("_dt")
 
+    # Collect message IDs for dedup
+    current_msg_ids = sorted({m.get("id") for m in messages if m.get("id")})
+
     doc_id = existing_docs.get(raw_path)
 
     if doc_id:
+        # Check if message IDs changed — skip if identical (no new messages)
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT wa_message_ids FROM documents WHERE id = %s",
+                    (doc_id,),
+                )
+                row = cur.fetchone()
+                old_msg_ids = row[0] if row and row[0] else []
+
+        if old_msg_ids == current_msg_ids:
+            return 0, 0  # No new messages for this chat+day
+
         # Document exists — delete old chunks and re-create with updated text
         with get_pg_connection() as conn:
             with conn.cursor() as cur:
@@ -267,13 +283,15 @@ def import_group(
                 cur.execute(
                     """
                     UPDATE documents
-                    SET title = %s, created_at = %s, participants = %s::jsonb
+                    SET title = %s, created_at = %s, participants = %s::jsonb,
+                        wa_message_ids = %s::jsonb
                     WHERE id = %s
                     """,
                     (
                         f"WhatsApp {chat_name} {date_str}",
                         first_dt.isoformat() if first_dt else None,
                         json.dumps(participants, ensure_ascii=False),
+                        json.dumps(current_msg_ids),
                         doc_id,
                     ),
                 )
@@ -294,6 +312,15 @@ def import_group(
             participants=participants,
             raw_path=raw_path,
         )
+
+        # Store message IDs for future dedup
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE documents SET wa_message_ids = %s::jsonb WHERE id = %s",
+                    (json.dumps(current_msg_ids), doc_id),
+                )
+            conn.commit()
 
     # Insert chunks — batch in single connection
     chunks = chunk_text(full_text)
