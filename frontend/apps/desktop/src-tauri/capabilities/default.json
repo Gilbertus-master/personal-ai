@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicoverbruggen/tauri-schema/main/capabilities-schema-v2.json",
+  "identifier": "default",
+  "description": "Default capabilities for Gilbertus desktop app",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "notification:default",
+    "notification:allow-notify",
+    "deep-link:default",
+    "updater:default",
+    "shell:allow-open"
+  ]
+}

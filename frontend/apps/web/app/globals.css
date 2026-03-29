@@ -1,0 +1,50 @@
+@import "tailwindcss";
+@import "../../../packages/ui/src/lib/animations.css";
+
+@theme {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-text-secondary: var(--text-secondary);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-inter), 'Inter', system-ui, sans-serif;
+  --radius: 0.5rem;
+}
+
+:root {
+  --bg: #ffffff;
+  --surface: #f8f9fa;
+  --surface-hover: #f0f1f3;
+  --border: #e2e4e9;
+  --text: #111319;
+  --text-secondary: #6b7080;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+}
+
+.dark {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface-hover: #252833;
+  --border: #2e3140;
+  --text: #e4e5e9;
+  --text-secondary: #8b8fa3;
+  --accent: #3b82f6;
+  --accent-hover: #60a5fa;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+}
+
+body {
+  @apply antialiased;
+}

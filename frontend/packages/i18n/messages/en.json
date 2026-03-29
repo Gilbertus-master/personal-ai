@@ -1,0 +1,87 @@
+{
+  "common": {
+    "appName": "Gilbertus Albans",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "save": "Save",
+    "cancel": "Cancel",
+    "search": "Search...",
+    "noResults": "No results"
+  },
+  "auth": {
+    "login": "Sign in",
+    "logout": "Sign out",
+    "apiKeyLabel": "API Key",
+    "apiKeyPlaceholder": "Enter API key...",
+    "azureAdButton": "Sign in with Microsoft",
+    "invalidKey": "Invalid API key",
+    "loginTitle": "Gilbertus Albans",
+    "loginSubtitle": "Sign in to the system"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "chat": "Chat",
+    "people": "People",
+    "intelligence": "Intelligence",
+    "compliance": "Compliance",
+    "market": "Market",
+    "finance": "Finance",
+    "process": "Processes",
+    "decisions": "Decisions",
+    "calendar": "Calendar",
+    "documents": "Documents",
+    "voice": "Voice",
+    "settings": "Settings",
+    "omnius": "Omnius"
+  },
+  "sidebar": {
+    "collapse": "Collapse",
+    "expand": "Expand"
+  },
+  "commandPalette": {
+    "placeholder": "Type a command or search...",
+    "noResults": "No results",
+    "navigation": "Navigation",
+    "actions": "Actions"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "voice": {
+    "title": "Voice Interface",
+    "subtitle": "Talk to Gilbertus by voice",
+    "pushToTalk": "Press and hold to speak",
+    "holdSpace": "Hold Space",
+    "recording": "Recording...",
+    "processing": "Processing...",
+    "playing": "Playing...",
+    "modeHttp": "Standard",
+    "modeWs": "Real-time",
+    "wsConnected": "Connected",
+    "wsDisconnected": "Disconnected",
+    "history": "History",
+    "newSession": "New session",
+    "noMessages": "Press the button or Space to start",
+    "deleteSession": "Delete session",
+    "deleteConfirm": "Are you sure you want to delete this session?",
+    "online": "Online",
+    "partial": "Partially available",
+    "offline": "Offline",
+    "openFullView": "Open full view",
+    "voiceAssistant": "Voice Assistant",
+    "stopPlayback": "Stop playback",
+    "commandBrief": "Brief",
+    "commandStatus": "Status",
+    "commandMarket": "Market",
+    "commandCompetitors": "Competitors",
+    "commandScenarios": "Scenarios",
+    "commandAlerts": "Alerts",
+    "micPermission": "Microphone access required",
+    "micDenied": "Microphone access was denied. Update your browser settings.",
+    "errorConnection": "Connection error",
+    "errorTranscription": "Transcription error",
+    "messages": "messages"
+  }
+}

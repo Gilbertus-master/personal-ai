@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "jsx": "react-jsx",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "incremental": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "paths": {
+      "@gilbertus/ui": ["packages/ui/src"],
+      "@gilbertus/api-client": ["packages/api-client/src"],
+      "@gilbertus/rbac": ["packages/rbac/src"],
+      "@gilbertus/i18n": ["packages/i18n/src"]
+    }
+  },
+  "exclude": ["node_modules", "dist", ".next"]
+}

@@ -1,0 +1,87 @@
+{
+  "common": {
+    "appName": "Gilbertus Albans",
+    "loading": "Ładowanie...",
+    "error": "Wystąpił błąd",
+    "save": "Zapisz",
+    "cancel": "Anuluj",
+    "search": "Szukaj...",
+    "noResults": "Brak wyników"
+  },
+  "auth": {
+    "login": "Zaloguj się",
+    "logout": "Wyloguj",
+    "apiKeyLabel": "Klucz API",
+    "apiKeyPlaceholder": "Wpisz klucz API...",
+    "azureAdButton": "Zaloguj przez Microsoft",
+    "invalidKey": "Nieprawidłowy klucz API",
+    "loginTitle": "Gilbertus Albans",
+    "loginSubtitle": "Zaloguj się do systemu"
+  },
+  "nav": {
+    "dashboard": "Panel główny",
+    "chat": "Czat",
+    "people": "Ludzie",
+    "intelligence": "Inteligencja",
+    "compliance": "Compliance",
+    "market": "Rynek",
+    "finance": "Finanse",
+    "process": "Procesy",
+    "decisions": "Decyzje",
+    "calendar": "Kalendarz",
+    "documents": "Dokumenty",
+    "voice": "Głos",
+    "settings": "Ustawienia",
+    "omnius": "Omnius"
+  },
+  "sidebar": {
+    "collapse": "Zwiń",
+    "expand": "Rozwiń"
+  },
+  "commandPalette": {
+    "placeholder": "Wpisz komendę lub szukaj...",
+    "noResults": "Brak wyników",
+    "navigation": "Nawigacja",
+    "actions": "Akcje"
+  },
+  "theme": {
+    "light": "Jasny",
+    "dark": "Ciemny",
+    "system": "Systemowy"
+  },
+  "voice": {
+    "title": "Interfejs głosowy",
+    "subtitle": "Rozmawiaj z Gilbertusem głosem",
+    "pushToTalk": "Naciśnij i przytrzymaj aby mówić",
+    "holdSpace": "Przytrzymaj spację",
+    "recording": "Nagrywam...",
+    "processing": "Przetwarzam...",
+    "playing": "Odtwarzam...",
+    "modeHttp": "Standardowy",
+    "modeWs": "Real-time",
+    "wsConnected": "Połączono",
+    "wsDisconnected": "Rozłączono",
+    "history": "Historia",
+    "newSession": "Nowa sesja",
+    "noMessages": "Naciśnij przycisk lub spację aby rozpocząć",
+    "deleteSession": "Usuń sesję",
+    "deleteConfirm": "Czy na pewno chcesz usunąć tę sesję?",
+    "online": "Online",
+    "partial": "Częściowo dostępny",
+    "offline": "Offline",
+    "openFullView": "Otwórz pełny widok",
+    "voiceAssistant": "Asystent głosowy",
+    "stopPlayback": "Zatrzymaj odtwarzanie",
+    "commandBrief": "Brief",
+    "commandStatus": "Status",
+    "commandMarket": "Rynek",
+    "commandCompetitors": "Konkurencja",
+    "commandScenarios": "Scenariusze",
+    "commandAlerts": "Alerty",
+    "micPermission": "Wymagany dostęp do mikrofonu",
+    "micDenied": "Dostęp do mikrofonu został zablokowany. Zmień ustawienia przeglądarki.",
+    "errorConnection": "Błąd połączenia",
+    "errorTranscription": "Błąd transkrypcji",
+    "messages": "wiadomości"
+  }
+}

@@ -1,0 +1,78 @@
+import { customFetch } from './base';
+import type {
+  MorningBriefResponse,
+  AlertsResponse,
+  StatusResponse,
+  TimelineRequest,
+  TimelineResponse,
+  CommitmentsListResponse,
+  BudgetResponse,
+} from './dashboard-types';
+
+export async function fetchBrief(params?: {
+  force?: boolean;
+  days?: number;
+  date?: string;
+}): Promise<MorningBriefResponse> {
+  const queryParams: Record<string, string> = {};
+  if (params?.force) queryParams.force = 'true';
+  if (params?.days) queryParams.days = String(params.days);
+  if (params?.date) queryParams.date = params.date;
+  return customFetch<MorningBriefResponse>({
+    url: '/brief/today',
+    method: 'GET',
+    params: Object.keys(queryParams).length ? queryParams : undefined,
+  });
+}
+
+export async function fetchAlerts(params?: {
+  active_only?: boolean;
+  alert_type?: string;
+  severity?: string;
+  limit?: number;
+  refresh?: boolean;
+  date?: string;
+}): Promise<AlertsResponse> {
+  const queryParams: Record<string, string> = {};
+  if (params?.active_only !== undefined) queryParams.active_only = String(params.active_only);
+  if (params?.alert_type) queryParams.alert_type = params.alert_type;
+  if (params?.severity) queryParams.severity = params.severity;
+  if (params?.limit) queryParams.limit = String(params.limit);
+  if (params?.refresh) queryParams.refresh = 'true';
+  if (params?.date) queryParams.date = params.date;
+  return customFetch<AlertsResponse>({
+    url: '/alerts',
+    method: 'GET',
+    params: Object.keys(queryParams).length ? queryParams : undefined,
+  });
+}
+
+export async function fetchStatus(): Promise<StatusResponse> {
+  return customFetch<StatusResponse>({ url: '/status', method: 'GET' });
+}
+
+export async function fetchTimeline(body?: TimelineRequest): Promise<TimelineResponse> {
+  return customFetch<TimelineResponse>({
+    url: '/timeline',
+    method: 'POST',
+    data: body ?? {},
+  });
+}
+
+export async function fetchCommitments(params?: {
+  status?: string;
+  limit?: number;
+}): Promise<CommitmentsListResponse> {
+  const queryParams: Record<string, string> = {};
+  if (params?.status) queryParams.status = params.status;
+  if (params?.limit) queryParams.limit = String(params.limit);
+  return customFetch<CommitmentsListResponse>({
+    url: '/commitments',
+    method: 'GET',
+    params: Object.keys(queryParams).length ? queryParams : undefined,
+  });
+}
+
+export async function fetchBudget(): Promise<BudgetResponse> {
+  return customFetch<BudgetResponse>({ url: '/costs/budget', method: 'GET' });
+}

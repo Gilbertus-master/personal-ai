@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@gilbertus/rbac": ["../rbac/src"],
+      "@gilbertus/api-client": ["../api-client/src"]
+    }
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicoverbruggen/tauri-schema/main/schema-v2.json",
+  "productName": "Gilbertus Albans",
+  "version": "0.1.0",
+  "identifier": "com.gilbertus.app",
+  "build": {
+    "frontendDist": "../../apps/web/.next",
+    "devUrl": "http://localhost:3000"
+  },
+  "app": {
+    "title": "Gilbertus Albans",
+    "windows": [
+      {
+        "title": "Gilbertus Albans",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600
+      }
+    ],
+    "trayIcon": {
+      "tooltip": "Gilbertus Albans",
+      "iconAsTemplate": true
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi", "dmg", "appimage"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["gilbertus"]
+      }
+    },
+    "updater": {
+      "endpoints": ["https://releases.gilbertus.app/{{target}}/{{arch}}/{{current_version}}"],
+      "pubkey": ""
+    }
+  }
+}

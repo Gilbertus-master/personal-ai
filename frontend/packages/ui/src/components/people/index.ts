@@ -1,0 +1,12 @@
+export { PeopleToolbar } from './people-toolbar';
+export { PeopleTable } from './people-table';
+export { ProfileHeader } from './profile-header';
+export { ScorecardKpis } from './scorecard-kpis';
+export { PersonTimeline } from './person-timeline';
+export { OpenLoops } from './open-loops';
+export { RolesHistory } from './roles-history';
+export { SentimentChart } from './sentiment-chart';
+export { DelegationScore } from './delegation-score';
+export { EvaluationSection } from './evaluation-section';
+export { PersonFormModal } from './person-form-modal';
+export { NetworkGraph } from './network-graph';
