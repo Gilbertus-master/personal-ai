@@ -1,0 +1,12 @@
+H7 done. Summary:
+
+**`mcp_gilbertus/server.py` — MCP `_sql()` whitelist:**
+- Added `ALLOWED_SQL_TABLES` — 23 tables whitelisted
+- `_sql()` now rejects non-SELECT/WITH queries (blocks DELETE, INSERT, UPDATE, DROP)
+- Regex extracts table names from FROM/JOIN/INTO/UPDATE clauses, checks against whitelist
+- CTE aliases excluded from whitelist check to support WITH queries
+- Non-regression gate: 15 metrics OK
+Task: H7 — MCP _sql() whitelist tabel
+Started: 2026-03-28T18:49:54.854200+00:00
+============================================================
+

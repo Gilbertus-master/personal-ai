@@ -1,0 +1,26 @@
+Gotowe. Podsumowanie zmian:
+
+**docker-compose.yml** (dev):
+- `postgres: 5432` → `127.0.0.1:5432`
+- `qdrant: 6333, 6334` → `127.0.0.1:6333`, `127.0.0.1:6334`
+- `whisper: 9090` → `127.0.0.1:9090`
+
+**omnius/docker-compose.yml** (dev):
+- `omnius-db: 5433` → `127.0.0.1:5433`
+- `omnius-api: 8000` → `127.0.0.1:8000`
+- `omnius-qdrant: 6333` → `127.0.0.1:6333`
+
+**Bez zmian** (już OK):
+- `docker-compose.prod.yml` — wszystko na `127.0.0.1`
+- `docker-compose.omnius.yml` — wszystko na `127.0.0.1`
+
+Żeby zweryfikować:
+```bash
+docker-compose down && docker-compose up -d
+sleep 5
+ss -tlnp | grep -E "5432|6333|9090"
+```
+Task: H3 — Dev docker-compose porty na 127.0.0.1
+Started: 2026-03-28T18:38:55.822622+00:00
+============================================================
+

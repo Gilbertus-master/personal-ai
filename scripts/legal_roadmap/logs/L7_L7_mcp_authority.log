@@ -1,0 +1,25 @@
+L7 gotowe. Podsumowanie zmian:
+
+### 1. MCP Tool `gilbertus_legal` — `mcp_gilbertus/server.py`
+- Zarejestrowany nowy Tool z 24 akcjami (dashboard, areas, matters, obligations, deadlines, documents, trainings, risks, raci, verify, etc.)
+- Handler w `call_tool()` z pełnym routingiem do API `/compliance/*`
+- Dodany do `TOOL_GROUPS["business"]`
+- Dodane 17 keywords do `ROUTER_KEYWORD_MAP["business"]` (compliance, legal, URE, RODO, AML, ESG, KSH, etc.)
+
+### 2. Authority categories — `app/orchestrator/authority.py`
+- 7 nowych kategorii: `compliance_research` (L0), `compliance_report` (L1), `compliance_training` (L1), `compliance_communication` (L2), `compliance_escalation` (L2), `compliance_action_plan` (L3), `compliance_document` (L3)
+
+### 3. Morning Brief — `app/retrieval/morning_brief.py`
+- Nowa funkcja `fetch_compliance_status()` importuje `get_compliance_dashboard()`
+- Sekcja `=== COMPLIANCE ===` renderowana w kontekście briefu (overdue, upcoming, open matters)
+- Nowa sekcja 8 w `BRIEF_SYSTEM_PROMPT` opisująca compliance
+- Pipeline `generate_morning_brief()` fetchuje i przekazuje compliance data
+
+### 4. WhatsApp commands — `app/orchestrator/task_monitor.py`
+- 3 nowe komendy: `compliance` (dashboard), `compliance deadlines/terminy` (14d), `compliance overdue/zaległe`
+
+**Total MCP tools: 44** (było 43).
+Task: L7 — MCP Tool + Authority Integration + Morning Brief
+Started: 2026-03-28T22:11:10.069553+00:00
+============================================================
+

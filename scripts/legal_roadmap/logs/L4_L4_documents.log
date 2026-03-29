@@ -1,0 +1,28 @@
+L4 Document Generator zaimplementowany. Podsumowanie:
+
+### Utworzone/zmodyfikowane pliki:
+
+1. **`app/analysis/legal/document_generator.py`** (nowy) — 6 funkcji:
+   - `generate_document()` — AI-powered generacja z Claude Sonnet, prompty per doc_type (policy, procedure, form, training_material, communication, etc.), wersjonowanie, podpisy JSONB
+   - `list_documents()` — filtrowanie po area_code, doc_type, status
+   - `get_stale_documents()` — dokumenty wymagające przeglądu (review_due)
+   - `approve_document()` — zatwierdzenie + supersedowanie poprzednich wersji
+   - `sign_document()` — podpis elektroniczny z auto-aktywacją po zebraniu wszystkich podpisów
+   - `run_document_freshness_check()` — cron: raport stale documents
+
+2. **`app/analysis/legal_compliance.py`** — 4 wrapper functions + rozszerzone `advance_matter_phase()`:
+   - **planning** — generuje `action_plan` via Claude (JSON array z krokami, assignee, deadline, document_needed)
+   - **document_generation** — iteruje po action_plan, generuje dokumenty dla każdego kroku wymagającego policy/procedure/form
+
+3. **`app/api/main.py`** — 5 nowych endpointów:
+   - `GET /compliance/documents` — lista z filtrami
+   - `GET /compliance/documents/stale` — dokumenty do przeglądu
+   - `POST /compliance/documents/generate` — generacja AI
+   - `POST /compliance/documents/{doc_id}/approve` — zatwierdzenie
+   - `POST /compliance/documents/{doc_id}/sign` — podpis
+
+4. **`scripts/legal_compliance_daily.sh`** — dodany freshness check
+Task: L4 — Document Generator + Versioning + Signatures
+Started: 2026-03-28T21:54:31.458261+00:00
+============================================================
+

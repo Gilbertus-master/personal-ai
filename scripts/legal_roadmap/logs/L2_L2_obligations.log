@@ -1,0 +1,29 @@
+Wszystko działa. Podsumowanie:
+
+**L2 — Obligation Tracker + Deadline Monitor zaimplementowany:**
+
+1. **`app/analysis/legal/obligation_tracker.py`** — pełny moduł z:
+   - `create_obligation()` — tworzenie obowiązków z auto-deadline
+   - `list_obligations()` — lista z filtrami (area_code, compliance_status)
+   - `get_overdue_obligations()` — obowiązki po terminie
+   - `fulfill_obligation()` — oznaczanie jako spełnione + auto-recurrence nowego deadline
+   - `check_deadlines_and_remind()` — cron: overdue marking + WhatsApp reminders (30/14/7/3/1 dni)
+   - `run_deadline_monitor()` — entry point crona + auto non_compliant status
+
+2. **`app/analysis/legal_compliance.py`** — 5 wrapper functions delegujących do obligation_tracker
+
+3. **`app/api/main.py`** — 6 nowych endpointów:
+   - `GET /compliance/obligations` — lista
+   - `GET /compliance/obligations/overdue` — przeterminowane
+   - `POST /compliance/obligations` — tworzenie
+   - `POST /compliance/obligations/{id}/fulfill` — fulfillment
+   - `GET /compliance/deadlines` — nadchodzące terminy
+   - `GET /compliance/deadlines/overdue` — przeterminowane terminy
+
+4. **`scripts/legal_compliance_daily.sh`** — cron script (6:15 daily)
+
+5. **Weryfikacja:** import OK, create OK, list OK, deadline monitor OK, cron script OK, non-regression 15/15 OK.
+Task: L2 — Obligation Tracker + Deadline Monitor + Cron
+Started: 2026-03-28T21:44:18.215709+00:00
+============================================================
+

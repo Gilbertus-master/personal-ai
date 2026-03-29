@@ -1,0 +1,23 @@
+L6 — Communication Planner + Reporter + Daily Updates — done. Summary:
+
+### Created files
+- **`app/analysis/legal/communication_planner.py`** — `generate_communication_plan()` (AI-powered from RACI + action_plan), `execute_communication_plan()` (scope check → send_and_log or propose_action), `set_raci()`, `get_raci()`
+- **`app/analysis/legal/compliance_reporter.py`** — `generate_daily_update()` (WhatsApp format, 6 metrics), `generate_weekly_report()` (per-area stats + WhatsApp summary), `generate_area_report()` (full area detail with obligations, matters, docs, deadlines, trainings, risks, RACI)
+
+### Modified files
+- **`app/analysis/legal_compliance.py`**:
+  - Added `compliance_communications` table (11 columns, planned→sent→failed lifecycle)
+  - Extended `advance_matter_phase()` phases 8-10: verification (check all comms sent), monitoring (check obligations/docs/trainings), closed
+  - Added wrappers: `generate_communication_plan()`, `execute_communication_plan()`, `run_daily_compliance_check()`
+- **`app/api/main.py`** — 7 new endpoints: `/compliance/report/daily`, `/report/weekly`, `/report/area/{code}`, `/raci` (GET+POST), `/matters/{id}/communication-plan`, `/matters/{id}/execute-communication`
+- **`scripts/legal_compliance_daily.sh`** — simplified to single `run_daily_compliance_check()` call
+
+### Verification
+- All imports OK
+- Daily update generates correctly (2 open matters detected)
+- Cron script runs successfully
+- Non-regression gate: **15 metrics checked, all OK**
+Task: L6 — Communication Planner + Reporter + Daily Updates
+Started: 2026-03-28T22:03:59.512423+00:00
+============================================================
+

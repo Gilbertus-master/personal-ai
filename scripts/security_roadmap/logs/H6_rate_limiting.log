@@ -1,0 +1,21 @@
+H6 zaimplementowane:
+
+**Zmiany:**
+1. **requirements.txt** — dodano `slowapi>=0.1.0`
+2. **app/api/main.py:**
+   - Import `slowapi` (Limiter, handler, RateLimitExceeded)
+   - `TRUSTED_IPS` = `{"127.0.0.1", "localhost", "::1"}` — lokalne wywołania pominięte
+   - `get_rate_limit_key()` — zwraca `None` dla trusted IPs (slowapi pomija limit gdy key=None)
+   - Rate limity na endpointach:
+     - **30/min:** `/ask`, `/brief/today`, `/summary/generate`
+     - **5/min:** `/evaluate`, `/correlate`, `/scorecard/{person_slug}`
+     - **10/min:** `/status`
+
+**Weryfikacja:**
+- API uruchomione, `/health` OK
+- Non-regression gate: 15 metrics checked, OK
+- `/status` smoke test OK
+Task: H6 — Rate limiting w app layer (slowapi)
+Started: 2026-03-28T18:45:04.127590+00:00
+============================================================
+

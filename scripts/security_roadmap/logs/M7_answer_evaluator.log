@@ -1,0 +1,16 @@
+Done. Changes:
+
+1. **`app/api/main.py`** — Answer evaluator now samples 10% of queries instead of running on every request:
+   - Added `import random`
+   - Added `ANSWER_EVAL_SAMPLE_RATE` env var (default 0.1)
+   - Evaluator gate checks `random.random() < EVAL_SAMPLE_RATE` before running
+   - Wrapped in try/except so evaluator failures don't block the main flow
+   - Added `structlog` warning for low-quality answers (score < 0.6)
+
+2. **`.env`** — Added `ANSWER_EVAL_SAMPLE_RATE=0.1`
+
+Non-regression gate passes (15 metrics checked).
+Task: M7 — Answer Evaluator sampling (10% zapytań)
+Started: 2026-03-28T19:08:31.544762+00:00
+============================================================
+

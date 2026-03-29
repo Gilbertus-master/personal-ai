@@ -53,6 +53,9 @@ const MESSAGES_FILE = path.join(OUTPUT_DIR, "messages.jsonl");
 const LOG_FILE = path.join(OUTPUT_DIR, "listener.log");
 const PID_FILE = path.join(OUTPUT_DIR, "listener.pid");
 
+const QR_FILE = path.join(OUTPUT_DIR, "qr_pending.json");
+const NEEDS_REPAIR_FLAG = path.join(OUTPUT_DIR, "needs_repair.flag");
+
 const FORCE_PAIR = process.argv.includes("--pair");
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB rotation threshold
 const HEALTH_PORT = 9393;
@@ -81,6 +84,7 @@ const logger = pino(
 // ── State ───────────────────────────────────────────────────────────────
 
 let isConnected = false;
+let qrPending = false;
 let lastMsgAt = null;
 let msgCountSinceStart = 0;
 let reconnectAttempt = 0;
@@ -135,9 +139,11 @@ function getReconnectDelay() {
 
 const healthServer = http.createServer((req, res) => {
   if (req.method === "GET" && req.url === "/health") {
+    const status = qrPending ? "qr_pending" : isConnected ? "ok" : "disconnected";
     const body = JSON.stringify({
-      status: "ok",
+      status,
       connected: isConnected,
+      qr_pending: qrPending,
       last_msg_at: lastMsgAt,
       messages_since_start: msgCountSinceStart,
       pid: process.pid,
@@ -200,6 +206,22 @@ async function startListener({ clearAuth = false } = {}) {
   sock.ev.on("connection.update", ({ connection, lastDisconnect, qr }) => {
     if (qr) {
       qrAttempts++;
+      qrPending = true;
+
+      // Save QR data to file for external monitor/alerting
+      try {
+        fs.writeFileSync(QR_FILE, JSON.stringify({
+          qr_data: qr,
+          generated_at: Date.now(),
+          attempt: qrAttempts,
+          max_attempts: MAX_QR_ATTEMPTS,
+          listener_pid: process.pid,
+        }), "utf8");
+        logger.info({ qrAttempts }, "QR data saved to qr_pending.json");
+      } catch (err) {
+        logger.error({ err }, "Failed to write QR file");
+      }
+
       if (qrAttempts > MAX_QR_ATTEMPTS) {
         console.log(
           `\n[${new Date().toISOString()}] QR code shown ${MAX_QR_ATTEMPTS} times without successful scan.`
@@ -222,6 +244,12 @@ async function startListener({ clearAuth = false } = {}) {
       qrAttempts = 0;
       reconnectAttempt = 0;
       isConnected = true;
+      qrPending = false;
+
+      // Clean up QR and repair files after successful connection
+      try { if (fs.existsSync(QR_FILE)) fs.unlinkSync(QR_FILE); } catch { /* ignore */ }
+      try { if (fs.existsSync(NEEDS_REPAIR_FLAG)) fs.unlinkSync(NEEDS_REPAIR_FLAG); } catch { /* ignore */ }
+
       console.log(`[${new Date().toISOString()}] Connected to WhatsApp Web`);
       logger.info("Connected to WhatsApp Web");
     }

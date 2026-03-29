@@ -1,0 +1,22 @@
+Done. Here's what was implemented:
+
+**H4 — WhatsApp sender verification:**
+
+1. **`AUTHORIZED_SENDERS`** — already existed in the file, loaded from `AUTHORIZED_WA_SENDERS` env var (falls back to `WA_TARGET`)
+
+2. **`get_new_messages()`** — now extracts `sender_phone` from OpenClaw session metadata (`"sender_id"` field) and includes it in each message dict
+
+3. **`process_new_messages()`** — extracts `sender_phone` from each message and passes it to:
+   - `_handle_approval_with_graph()` — checks sender before processing approvals
+   - `handle_delegation_command()` — checks sender before processing delegation commands
+   - Fallback `handle_approval_message()` in action_pipeline — also checks sender
+
+4. **Fail-open for compatibility** — if `AUTHORIZED_SENDERS` is empty (no env var set) or `sender_phone` can't be extracted, messages pass through normally
+
+**Verification results:**
+- Unauthorized sender (`+48999000000`) → returns `None` 
+- Non-regression gate: 15 metrics checked, all OK
+Task: H4 — WhatsApp approval — weryfikacja nadawcy
+Started: 2026-03-28T20:21:44.475272+00:00
+============================================================
+

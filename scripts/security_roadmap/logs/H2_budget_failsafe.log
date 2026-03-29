@@ -1,0 +1,11 @@
+All passing. Here's the summary of changes in `app/db/cost_tracker.py`:
+
+1. **Fail-closed instead of fail-open** — `check_budget()` except block now returns `ok=False` with error reason instead of `ok=True`. DB unavailable = API calls blocked.
+
+2. **Timeout 2s** — `time.monotonic()` check after DB queries. If elapsed > 2s, returns `ok=False, reason="budget check timeout"`.
+
+3. **`is_budget_check_healthy()`** — new function doing `SELECT 1` with 2s timeout, returns `bool` for `/health` endpoint.
+Task: H2 — Budget check fail-open → fail-safe
+Started: 2026-03-28T18:37:34.172423+00:00
+============================================================
+

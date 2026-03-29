@@ -1,0 +1,40 @@
+**M5 — Qdrant API key auth — gotowe.**
+
+### Co zrobiono:
+
+1. **Wygenerowano klucz** `OWoBkazQLhxAKMiqAeUJELGFqFhX46iQ6vedr3_LEn4` i dodano do `.env` jako `QDRANT_API_KEY`
+
+2. **docker-compose.yml** — dodano `QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY}` do serwisu `qdrant`
+
+3. **omnius/docker-compose.yml** — analogicznie do serwisu `omnius-qdrant`
+
+4. **7 plików Python** zaktualizowano — wszędzie gdzie `QdrantClient()` jest inicjalizowany dodano `api_key`:
+   - `app/retrieval/retriever.py`
+   - `app/retrieval/test_search.py`
+   - `app/retrieval/index_chunks.py`
+   - `app/ingest/rechunk_selected_documents.py`
+   - `app/maintenance/qdrant_cleanup.py`
+   - `omnius/sync/embeddings.py`
+   - `scripts/cleanup_qdrant_stale.py`
+
+### Instrukcje restart (wymaga ręcznej decyzji):
+
+```bash
+# 1. Restart Qdrant z nowym API key
+cd /home/sebastian/personal-ai
+docker compose up -d qdrant
+
+# 2. Weryfikacja — powinno zwrócić 403 bez klucza:
+curl -s http://127.0.0.1:6333/collections | head -1
+
+# 3. Z kluczem — powinno zwrócić listę kolekcji:
+curl -s -H "api-key: OWoBkazQLhxAKMiqAeUJELGFqFhX46iQ6vedr3_LEn4" http://127.0.0.1:6333/collections
+
+# 4. Jeśli omnius działa osobno:
+cd /home/sebastian/personal-ai/omnius
+docker compose up -d omnius-qdrant
+```
+Task: M5 — Qdrant API key auth
+Started: 2026-03-28T18:56:39.183727+00:00
+============================================================
+

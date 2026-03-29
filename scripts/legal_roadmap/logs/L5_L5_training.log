@@ -1,0 +1,33 @@
+All done. Here's a summary:
+
+**L5 — Training Manager + Delegation Integration: DONE**
+
+### Created: `app/analysis/legal/training_manager.py`
+- **`create_training()`** — creates training, optionally generates material via document_generator, assigns to audience
+- **`assign_training_to_audience()`** — resolves audience groups (all_employees, management, traders, it, or name) → creates training records + delegation tasks per person
+- **`complete_training()`** — marks completion, closes delegation task, auto-completes training when all done
+- **`get_training_status()`** — per-person breakdown with status counts and overdue detection
+- **`check_training_deadlines()`** — cron: marks overdue records, sends WhatsApp reminders for 7-day horizon
+- **`list_trainings()`** — filterable list with progress percentages
+
+### Extended: `app/analysis/legal_compliance.py`
+- Added wrapper functions: `create_training()`, `list_trainings()`, `get_training_status()`
+- Extended `advance_matter_phase()` with phases 6-8:
+  - **approval**: marks matter as awaiting review
+  - **training**: scans action_plan for training steps, auto-creates trainings
+  - **communication**: validates all trainings completed before advancing
+
+### Added API endpoints in `app/api/main.py`:
+- `GET /compliance/trainings` — list with filters
+- `GET /compliance/trainings/{id}/status` — detailed status
+- `POST /compliance/trainings` — create training
+- `POST /compliance/trainings/{id}/complete` — mark person completion
+
+### Verification:
+- Training created and assigned to 17 people (all_employees)
+- All functions import and execute correctly
+- Non-regression gate: **15 metrics checked, all OK**
+Task: L5 — Training Manager + Delegation Integration
+Started: 2026-03-28T21:59:13.946706+00:00
+============================================================
+

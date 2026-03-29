@@ -1,0 +1,11 @@
+Done. Changes in `app/orchestrator/action_pipeline.py:91-128`:
+
+1. **Body truncated to 150 chars** (was 300) with `...[pełna treść po zatwierdzeniu]` suffix
+2. **Email addresses masked** — `sebastian.jablonski@respect.energy` → `seb***@respect.energy`
+3. **Total message capped at 800 chars** — hard truncation with `...`
+
+Non-regression gate passes.
+Task: M3 — Truncate danych w notyfikacjach WhatsApp
+Started: 2026-03-28T18:54:07.811438+00:00
+============================================================
+

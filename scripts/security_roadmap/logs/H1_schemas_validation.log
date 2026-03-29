@@ -1,0 +1,10 @@
+Gotowe. H1 zaimplementowane:
+
+- **`query`**: `max_length=4000` — blokuje payloady >4KB do LLM
+- **`source_types`**: whitelist validator (9 dozwolonych: email, teams, whatsapp, chatgpt, plaud, document, calendar, whatsapp_live, pdf)
+- **`answer_length`**: whitelist validator (short, medium, long, auto)
+- Non-regression gate: 15 metrics OK
+Task: H1 — Walidacja inputu w AskRequest
+Started: 2026-03-28T18:36:32.464234+00:00
+============================================================
+

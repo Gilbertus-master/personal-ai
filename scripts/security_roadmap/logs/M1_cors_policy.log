@@ -1,0 +1,11 @@
+**M1 CORS — done.** Podsumowanie:
+
+- Dodany `CORSMiddleware` w `app/api/main.py:55-67` z konfiguracją z env `CORS_ALLOWED_ORIGINS`
+- Dev defaults: `localhost:3000`, `localhost:8080`, `127.0.0.1:3000`, `127.0.0.1:8080`
+- Tylko `GET`/`POST`, credentials=False, max_age=3600
+- `evil.com` — brak headera (blocked), `localhost:3000` — zwraca header (allowed)
+- Non-regression gate: 15/15 OK
+Task: M1 — CORS policy middleware
+Started: 2026-03-28T18:51:37.694001+00:00
+============================================================
+

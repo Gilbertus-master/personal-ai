@@ -1,0 +1,24 @@
+All 10 tables created. Summary:
+
+**L1 — Foundation complete:**
+
+1. **`app/analysis/legal/__init__.py`** — empty init file
+2. **`app/analysis/legal_compliance.py`** — main orchestrator with:
+   - `_ensure_tables()` — 10 tables with indexes and CHECK constraints
+   - `_seed_compliance_areas()` — 9 areas (URE, RODO, AML, KSH, ESG, LABOR, TAX, CONTRACT, INTERNAL_AUDIT)
+   - `create_matter()`, `list_matters()`, `get_matter_detail()` — CRUD for matters
+   - `get_compliance_dashboard()` — full dashboard with areas, deadlines, docs, risk heatmap
+   - `list_areas()`, `get_area_detail()` — area CRUD with related data
+3. **`app/api/main.py`** — 6 endpoints added after contracts section:
+   - `GET /compliance/dashboard`
+   - `GET /compliance/areas`
+   - `GET /compliance/areas/{code}`
+   - `GET /compliance/matters`
+   - `POST /compliance/matters`
+   - `GET /compliance/matters/{matter_id}`
+
+All SQL parameterized, connection pool used, structlog throughout.
+Task: L1 — Foundation — DB Schema + Main Orchestrator + Base API
+Started: 2026-03-28T21:41:14.159638+00:00
+============================================================
+

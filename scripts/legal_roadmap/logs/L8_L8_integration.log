@@ -1,0 +1,20 @@
+**L8 — Integration + Crons + E2E Test + Non-regression complete.**
+
+Summary:
+
+| Task | Status |
+|------|--------|
+| `check_contracts_compliance()` | Added — cross-references contracts ↔ compliance_matters, creates RODO matters for data contracts, deadlines for expiring contracts |
+| `create_compliance_alerts()` | Added — 5 alert types (overdue deadlines, upcoming deadlines, non-compliant obligations, stale docs, overdue trainings) with dedup |
+| `run_daily_compliance_check()` | Updated — now calls training check, contract compliance, and alert creation |
+| `run_monthly_verification()` | Added — full area review with review frequency tracking, auto-matters for overdue areas, WhatsApp summary |
+| 5 crons registered | Daily 6:15, regulatory scan 6h, weekly Sun 19:00, monthly 1st 8:00, training Mon-Fri 9:00 |
+| CLAUDE.md | Updated: 42 crons, 44 MCP tools, Legal tool documented |
+| E2E test | Passed: matter created, research, report, phase advance, dashboard, daily check |
+| Non-regression | 15 metrics checked, all OK |
+
+**Counts:** 41 crons (crontab), 44 MCP tools, 113 tables, 11 compliance tables, API healthy.
+Task: L8 — Integration + Crons + E2E Test + Non-regression
+Started: 2026-03-28T22:15:53.364968+00:00
+============================================================
+

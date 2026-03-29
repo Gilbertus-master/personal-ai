@@ -1,0 +1,19 @@
+M8 done. Podsumowanie:
+
+**4 pliki compose, 16 serwisów zahardowanych:**
+
+| Plik | Serwisy | `no-new-privileges` | `read_only + tmpfs` |
+|------|---------|---------------------|---------------------|
+| `docker-compose.yml` | postgres, qdrant, whisper | 3/3 | whisper |
+| `docker-compose.prod.yml` | postgres, qdrant, whisper, api, cron, caddy | 6/6 | whisper |
+| `docker-compose.omnius.yml` | omnius-db, omnius-qdrant, omnius-reh, omnius-ref | 4/4 | — |
+| `omnius/docker-compose.yml` | omnius-db, omnius-api, omnius-qdrant | 3/3 | — |
+
+- **Postgres/Qdrant** — `no-new-privileges` only (potrzebują zapisu do datadir/storage)
+- **Whisper** — `no-new-privileges` + `read_only: true` + `tmpfs: /tmp` (nie potrzebuje trwałego zapisu)
+
+Aby zastosować zmiany: `docker-compose down && docker-compose up -d`
+Task: M8 — Container security hardening (no-new-privileges)
+Started: 2026-03-28T19:11:01.933276+00:00
+============================================================
+

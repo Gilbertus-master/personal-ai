@@ -1,0 +1,9 @@
+**M4 — pip-audit dependency scanning — done.**
+
+- `pip-audit` zainstalowany (v2.10.0), dodany do `requirements.txt`
+- `scripts/security_scan.sh` utworzony i działa — skan zakończony, **0 vulnerabilities**
+- Cron: co poniedziałek 8:00 CET (6:00 UTC), z alertem WhatsApp gdy wykryje podatności
+Task: M4 — Dependency scanning — pip-audit cron tygodniowy
+Started: 2026-03-28T18:55:04.955546+00:00
+============================================================
+

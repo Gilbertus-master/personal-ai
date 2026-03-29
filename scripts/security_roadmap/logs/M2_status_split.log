@@ -1,0 +1,18 @@
+Health endpoint zwraca starą wersję — API nie zostało jeszcze zrestartowane. Zmiany w kodzie są poprawne, po restarcie serwisu `/health` zwróci `{"status":"ok","service":"gilbertus-api"}`.
+
+**Podsumowanie zmian w `app/api/main.py`:**
+
+1. **`/health`** — uproszczony do minimum: `{"status": "ok", "service": "gilbertus-api"}`. Usunięty `env` — żadnych detali infrastruktury. Zawsze publiczny.
+
+2. **`/status`** — dodana ochrona API key:
+   - Gdy `GILBERTUS_API_KEY` jest ustawiony w env, żądania spoza localhost muszą podać `X-API-Key` header
+   - Localhost (`127.0.0.1`, `::1`) zawsze ma dostęp (dla cronów i monitoringu)
+   - Gdy `GILBERTUS_API_KEY` nie jest ustawiony — działa jak dotychczas (bez ochrony)
+
+3. Dodany import `HTTPException` z FastAPI.
+
+Non-regression gate: **15 metrics OK**.
+Task: M2 — Rozdzielenie /health od /status (auth wymagana)
+Started: 2026-03-28T18:52:39.967910+00:00
+============================================================
+
