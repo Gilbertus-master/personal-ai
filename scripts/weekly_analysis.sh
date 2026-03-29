@@ -3,7 +3,7 @@ set -euo pipefail
 cd /home/sebastian/personal-ai
 source .venv/bin/activate 2>/dev/null || true
 
-echo "[$(date)] Running weekly analysis..."
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Running weekly analysis..."
 
 echo "--- Sentiment Scan ---"
 python -c "
@@ -26,4 +26,4 @@ import json
 print(json.dumps(run_predictive_scan(), ensure_ascii=False, indent=2, default=str))
 "
 
-echo "[$(date)] Weekly analysis complete."
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Weekly analysis complete."

@@ -1,4 +1,6 @@
 mod commands;
+mod omnius_tray;
+mod setup;
 mod tray;
 
 use tauri::Emitter;
@@ -11,10 +13,16 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
+            #[cfg(feature = "omnius")]
+            omnius_tray::create_tray(app)?;
+            #[cfg(not(feature = "omnius"))]
             tray::create_tray(app)?;
 
             #[cfg(any(target_os = "linux", all(debug_assertions, target_os = "windows")))]
             {
+                #[cfg(feature = "omnius")]
+                app.deep_link().register("omnius")?;
+                #[cfg(not(feature = "omnius"))]
                 app.deep_link().register("gilbertus")?;
             }
 
@@ -30,6 +38,9 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::get_platform,
             commands::get_version,
+            setup::check_first_run,
+            setup::save_config,
+            setup::get_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

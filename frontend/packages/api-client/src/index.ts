@@ -42,3 +42,5 @@ export * from './omnius-bridge-types';
 export * from './omnius-bridge';
 export * from './voice-types';
 export * from './voice';
+export * from './plugin-dev-types';
+export * from './plugin-dev';

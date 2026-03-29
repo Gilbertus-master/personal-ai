@@ -12,7 +12,7 @@ trap 'rm -f "$LOCKFILE"' EXIT INT TERM
 cd /home/sebastian/personal-ai
 source .venv/bin/activate 2>/dev/null || true
 
-echo "[$(date)] Process Intelligence: full discovery cycle..."
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Process Intelligence: full discovery cycle..."
 
 echo "Step 1: Business Line Discovery..."
 python -c "
@@ -74,4 +74,4 @@ else:
     print('Tech Radar: recent solutions exist, skipping.')
 "
 
-echo "[$(date)] Process Intelligence cycle complete."
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Process Intelligence cycle complete."

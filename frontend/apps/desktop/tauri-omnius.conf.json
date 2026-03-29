@@ -1,0 +1,48 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicoverbruggen/tauri-schema/main/schema-v2.json",
+  "productName": "Omnius",
+  "version": "0.1.0",
+  "identifier": "com.omnius.app",
+  "build": {
+    "frontendDist": "../../apps/web/.next",
+    "devUrl": "http://localhost:3000"
+  },
+  "app": {
+    "title": "Omnius",
+    "windows": [
+      {
+        "title": "Omnius",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600
+      }
+    ],
+    "trayIcon": {
+      "tooltip": "Omnius",
+      "iconAsTemplate": true
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi", "dmg"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["omnius"]
+      }
+    },
+    "updater": {
+      "endpoints": ["https://releases.omnius.app/{{target}}/{{arch}}/{{current_version}}"],
+      "pubkey": ""
+    }
+  }
+}

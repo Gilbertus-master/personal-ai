@@ -18,7 +18,7 @@
         /observability/* /code-fixes/* /conversation/* /response-drafter/* \
         /response-tracking/* /standing-order-effectiveness/* \
         /channel-effectiveness/* /weekly-synthesis/* /authority/* \
-        /calendar/* /terminal/*
+        /calendar/* /terminal/* /updates/*
 
     handle @backend {
         reverse_proxy api:8000

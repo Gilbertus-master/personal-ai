@@ -10,6 +10,9 @@ PUBLIC_PATHS = {
     "/plaud/webhook",  # Plaud webhook ma własną auth
 }
 
+# Prefixes that are public (checked with startswith)
+PUBLIC_PREFIXES = ("/updates/",)
+
 # Źródła zawsze zaufane (wewnętrzne wywołania)
 TRUSTED_ORIGINS = {"127.0.0.1", "localhost", "::1"}
 
@@ -29,6 +32,11 @@ async def api_key_middleware(request: Request, call_next):
     # Public paths
     if request.url.path in PUBLIC_PATHS:
         return await call_next(request)
+
+    # Public prefixes (GET-only for update checks)
+    if any(request.url.path.startswith(p) for p in PUBLIC_PREFIXES):
+        if request.method == "GET":
+            return await call_next(request)
 
     # Zaufane IP (wewnętrzne wywołania Gilbertusa do siebie)
     client_ip = request.client.host if request.client else ""

@@ -102,6 +102,8 @@ from app.api.voice_ws import router as voice_ws_router
 app.include_router(voice_ws_router)
 from app.api.observability import router as observability_router
 app.include_router(observability_router)
+from app.api.updates import router as updates_router
+app.include_router(updates_router)
 
 
 # =========================

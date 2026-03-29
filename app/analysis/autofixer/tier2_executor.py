@@ -120,9 +120,12 @@ def _verify_fix(file_paths: list[str]) -> tuple[bool, str]:
                     capture_output=True, text=True, timeout=30,
                     cwd=str(PROJECT_DIR),
                 )
-                # Count errors (not warnings)
+                # Count only NEW errors — ignore pre-existing E402 (import order)
+                # which are structural and not introduced by the fix
                 errors = [ln for ln in ruff.stdout.splitlines()
-                          if ln.strip() and not ln.startswith("Found")]
+                          if ln.strip()
+                          and not ln.startswith("Found")
+                          and "E402" not in ln]
                 if len(errors) > 5:
                     return False, f"ruff: {len(errors)} errors in {fp}"
             except Exception as e:

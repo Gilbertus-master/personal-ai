@@ -10,6 +10,7 @@ import { useCommandPaletteStore } from '@/lib/stores/command-palette-store';
 import { useDashboardStore } from '@/lib/stores/dashboard-store';
 import { useAlertsBell } from '@/lib/hooks/use-dashboard';
 import { useVoice } from '@/lib/hooks/use-voice';
+import UpdateBanner from '@/components/update-banner';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { collapsed, toggle } = useSidebarStore();
@@ -26,6 +27,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <OfflineProvider>
+      <UpdateBanner />
       <div className="flex h-screen overflow-hidden">
         {/* Sidebar — hidden on mobile unless mobileOpen */}
         <div className="hidden md:block">

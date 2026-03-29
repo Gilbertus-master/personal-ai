@@ -13,20 +13,20 @@ Cron: every 30 min (8-20) — check conflicts, suggest blocks
 """
 from __future__ import annotations
 
-import structlog
-log = structlog.get_logger(__name__)
-
 import json
 import os
 import subprocess
 from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import requests
+import structlog
 from dotenv import load_dotenv
 
 from app.db.postgres import get_pg_connection
+
+log = structlog.get_logger(__name__)
 
 load_dotenv()
 

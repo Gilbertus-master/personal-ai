@@ -11,6 +11,6 @@ trap 'flock -u 9; rm -f $LOCKFILE' EXIT INT TERM
 
 cd /home/sebastian/personal-ai
 source .venv/bin/activate 2>/dev/null || true
-echo "[$(date)] Running calendar check..."
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Running calendar check..."
 python -m app.orchestrator.calendar_manager
-echo "[$(date)] Done."
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Done."

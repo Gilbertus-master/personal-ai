@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { SessionProvider } from 'next-auth/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
+import { DesktopProvider } from '@/lib/providers/desktop-provider';
+import { SetupWizard } from '@/components/setup-wizard';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -21,7 +23,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <SessionProvider>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-          {children}
+          <DesktopProvider>
+            <SetupWizard />
+            {children}
+          </DesktopProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </SessionProvider>

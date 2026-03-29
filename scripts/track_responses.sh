@@ -2,6 +2,6 @@
 set -euo pipefail
 cd /home/sebastian/personal-ai
 source .venv/bin/activate 2>/dev/null || true
-echo "[$(date)] Tracking responses..."
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Tracking responses..."
 python -m app.analysis.response_tracker
-echo "[$(date)] Done."
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Done."
