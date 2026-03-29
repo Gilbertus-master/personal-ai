@@ -60,7 +60,8 @@ add_ok "Tables: $TABLE_COUNT"
 
 # 6. Qdrant sync check
 echo "6. Qdrant sync..."
-QDRANT=$(curl -s http://localhost:6333/collections/gilbertus_chunks 2>/dev/null | .venv/bin/python -c "import sys,json; print(json.load(sys.stdin)['result']['points_count'])" 2>/dev/null || echo "0")
+QDRANT_KEY=$(grep QDRANT_API_KEY .env 2>/dev/null | cut -d= -f2 | tr -d '"' | tr -d "'")
+QDRANT=$(curl -s -H "api-key: $QDRANT_KEY" http://localhost:6333/collections/gilbertus_chunks 2>/dev/null | .venv/bin/python -c "import sys,json; d=json.load(sys.stdin); print(d['result'].get('points_count') or d['result'].get('indexed_vectors_count') or 0)" 2>/dev/null || echo "0")
 PG_EMBEDDED=$(docker exec gilbertus-postgres psql -U gilbertus -d gilbertus -t -A -c "SELECT COUNT(*) FROM chunks WHERE embedding_status='done'" 2>/dev/null || echo "0")
 DRIFT=$((QDRANT - PG_EMBEDDED))
 if [ "$DRIFT" -gt 1000 ] || [ "$DRIFT" -lt -1000 ] 2>/dev/null; then
