@@ -846,6 +846,17 @@ def ask(body: AskRequest, request: Request) -> AskResponse:
         )
         return AskResponse(answer=answer, meta=response_meta, run_id=run_id)
 
+    # Tool routing: smart source group inference when source_types not explicit
+    if _env_flags.get("ENABLE_TOOL_ROUTING", "false").lower() == "true":
+        from app.retrieval.tool_router import route_tools
+        routed_sources = route_tools(
+            query=ask_req.query,
+            question_type=interpreted.question_type,
+            source_types=interpreted.source_types,
+        )
+        if routed_sources and not interpreted.source_types:
+            interpreted = interpreted.model_copy(update={"source_types": routed_sources})
+
     timer.start("retrieve")
     # Deep routing: specialized retrieval per question_type
     _enable_routing = _env_flags.get("ENABLE_DEEP_ROUTING", "false").lower() == "true"
@@ -963,6 +974,26 @@ def ask(body: AskRequest, request: Request) -> AskResponse:
 
     redacted_matches_for_answer, redacted_count = redact_matches(matches_for_answer)
 
+    # Context size guard — trim to top-N if context too large
+    MAX_CONTEXT_CHARS = int(os.getenv("MAX_CONTEXT_CHARS", "80000"))
+    total_context_chars = sum(len(m.get("text", "")) for m in redacted_matches_for_answer)
+    if total_context_chars > MAX_CONTEXT_CHARS:
+        import structlog as _sl
+        _ctx_log = _sl.get_logger("circuit_breaker")
+        original_count = len(redacted_matches_for_answer)
+        trimmed = sorted(redacted_matches_for_answer, key=lambda m: m.get("score", 0), reverse=True)
+        cumulative = 0
+        cut_idx = len(trimmed)
+        for i, m in enumerate(trimmed):
+            cumulative += len(m.get("text", ""))
+            if cumulative > MAX_CONTEXT_CHARS:
+                cut_idx = i
+                break
+        redacted_matches_for_answer = trimmed[:max(cut_idx, 1)]
+        _ctx_log.warning("context_trimmed", original_chars=total_context_chars,
+                         original_matches=original_count,
+                         trimmed_to=len(redacted_matches_for_answer))
+
     timer.start("answer")
     answer = answer_question(
         query=ask_req.query,
@@ -979,6 +1010,7 @@ def ask(body: AskRequest, request: Request) -> AskResponse:
 
     # Answer self-evaluation gate (Evaluator-Optimizer pattern) — sampled
     EVAL_SAMPLE_RATE = float(os.getenv("ANSWER_EVAL_SAMPLE_RATE", "0.1"))
+    MAX_EVAL_RETRIES = int(os.getenv("MAX_EVAL_RETRIES", "2"))
     eval_result = None
     if (_env_flags.get("ENABLE_ANSWER_EVAL", "false").lower() == "true"
             and EVAL_SAMPLE_RATE > 0
@@ -986,13 +1018,15 @@ def ask(body: AskRequest, request: Request) -> AskResponse:
         try:
             timer.start("evaluate")
             from app.retrieval.answer_evaluator import evaluate_answer
+            eval_retries = 0
             eval_result = evaluate_answer(
                 query=ask_req.query,
                 answer=answer,
                 question_type=interpreted.question_type,
             )
-            if eval_result and eval_result.should_retry and eval_result.feedback:
-                # Regenerate with evaluator feedback
+            while (eval_result and eval_result.should_retry and eval_result.feedback
+                   and eval_retries < MAX_EVAL_RETRIES):
+                eval_retries += 1
                 answer = answer_question(
                     query=f"{ask_req.query}\n\n[FEEDBACK EWALUATORA: {eval_result.feedback}]",
                     matches=redacted_matches_for_answer,
@@ -1003,6 +1037,11 @@ def ask(body: AskRequest, request: Request) -> AskResponse:
                     answer_length=ask_req.answer_length,
                     allow_quotes=ask_req.allow_quotes,
                     conversation_context=conversation_context,
+                )
+                eval_result = evaluate_answer(
+                    query=ask_req.query,
+                    answer=answer,
+                    question_type=interpreted.question_type,
                 )
             # Log low-quality answers
             if eval_result and eval_result.avg_score < 0.6:
@@ -1098,13 +1137,18 @@ def ask(body: AskRequest, request: Request) -> AskResponse:
     # Save to cache (1h TTL)
     _save_answer_cache(cache_key, ask_req.query, answer, response_meta)
 
-    return AskResponse(
+    ask_response = AskResponse(
         answer=answer,
         sources=response_sources,
         matches=response_matches,
         meta=response_meta,
         run_id=run_id,
     )
+    from fastapi.responses import JSONResponse
+    json_resp = JSONResponse(content=ask_response.model_dump())
+    if run_id:
+        json_resp.headers["X-Gilbertus-Run-ID"] = str(run_id)
+    return json_resp
 
 
 # =========================

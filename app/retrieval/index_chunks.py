@@ -141,6 +141,14 @@ def embed_texts(texts: list[str], max_retries: int = 10) -> list[list[float]]:
             )
             time.sleep(sleep_seconds)
 
+        except Exception as e:
+            # Catch-all: unexpected exceptions must not cause infinite loop
+            import structlog
+            structlog.get_logger("index_chunks").error(
+                "embed_unexpected_error", error_type=type(e).__name__,
+                detail=str(e), batch_size=len(texts))
+            raise
+
 
 def update_chunk_mapping(mappings: list[tuple[str, str]]) -> None:
     query = """

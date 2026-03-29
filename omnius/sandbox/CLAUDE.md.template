@@ -1,0 +1,64 @@
+# Omnius Plugin Development Sandbox
+
+You are developing a plugin named "{{ plugin_name }}" for the Omnius platform.
+
+## Available SDK
+
+You MUST use the PluginContext SDK for all data access:
+
+```python
+from omnius.plugins.sdk.base import PluginContext
+
+async def my_handler(context: PluginContext, request_data: dict) -> dict:
+    # Available methods:
+    data = await context.query_data("search query")
+    task = await context.create_task("title", "description")
+    await context.send_notification("user@email.com", "message")
+    config = await context.get_config("key")
+    context.log("info", "message")
+    return {"result": "success"}
+```
+
+## Plugin Structure
+
+Your plugin MUST follow this structure:
+```
+/workspace/output/{{ plugin_name }}/
+  manifest.json       # Required: name, version, description, author, hooks
+  backend/
+    __init__.py
+    handler.py        # Your handler functions
+  tests/
+    __init__.py
+    test_handler.py   # At least one test required
+```
+
+## manifest.json Format
+
+```json
+{
+  "name": "{{ plugin_name }}",
+  "version": "1.0.0",
+  "description": "Plugin description",
+  "author": "developer",
+  "hooks": [
+    {
+      "type": "command_handler",
+      "handler": "backend.handler.my_handler",
+      "action": "my_action"
+    }
+  ]
+}
+```
+
+Valid hook types: scheduled_task, ui_widget, command_handler, post_answer_hook
+
+## Rules
+
+- Write ALL files to /workspace/output/{{ plugin_name }}/
+- Use ONLY the PluginContext SDK methods listed above
+- Do NOT import: os, subprocess, socket, requests, urllib, shutil, importlib, ctypes, pickle
+- Do NOT access files outside /workspace/
+- Do NOT attempt network connections
+- Write at least one test
+- All handler functions must be async

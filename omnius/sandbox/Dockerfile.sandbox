@@ -1,0 +1,26 @@
+# Sandbox environment for Omnius plugin development
+# Isolated container with Plugin SDK, no secrets, no production code
+FROM python:3.12-slim
+
+# Non-root user
+RUN groupadd -g 1000 sandbox && \
+    useradd -u 1000 -g sandbox -m -s /bin/bash sandbox
+
+# Dev tools for plugin development
+RUN pip install --no-cache-dir pytest ruff
+
+# Copy Plugin SDK into /opt/sdk so plugins can import it
+COPY plugins/sdk/ /opt/sdk/omnius/plugins/sdk/
+RUN touch /opt/sdk/omnius/__init__.py /opt/sdk/omnius/plugins/__init__.py
+
+# Install Claude stub as CLI
+COPY sandbox/claude_stub.py /usr/local/bin/claude
+RUN chmod +x /usr/local/bin/claude
+
+ENV PYTHONPATH=/opt/sdk
+WORKDIR /workspace
+
+# Switch to non-root
+USER sandbox
+
+ENTRYPOINT ["/bin/bash"]

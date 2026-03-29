@@ -36,6 +36,7 @@ FORBIDDEN_ACTIONS = {
     "disable_sync",
     "disable_cron",
     "remove_endpoint",
+    "delete_plugin",
 }
 
 # Config keys that CEO/board cannot modify (Gilbertus-only)
@@ -90,7 +91,8 @@ def check_governance(user: dict[str, Any], action: str,
                 }
 
     # Feature creation requires value validation
-    if action in ("create_feature", "propose_feature", "add_endpoint", "add_cron"):
+    if action in ("create_feature", "propose_feature", "add_endpoint", "add_cron",
+                  "deploy_plugin", "review_plugin"):
         return {
             "allowed": True,
             "reason": "pending_value_check",
@@ -208,6 +210,20 @@ def check_non_regression(changes: dict[str, Any]) -> dict[str, Any]:
                 ORDER BY metric, recorded_at DESC
             """)
             baselines = {row[0]: float(row[1]) for row in cur.fetchall()}
+
+    # Auto-collect active_plugins count if not already in changes
+    if "active_plugins" not in changes:
+        try:
+            with get_pg_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT COUNT(*) FROM omnius_plugins WHERE status = 'active'"
+                    )
+                    row = cur.fetchone()
+                    if row:
+                        changes["active_plugins"] = row[0]
+        except Exception:
+            pass  # Table may not exist yet
 
     if not baselines:
         return {"passed": True, "reason": "No baseline yet — first deployment"}

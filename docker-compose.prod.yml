@@ -116,6 +116,35 @@ services:
       api:
         condition: service_healthy
 
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - GILBERTUS_API_URL=http://api:8000
+    container_name: gilbertus-web
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      - NEXTAUTH_URL=${GILBERTUS_URL:-https://gilbertus.localhost}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - GILBERTUS_API_URL=http://api:8000
+      - GILBERTUS_API_KEY=${GILBERTUS_API_KEY:-}
+      - AZURE_AD_CLIENT_ID=${AZURE_AD_CLIENT_ID:-}
+      - AZURE_AD_CLIENT_SECRET=${AZURE_AD_CLIENT_SECRET:-}
+      - AZURE_AD_TENANT_ID=${AZURE_AD_TENANT_ID:-}
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
   # Optional: Caddy reverse proxy with auto-SSL
   caddy:
     image: caddy:2
@@ -132,6 +161,7 @@ services:
       - caddy_config:/config
     depends_on:
       - api
+      - web
     profiles:
       - with-ssl
 

@@ -1,0 +1,8 @@
+node_modules
+.next
+apps/desktop/src-tauri/target
+apps/desktop/src-tauri/gen
+*.log
+.git
+.env*
+!.env.local.example

@@ -1,0 +1,9 @@
+{
+  "name": "hello-world",
+  "version": "1.0.0",
+  "description": "Sample plugin demonstrating the plugin SDK",
+  "author": "system",
+  "hooks": [
+    {"type": "command_handler", "handler": "backend/handler.py:handle_hello", "action": "hello"}
+  ]
+}

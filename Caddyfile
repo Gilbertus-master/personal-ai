@@ -1,20 +1,38 @@
 # Caddy reverse proxy config for Gilbertus
+# Routes backend API to api:8000, frontend to web:3000
 # Auto-SSL via Let's Encrypt
 # Usage: docker compose -f docker-compose.prod.yml --profile with-ssl up -d
 
 {$GILBERTUS_DOMAIN:gilbertus.localhost} {
-    reverse_proxy api:8000
+    # Backend API routes → api:8000
+    @backend path /ask /evaluate /correlate /health /version /status /brief/* \
+        /alerts/* /timeline /summary/* /opportunities/* /inefficiency/* \
+        /scorecard/* /meeting-prep/* /meeting-minutes/* /meeting-roi/* \
+        /sentiment/* /sentiment-alerts/* /commitments/* /compliance/* \
+        /contracts/* /delegation/* /delegation-chain/* /network/* \
+        /predictions/* /scenarios/* /wellbeing/* /people/* /org-health/* \
+        /costs/* /crons/* /goals/* /finance/* /market/* /competitors/* \
+        /process-intel/* /decision/* /decisions/* /decision-intelligence/* \
+        /blind-spots/* /action-outcomes/* /rules/* /docs /openapi.json /redoc \
+        /insights/* /voice/* /webhook/* /teams/* /presentation/* \
+        /observability/* /code-fixes/* /conversation/* /response-drafter/* \
+        /response-tracking/* /standing-order-effectiveness/* \
+        /channel-effectiveness/* /weekly-synthesis/* /authority/* \
+        /calendar/* /terminal/*
 
-    # Rate limiting
-    @api path /ask /evaluate /correlate
-    rate_limit @api {
+    handle @backend {
+        reverse_proxy api:8000
+    }
+
+    # Rate limiting on AI-heavy endpoints
+    @ai_heavy path /ask /evaluate /correlate
+    rate_limit @ai_heavy {
         zone api_zone 10r/m
     }
 
-    # Health check endpoint (no auth)
-    @health path /health /version
-    handle @health {
-        reverse_proxy api:8000
+    # Everything else → frontend (web:3000)
+    handle {
+        reverse_proxy web:3000
     }
 
     log {

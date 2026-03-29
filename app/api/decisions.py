@@ -217,6 +217,54 @@ def list_decisions(
     )
 
 
+@router.post("/decisions/scan")
+def scan_decisions(hours: int = Query(default=24, ge=1, le=168)):
+    """Trigger auto-capture of decisions from recent events."""
+    import structlog
+    _log = structlog.get_logger("api.decisions")
+    try:
+        from app.analysis.decision_intelligence import auto_capture_decisions
+        captured = auto_capture_decisions(hours=hours)
+        _log.info("decision_scan_complete", captured=len(captured), hours=hours)
+        return {"captured": len(captured), "decisions": captured, "hours_scanned": hours}
+    except Exception as e:
+        _log.error("decision_scan_failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Scan failed: {e}")
+
+
+@router.get("/decisions/pending")
+def get_pending_decisions(
+    max_confidence: float = Query(default=0.8, ge=0.0, le=1.0),
+    limit: int = Query(default=50, ge=1, le=200),
+):
+    """Return auto-detected decisions with low confidence awaiting review."""
+    started_at = time.time()
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, decision_text, context, area, confidence,
+                       decided_at, source_event_id, review_status
+                FROM decisions
+                WHERE review_status IN ('pending', 'reminded')
+                  AND confidence < %s
+                ORDER BY decided_at DESC LIMIT %s
+                """,
+                (max_confidence, limit),
+            )
+            rows = cur.fetchall()
+    decisions = [
+        {"id": r[0], "decision_text": r[1], "context": r[2], "area": r[3],
+         "confidence": float(r[4]) if r[4] else None,
+         "decided_at": str(r[5]) if r[5] else None,
+         "source_event_id": r[6], "review_status": r[7]}
+        for r in rows
+    ]
+    return {"pending": decisions, "count": len(decisions),
+            "max_confidence": max_confidence,
+            "latency_ms": int((time.time() - started_at) * 1000)}
+
+
 @router.get("/decisions/patterns", response_model=PatternsResponse)
 def analyze_patterns() -> PatternsResponse:
     started_at = time.time()

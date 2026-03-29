@@ -212,6 +212,60 @@ def run_alert_check():
     return {"alerts_sent": len(alerts), "alerts": alerts}
 
 
+@router.get("/trace/{run_id}")
+def get_trace(run_id: int):
+    """Full waterfall trace for a single /ask run."""
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, created_at, query_text, normalized_query,
+                       question_type, analysis_depth, source_types,
+                       latency_ms, stage_ms, model_used,
+                       input_tokens, output_tokens, cost_usd,
+                       error_flag, error_message, cache_hit,
+                       used_fallback, match_count,
+                       caller_ip, channel_key
+                FROM ask_runs WHERE id = %s
+            """, (run_id,))
+            row = cur.fetchone()
+    if not row:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+    stage_ms = row[8] or {}
+    total_ms = row[7] or 0
+    waterfall = {}
+    for stage, ms in stage_ms.items():
+        if ms and total_ms:
+            waterfall[stage] = {"ms": ms, "pct": round(100 * ms / max(total_ms, 1), 1)}
+        elif ms:
+            waterfall[stage] = {"ms": ms, "pct": None}
+    matches = []
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT rank_index, score, source_type, source_name, title, excerpt
+                FROM ask_run_matches WHERE ask_run_id = %s ORDER BY rank_index
+            """, (run_id,))
+            for m in cur.fetchall():
+                matches.append({"rank": m[0], "score": float(m[1]) if m[1] else None,
+                                "source_type": m[2], "source_name": m[3],
+                                "title": m[4], "excerpt": (m[5] or "")[:200]})
+    return {
+        "run_id": row[0], "created_at": str(row[1]),
+        "query": row[2], "normalized_query": row[3],
+        "question_type": row[4], "analysis_depth": row[5],
+        "source_types": row[6], "latency_ms": total_ms,
+        "waterfall": waterfall,
+        "bottleneck": max(stage_ms, key=stage_ms.get) if stage_ms else None,
+        "model_used": row[9], "input_tokens": row[10], "output_tokens": row[11],
+        "cost_usd": float(row[12]) if row[12] else None,
+        "error_flag": row[13], "error_message": row[14],
+        "cache_hit": row[15], "used_fallback": row[16],
+        "match_count": row[17] or len(matches), "matches": matches,
+        "caller_ip": row[18], "channel_key": row[19],
+    }
+
+
 @router.get("/graph/action/{action_id}")
 def get_action_graph_state(action_id: int):
     """Inspect current state of an action in the LangGraph pipeline."""

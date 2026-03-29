@@ -3,7 +3,7 @@ import type { NextConfig } from 'next';
 const isTauriBuild = process.env.TAURI_BUILD === '1';
 
 const nextConfig: NextConfig = {
-  ...(isTauriBuild && { output: 'export' }),
+  output: isTauriBuild ? 'export' : 'standalone',
   images: { unoptimized: true },
   transpilePackages: [
     '@gilbertus/ui',
