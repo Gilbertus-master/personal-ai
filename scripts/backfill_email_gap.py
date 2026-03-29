@@ -8,6 +8,7 @@ importing them through the standard pipeline with deduplication.
 """
 from __future__ import annotations
 
+import structlog
 import logging
 import time
 from datetime import datetime
@@ -31,6 +32,8 @@ from app.ingestion.common.db import (
     insert_document,
     insert_source,
 )
+
+log = structlog.get_logger(__name__)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
@@ -61,10 +64,10 @@ def backfill_folder(
     Returns (imported, chunks_created, skipped).
     """
     source_id = insert_source(conn=None, source_type=SOURCE_TYPE, source_name=source_name)
-    print(f"\n{'='*60}")
-    print(f"Backfilling: {folder} (source_name={source_name}, source_id={source_id})")
-    print(f"Period: {DATE_FROM} → {DATE_TO}")
-    print(f"{'='*60}")
+    log.info(f"\n{'='*60}")
+    log.info(f"Backfilling: {folder} (source_name={source_name}, source_id={source_id})")
+    log.info(f"Period: {DATE_FROM} → {DATE_TO}")
+    log.info(f"{'='*60}")
 
     user_path = f"users/{MS_GRAPH_USER_ID}" if MS_GRAPH_USER_ID else "me"
     base_url = f"{GRAPH_BASE}/{user_path}/mailFolders/{folder}/messages"
@@ -86,7 +89,7 @@ def backfill_folder(
     while url:
         page += 1
         if page % 5 == 0:
-            print(f"  Page {page}: imported={imported}, skipped={skipped}")
+            log.info(f"  Page {page}: imported={imported}, skipped={skipped}")
 
         # Fetch with retry
         data = None
@@ -101,26 +104,26 @@ def backfill_folder(
             except requests.HTTPError as e:
                 if e.response is not None and e.response.status_code == 429:
                     retry_after = int(e.response.headers.get("Retry-After", 30))
-                    print(f"  Throttled (429), waiting {retry_after}s...")
+                    log.info(f"  Throttled (429), waiting {retry_after}s...")
                     time.sleep(retry_after)
                 elif e.response is not None and e.response.status_code >= 500:
                     wait = BACKOFF_SECS * (attempt + 1)
-                    print(f"  Server error {e.response.status_code}, retry in {wait}s...")
+                    log.info(f"  Server error {e.response.status_code}, retry in {wait}s...")
                     time.sleep(wait)
                 else:
                     raise
             except (requests.ConnectionError, requests.Timeout) as e:
                 wait = BACKOFF_SECS * (attempt + 1)
-                print(f"  Network error: {e}, retry in {wait}s...")
+                log.info(f"  Network error: {e}, retry in {wait}s...")
                 time.sleep(wait)
 
         if data is None:
-            print(f"  Failed to fetch page {page} after {MAX_RETRIES} retries, stopping.")
+            log.info(f"  Failed to fetch page {page} after {MAX_RETRIES} retries, stopping.")
             break
 
         messages = data.get("value", [])
         if not messages and page == 1:
-            print(f"  No messages found in {folder} for the gap period.")
+            log.info(f"  No messages found in {folder} for the gap period.")
             break
 
         for msg in messages:
@@ -178,28 +181,28 @@ def backfill_folder(
                         msg_id=msg_id, msg=msg, source_id=source_id, token=token,
                     )
                     if att_count:
-                        print(f"    + {att_count} attachment(s): {subject[:50]}")
+                        log.info(f"    + {att_count} attachment(s): {subject[:50]}")
                 except Exception as e:
                     log.warning("Attachment import failed for msg %s: %s", msg_id[:20], e)
 
             if imported % 10 == 0 and imported > 0:
                 date_str = msg.get("receivedDateTime", "")[:10]
-                print(f"  [{date_str}] {imported} imported so far... last: {subject[:60]}")
+                log.info(f"  [{date_str}] {imported} imported so far... last: {subject[:60]}")
 
         # Pagination
         next_link = data.get("@odata.nextLink")
         url = next_link if next_link else None
 
-    print(f"\n  Done: {imported} imported, {chunks_created} chunks, {skipped} skipped (dupes)")
+    log.info(f"\n  Done: {imported} imported, {chunks_created} chunks, {skipped} skipped (dupes)")
     return imported, chunks_created, skipped
 
 
 def main():
-    print("Email Gap Backfill: 2026-03-15 → 2026-03-24")
-    print("Source type: email")
+    log.info("Email Gap Backfill: 2026-03-15 → 2026-03-24")
+    log.info("Source type: email")
 
     token = get_access_token()
-    print("Auth OK.\n")
+    log.info("Auth OK.\n")
 
     total_imported = 0
     total_chunks = 0
@@ -215,12 +218,12 @@ def main():
         total_chunks += chk
         total_skipped += skp
 
-    print(f"\n{'='*60}")
-    print("BACKFILL COMPLETE")
-    print(f"  Total imported: {total_imported}")
-    print(f"  Total chunks:   {total_chunks}")
-    print(f"  Total skipped:  {total_skipped}")
-    print(f"{'='*60}")
+    log.info(f"\n{'='*60}")
+    log.info("BACKFILL COMPLETE")
+    log.info(f"  Total imported: {total_imported}")
+    log.info(f"  Total chunks:   {total_chunks}")
+    log.info(f"  Total skipped:  {total_skipped}")
+    log.info(f"{'='*60}")
 
 
 if __name__ == "__main__":

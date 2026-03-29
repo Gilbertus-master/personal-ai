@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import structlog
 import json
 import os
 import re
@@ -11,6 +12,8 @@ import tiktoken
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointIdsList
+
+log = structlog.get_logger(__name__)
 
 try:
     from docx import Document as DocxDocument
@@ -521,11 +524,11 @@ def safe_load_document_text(raw_path: str, existing_chunks: list[dict[str, Any]]
         if text.strip():
             return text.strip()
     except Exception as e:
-        print(f"  [WARN] raw_path load failed: {e}")
+        log.info(f"  [WARN] raw_path load failed: {e}")
 
     fallback = reconstruct_from_existing_chunks(existing_chunks)
     if fallback.strip():
-        print("  [WARN] using fallback reconstructed text from existing chunks")
+        log.info("  [WARN] using fallback reconstructed text from existing chunks")
         return fallback.strip()
 
     raise RuntimeError("Nie udało się odtworzyć tekstu dokumentu ani z raw_path, ani z chunków.")
@@ -536,11 +539,11 @@ def rechunk_document(doc: dict[str, Any]) -> None:
     title = doc["title"]
     raw_path = doc["raw_path"]
 
-    print(f"\n=== document_id={document_id} | title={title} ===")
+    log.info(f"\n=== document_id={document_id} | title={title} ===")
 
     old_chunks = fetch_existing_chunks(document_id)
     if not old_chunks:
-        print("  [WARN] brak starych chunków, pomijam")
+        log.info("  [WARN] brak starych chunków, pomijam")
         return
 
     point_ids = [row["embedding_id"] for row in old_chunks if row.get("embedding_id")]
@@ -560,17 +563,17 @@ def rechunk_document(doc: dict[str, Any]) -> None:
     new_chunks = chunk_text(text)
 
     if not new_chunks:
-        print("  [WARN] chunker zwrócił 0 chunków, pomijam")
+        log.info("  [WARN] chunker zwrócił 0 chunków, pomijam")
         return
 
     too_big = [count_tokens(c) for c in new_chunks if count_tokens(c) > HARD_MAX_TOKENS]
     if too_big:
         raise RuntimeError(f"Chunker nadal produkuje oversize: {too_big[:10]}")
 
-    print(f"  old_chunks={old_count}")
-    print(f"  old_qdrant_points={len(point_ids)}")
-    print(f"  new_chunks={len(new_chunks)}")
-    print(f"  max_new_tokens={max(count_tokens(c) for c in new_chunks)}")
+    log.info(f"  old_chunks={old_count}")
+    log.info(f"  old_qdrant_points={len(point_ids)}")
+    log.info(f"  new_chunks={len(new_chunks)}")
+    log.info(f"  max_new_tokens={max(count_tokens(c) for c in new_chunks)}")
 
     delete_qdrant_points(point_ids)
     delete_old_chunks(document_id)
@@ -581,28 +584,28 @@ def rechunk_document(doc: dict[str, Any]) -> None:
         timestamp_end=old_ts_end,
     )
 
-    print("  [OK] re-chunked and reinserted")
+    log.info("  [OK] re-chunked and reinserted")
 
 
 def main() -> None:
-    print("UWAGA: uruchom ten skrypt dopiero po backupie.")
-    print(f"Project root: {PROJECT_ROOT}")
-    print(f"Qdrant collection: {QDRANT_COLLECTION}")
-    print(f"Target document count: {len(TARGET_DOCUMENT_IDS)}")
+    log.info("UWAGA: uruchom ten skrypt dopiero po backupie.")
+    log.info(f"Project root: {PROJECT_ROOT}")
+    log.info(f"Qdrant collection: {QDRANT_COLLECTION}")
+    log.info(f"Target document count: {len(TARGET_DOCUMENT_IDS)}")
 
     documents = fetch_documents(TARGET_DOCUMENT_IDS)
     found_ids = {doc["id"] for doc in documents}
     missing_ids = [doc_id for doc_id in TARGET_DOCUMENT_IDS if doc_id not in found_ids]
 
     if missing_ids:
-        print(f"[WARN] Nie znaleziono document_id: {missing_ids}")
+        log.info(f"[WARN] Nie znaleziono document_id: {missing_ids}")
 
     for doc in documents:
         rechunk_document(doc)
 
-    print("\nGotowe.")
-    print("Następny krok:")
-    print("python app/retrieval/index_chunks.py")
+    log.info("\nGotowe.")
+    log.info("Następny krok:")
+    log.info("python app/retrieval/index_chunks.py")
 
 
 if __name__ == "__main__":

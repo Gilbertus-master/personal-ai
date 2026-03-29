@@ -8,6 +8,7 @@ Usage:
 """
 from __future__ import annotations
 
+import structlog
 import sys
 from pathlib import Path
 
@@ -23,6 +24,8 @@ from app.ingestion.audio.parser import (
     collect_transcript_files,
     parse_transcript_file,
 )
+
+log = structlog.get_logger(__name__)
 
 CHUNK_TARGET_CHARS = 3000
 CHUNK_OVERLAP_CHARS = 300
@@ -108,7 +111,7 @@ def import_transcripts(
     """Import transcript files from a directory or single file."""
     source_type = "audio_transcript"
 
-    print(f"Creating source: type={source_type}, name={source_name}")
+    log.info(f"Creating source: type={source_type}, name={source_name}")
     source_id = insert_source(conn=None, source_type=source_type, source_name=source_name)
 
     if path.is_file():
@@ -117,12 +120,12 @@ def import_transcripts(
         files = collect_transcript_files(path)
 
     if not files:
-        print(f"No transcript files found in {path}")
+        log.info(f"No transcript files found in {path}")
         return 0, 0, 0
 
     if limit:
         files = files[:limit]
-        print(f"LIMIT: processing first {len(files)} files")
+        log.info(f"LIMIT: processing first {len(files)} files")
 
     total_docs = 0
     total_chunks = 0
@@ -131,13 +134,13 @@ def import_transcripts(
 
     for idx, file_path in enumerate(files, start=1):
         if idx % 10 == 0:
-            print(f"Processing [{idx}/{len(files)}]: {file_path.name}")
+            log.info(f"Processing [{idx}/{len(files)}]: {file_path.name}")
 
         try:
             parsed = parse_transcript_file(file_path)
         except Exception as e:
             errors += 1
-            print(f"ERROR parsing {file_path}: {e}")
+            log.info(f"ERROR parsing {file_path}: {e}")
             continue
 
         docs, chunks = import_transcript(parsed, source_id)
@@ -157,12 +160,12 @@ def import_transcripts(
 
 def main() -> None:
     if len(sys.argv) < 2:
-        print("Usage: python -m app.ingestion.audio.importer <path> [--limit N]")
+        log.info("Usage: python -m app.ingestion.audio.importer <path> [--limit N]")
         sys.exit(1)
 
     path = Path(sys.argv[1]).resolve()
     if not path.exists():
-        print(f"Path does not exist: {path}")
+        log.info(f"Path does not exist: {path}")
         sys.exit(1)
 
     limit = None

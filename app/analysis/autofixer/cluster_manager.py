@@ -89,7 +89,7 @@ def build_clusters(exclude_files: list[str] | None = None) -> list[dict]:
 
             cur.execute(f"""
                 SELECT id, file_path, severity, category, title, description,
-                       line_start, line_end, suggested_fix, fix_attempt_count
+                       line_start, line_end, suggested_fix, fix_attempt_count, tier
                 FROM code_review_findings
                 WHERE resolved = FALSE
                   AND manual_review = FALSE
@@ -119,7 +119,7 @@ def build_clusters(exclude_files: list[str] | None = None) -> list[dict]:
             "id": r[0], "file_path": r[1], "severity": r[2],
             "category": r[3], "title": r[4], "description": r[5],
             "line_start": r[6], "line_end": r[7], "suggested_fix": r[8],
-            "fix_attempt_count": r[9],
+            "fix_attempt_count": r[9], "tier": r[10],
         }
         norm_title = _normalize_title(r[4])
         groups[(r[3], norm_title)].append(finding)
@@ -127,7 +127,9 @@ def build_clusters(exclude_files: list[str] | None = None) -> list[dict]:
     # Build clusters (split large groups)
     clusters: list[dict] = []
     for (category, title), findings in groups.items():
-        tier = _assign_tier(category, title)
+        # Prefer stored DB tier (set during initial dry-run); recompute only if NULL
+        db_tier = findings[0].get("tier")
+        tier = db_tier if db_tier is not None else _assign_tier(category, title)
         cluster_id = _make_cluster_id(category, title)
 
         for i in range(0, len(findings), MAX_CLUSTER_SIZE):
