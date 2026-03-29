@@ -8,6 +8,11 @@ DB_USER="${POSTGRES_USER:-gilbertus}"
 DB_NAME="${POSTGRES_DB:-gilbertus}"
 QDRANT_CONTAINER="gilbertus-qdrant"
 QDRANT_URL="http://127.0.0.1:6333"
+QDRANT_API_KEY="${QDRANT_API_KEY:-$(grep QDRANT_API_KEY .env 2>/dev/null | cut -d= -f2)}"
+QDRANT_AUTH=""
+if [ -n "$QDRANT_API_KEY" ]; then
+    QDRANT_AUTH="-H api-key:${QDRANT_API_KEY}"
+fi
 
 TS="$(date +%F_%H-%M-%S)"
 BACKUP_DIR="backups/db/$TS"
@@ -54,24 +59,24 @@ echo "==> Postgres dump: ${DUMP_SIZE_MB}MB"
 QDRANT_SNAP_DIR="$BACKUP_DIR/qdrant_snapshots"
 mkdir -p "$QDRANT_SNAP_DIR"
 
-COLLECTIONS=$(curl -sf "$QDRANT_URL/collections" 2>/dev/null | \
+COLLECTIONS=$(curl -sf $QDRANT_AUTH "$QDRANT_URL/collections" 2>/dev/null | \
     python3 -c "import sys,json; [print(c['name']) for c in json.load(sys.stdin).get('result',{}).get('collections',[])]" 2>/dev/null || true)
 
 QDRANT_OK=false
 if [ -n "$COLLECTIONS" ]; then
     for COLL in $COLLECTIONS; do
         echo "==> Qdrant snapshot: $COLL"
-        SNAP_RESP=$(curl -sf -X POST "$QDRANT_URL/collections/$COLL/snapshots" 2>/dev/null || echo "")
+        SNAP_RESP=$(curl -sf $QDRANT_AUTH -X POST "$QDRANT_URL/collections/$COLL/snapshots" 2>/dev/null || echo "")
         if [ -z "$SNAP_RESP" ]; then
             echo "==> WARNING: Failed to create Qdrant snapshot for $COLL"
             continue
         fi
         SNAP_NAME=$(echo "$SNAP_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('result',{}).get('name',''))" 2>/dev/null || echo "")
         if [ -n "$SNAP_NAME" ]; then
-            curl -sf "$QDRANT_URL/collections/$COLL/snapshots/$SNAP_NAME" \
+            curl -sf $QDRANT_AUTH "$QDRANT_URL/collections/$COLL/snapshots/$SNAP_NAME" \
                 -o "$QDRANT_SNAP_DIR/${COLL}.snapshot" 2>/dev/null || true
             # Cleanup snapshot from Qdrant server
-            curl -sf -X DELETE "$QDRANT_URL/collections/$COLL/snapshots/$SNAP_NAME" >/dev/null 2>&1 || true
+            curl -sf $QDRANT_AUTH -X DELETE "$QDRANT_URL/collections/$COLL/snapshots/$SNAP_NAME" >/dev/null 2>&1 || true
             SNAP_SIZE=$(stat --format=%s "$QDRANT_SNAP_DIR/${COLL}.snapshot" 2>/dev/null || echo "0")
             echo "==> Qdrant snapshot $COLL: $(( SNAP_SIZE / 1048576 ))MB"
             QDRANT_OK=true

@@ -22,7 +22,7 @@ if ! flock -n 9; then
 fi
 touch "$LOCKFILE"
 
-WORKERS=${1:-3}
+WORKERS=${1:-8}
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Code fix parallel starting: workers=${WORKERS}"
 
