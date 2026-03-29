@@ -11,6 +11,12 @@
  * Auth state: ~/.gilbertus/whatsapp_listener/auth/
  * Output:     ~/.gilbertus/whatsapp_listener/messages.jsonl
  *
+ * Features:
+ * - Exponential backoff on reconnect (3s -> 6s -> 12s -> ... max 300s)
+ * - Health check endpoint on :9393 (GET /health)
+ * - JSONL file rotation at 50MB
+ * - PID file for supervisor scripts
+ *
  * Usage:
  *   node listener.js          # run listener (shows QR on first run)
  *   node listener.js --pair   # force re-pair (new QR code)
@@ -28,6 +34,7 @@ import pino from "pino";
 import qrcode from "qrcode-terminal";
 import fs from "fs";
 import path from "path";
+import http from "http";
 
 // ── Config ──────────────────────────────────────────────────────────────
 
@@ -44,13 +51,25 @@ const OUTPUT_DIR = path.join(
 );
 const MESSAGES_FILE = path.join(OUTPUT_DIR, "messages.jsonl");
 const LOG_FILE = path.join(OUTPUT_DIR, "listener.log");
+const PID_FILE = path.join(OUTPUT_DIR, "listener.pid");
 
 const FORCE_PAIR = process.argv.includes("--pair");
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB rotation threshold
+const HEALTH_PORT = 9393;
 
 // ── Ensure directories exist ────────────────────────────────────────────
 
 fs.mkdirSync(AUTH_DIR, { recursive: true });
 fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+
+// ── PID file ────────────────────────────────────────────────────────────
+
+fs.writeFileSync(PID_FILE, process.pid.toString(), "utf8");
+process.on("exit", () => {
+  try { fs.unlinkSync(PID_FILE); } catch { /* ignore */ }
+});
+process.on("SIGINT", () => process.exit(0));
+process.on("SIGTERM", () => process.exit(0));
 
 // ── Logger ──────────────────────────────────────────────────────────────
 
@@ -59,11 +78,17 @@ const logger = pino(
   pino.destination({ dest: LOG_FILE, sync: false })
 );
 
+// ── State ───────────────────────────────────────────────────────────────
+
+let isConnected = false;
+let lastMsgAt = null;
+let msgCountSinceStart = 0;
+let reconnectAttempt = 0;
+
 // ── Helpers ─────────────────────────────────────────────────────────────
 
 function jidToPhone(jid) {
   if (!jid) return null;
-  // Format: 48505441635@s.whatsapp.net or 48505441635-1234567890@g.us (group)
   return jid.split("@")[0].split(":")[0];
 }
 
@@ -71,12 +96,74 @@ function isGroupJid(jid) {
   return jid && jid.endsWith("@g.us");
 }
 
+function rotateFileIfNeeded() {
+  try {
+    const stat = fs.statSync(MESSAGES_FILE);
+    if (stat.size >= MAX_FILE_SIZE) {
+      const rotated = MESSAGES_FILE + ".1";
+      if (fs.existsSync(rotated)) {
+        fs.unlinkSync(rotated);
+      }
+      fs.renameSync(MESSAGES_FILE, rotated);
+      logger.info({ oldSize: stat.size }, "Rotated messages.jsonl");
+      console.log(`[${new Date().toISOString()}] Rotated messages.jsonl (${(stat.size / 1024 / 1024).toFixed(1)}MB)`);
+    }
+  } catch (err) {
+    if (err.code !== "ENOENT") {
+      logger.error({ err }, "Error checking file rotation");
+    }
+  }
+}
+
 function appendMessage(record) {
+  rotateFileIfNeeded();
   const line = JSON.stringify(record) + "\n";
   fs.appendFileSync(MESSAGES_FILE, line, "utf8");
 }
 
-// ── Reconnect state (persists across restarts of the socket) ─────────
+// ── Exponential backoff ─────────────────────────────────────────────────
+
+function getReconnectDelay() {
+  const baseDelay = 3000;
+  const maxDelay = 300000; // 5 minutes
+  const delay = Math.min(baseDelay * Math.pow(2, reconnectAttempt), maxDelay);
+  const jitter = delay * 0.2 * (Math.random() * 2 - 1);
+  return Math.round(delay + jitter);
+}
+
+// ── Health check server ─────────────────────────────────────────────────
+
+const healthServer = http.createServer((req, res) => {
+  if (req.method === "GET" && req.url === "/health") {
+    const body = JSON.stringify({
+      status: "ok",
+      connected: isConnected,
+      last_msg_at: lastMsgAt,
+      messages_since_start: msgCountSinceStart,
+      pid: process.pid,
+      uptime_seconds: Math.floor(process.uptime()),
+    });
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(body);
+  } else {
+    res.writeHead(404);
+    res.end("Not found");
+  }
+});
+
+healthServer.listen(HEALTH_PORT, "127.0.0.1", () => {
+  console.log(`[${new Date().toISOString()}] Health check listening on http://127.0.0.1:${HEALTH_PORT}/health`);
+});
+
+healthServer.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.log(`[${new Date().toISOString()}] Health port ${HEALTH_PORT} already in use, skipping`);
+  } else {
+    logger.error({ err }, "Health server error");
+  }
+});
+
+// ── Reconnect state ─────────────────────────────────────────────────────
 
 let qrAttempts = 0;
 const MAX_QR_ATTEMPTS = 3;
@@ -85,7 +172,6 @@ const MAX_QR_ATTEMPTS = 3;
 
 async function startListener({ clearAuth = false } = {}) {
   if (clearAuth) {
-    // Remove auth state to force new QR code
     fs.rmSync(AUTH_DIR, { recursive: true, force: true });
     fs.mkdirSync(AUTH_DIR, { recursive: true });
     console.log("Auth state cleared. Will show new QR code for pairing.");
@@ -101,12 +187,8 @@ async function startListener({ clearAuth = false } = {}) {
       keys: makeCacheableSignalKeyStore(state.keys, logger),
     },
     logger,
-    // QR rendered manually via qrcode-terminal in connection.update handler
-    // Increase QR timeout to 60 seconds (default ~20s)
     qrTimeout: 60_000,
-    // Receive message history on connect (last 30 days)
     syncFullHistory: false,
-    // Mark messages as received but don't send read receipts
     markOnlineOnConnect: false,
     generateHighQualityLinkPreview: false,
   });
@@ -130,20 +212,22 @@ async function startListener({ clearAuth = false } = {}) {
       console.log("\n========================================");
       console.log("  SCAN THIS QR CODE WITH WHATSAPP");
       console.log("  (Phone > Settings > Linked Devices)");
-      console.log(`  Attempt ${qrAttempts}/${MAX_QR_ATTEMPTS} — you have 60 seconds`);
+      console.log(`  Attempt ${qrAttempts}/${MAX_QR_ATTEMPTS} - you have 60 seconds`);
       console.log("========================================\n");
       qrcode.generate(qr, { small: true });
       console.log("\n========================================\n");
     }
 
     if (connection === "open") {
-      // Reset QR counter on successful connection
       qrAttempts = 0;
+      reconnectAttempt = 0;
+      isConnected = true;
       console.log(`[${new Date().toISOString()}] Connected to WhatsApp Web`);
       logger.info("Connected to WhatsApp Web");
     }
 
     if (connection === "close") {
+      isConnected = false;
       const statusCode =
         lastDisconnect?.error instanceof Boom
           ? lastDisconnect.error.output.statusCode
@@ -152,12 +236,12 @@ async function startListener({ clearAuth = false } = {}) {
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
       logger.info(
-        { statusCode, shouldReconnect },
+        { statusCode, shouldReconnect, reconnectAttempt },
         "Connection closed"
       );
       console.log(
         `[${new Date().toISOString()}] Disconnected (status=${statusCode}). ${
-          shouldReconnect ? "Reconnecting..." : "Logged out — run with --pair to re-link."
+          shouldReconnect ? "Reconnecting..." : "Logged out - run with --pair to re-link."
         }`
       );
 
@@ -165,28 +249,22 @@ async function startListener({ clearAuth = false } = {}) {
         process.exit(1);
       }
 
-      // Status 408 = QR scan timeout — wait longer before retry
       if (statusCode === 408) {
         console.log("QR scan timed out. Retrying in 30 seconds...");
         setTimeout(() => startListener(), 30_000);
         return;
       }
 
-      // Status 515 = server restart — reconnect with EXISTING auth (no clear)
-      if (statusCode === 515) {
-        console.log("Server restart (515). Reconnecting in 5 seconds with existing auth...");
-        setTimeout(() => startListener(), 5_000);
-        return;
-      }
-
-      // All other reconnectable disconnects — brief delay, keep auth
-      setTimeout(() => startListener(), 3_000);
+      // Exponential backoff for all reconnectable disconnects
+      reconnectAttempt++;
+      const delay = getReconnectDelay();
+      console.log(`[${new Date().toISOString()}] Reconnect attempt ${reconnectAttempt} in ${(delay / 1000).toFixed(1)}s`);
+      setTimeout(() => startListener(), delay);
     }
   });
 
   // ── Message events ────────────────────────────────────────────────
 
-  // Cache for group metadata (chat names)
   const groupCache = new Map();
 
   async function getGroupName(jid) {
@@ -204,10 +282,8 @@ async function startListener({ clearAuth = false } = {}) {
   sock.ev.on("messages.upsert", async ({ messages: msgs, type }) => {
     for (const msg of msgs) {
       try {
-        // Skip status broadcasts
         if (msg.key.remoteJid === "status@broadcast") continue;
 
-        // Extract message text from various message types
         const m = msg.message;
         if (!m) continue;
 
@@ -249,13 +325,10 @@ async function startListener({ clearAuth = false } = {}) {
         } else if (m.liveLocationMessage) {
           text = "[live location]";
         } else if (m.reactionMessage) {
-          // Skip reactions — they aren't real messages
           continue;
         } else if (m.protocolMessage || m.senderKeyDistributionMessage) {
-          // Protocol/key distribution — skip
           continue;
         } else {
-          // Unknown message type — log it but skip
           logger.debug({ messageTypes: Object.keys(m) }, "Unknown message type");
           continue;
         }
@@ -266,7 +339,6 @@ async function startListener({ clearAuth = false } = {}) {
         const isGroup = isGroupJid(remoteJid);
         const fromMe = msg.key.fromMe || false;
 
-        // Determine sender
         let senderJid;
         if (fromMe) {
           senderJid = sock.user?.id || "me";
@@ -276,7 +348,6 @@ async function startListener({ clearAuth = false } = {}) {
           senderJid = remoteJid;
         }
 
-        // Determine chat name
         let chatName;
         if (isGroup) {
           chatName = await getGroupName(remoteJid);
@@ -284,8 +355,13 @@ async function startListener({ clearAuth = false } = {}) {
           chatName = jidToPhone(remoteJid);
         }
 
-        // Get push name (display name of sender)
         const pushName = msg.pushName || null;
+
+        // Extract phone-based JID when available (for entity linking)
+        // @s.whatsapp.net JIDs contain the phone number; @lid JIDs do not
+        const phoneJid = remoteJid && remoteJid.endsWith("@s.whatsapp.net")
+          ? remoteJid
+          : null;
 
         const record = {
           id: msg.key.id,
@@ -300,14 +376,17 @@ async function startListener({ clearAuth = false } = {}) {
           fromMe,
           senderJid: jidToPhone(senderJid),
           senderName: pushName,
+          phoneJid: phoneJid,
           body: text,
           mediaType: mediaType || null,
-          type: type, // "notify" = real-time, "append" = history sync
+          type: type,
         };
 
         appendMessage(record);
 
-        // Log to console for monitoring
+        lastMsgAt = new Date().toISOString();
+        msgCountSinceStart++;
+
         const direction = fromMe ? ">>>" : "<<<";
         const preview = text.length > 80 ? text.substring(0, 80) + "..." : text;
         console.log(
@@ -319,10 +398,9 @@ async function startListener({ clearAuth = false } = {}) {
     }
   });
 
-  // ── Contacts & group updates for name resolution ──────────────────
+  // ── Contacts & group updates ──────────────────────────────────────
 
   sock.ev.on("contacts.update", (updates) => {
-    // We could cache contact names here for richer metadata
     logger.debug({ count: updates.length }, "Contacts updated");
   });
 
@@ -337,6 +415,8 @@ async function startListener({ clearAuth = false } = {}) {
   console.log(`[${new Date().toISOString()}] WhatsApp listener starting...`);
   console.log(`Auth dir:     ${AUTH_DIR}`);
   console.log(`Messages out: ${MESSAGES_FILE}`);
+  console.log(`PID file:     ${PID_FILE}`);
+  console.log(`Health check: http://127.0.0.1:${HEALTH_PORT}/health`);
 }
 
 // ── Entry point ─────────────────────────────────────────────────────────

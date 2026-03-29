@@ -22,12 +22,15 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+import structlog
+
 from app.db.postgres import get_pg_connection
 from app.ingestion.common.db import (
-    insert_chunk,
     insert_document,
     insert_source,
 )
+
+logger = structlog.get_logger("whatsapp_live.importer")
 
 # ── Config ───────────────────────────────────────────────────────────────
 
@@ -96,10 +99,18 @@ def chunk_text(text: str) -> list[str]:
 def read_new_messages(offset: int) -> tuple[list[dict], int]:
     """Read messages from JSONL file starting at byte offset.
 
+    Handles file rotation: if file is smaller than offset, resets to 0.
     Returns (messages, new_offset).
     """
     if not MESSAGES_FILE.exists():
         return [], offset
+
+    file_size = MESSAGES_FILE.stat().st_size
+
+    # File rotation detection: file is smaller than our offset
+    if file_size < offset:
+        logger.warning("file_rotation_detected", file_size=file_size, old_offset=offset)
+        offset = 0
 
     messages = []
     new_offset = offset
@@ -253,11 +264,6 @@ def import_group(
         with get_pg_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM chunks WHERE document_id = %s", (doc_id,))
-            conn.commit()
-
-        # Update document metadata
-        with get_pg_connection() as conn:
-            with conn.cursor() as cur:
                 cur.execute(
                     """
                     UPDATE documents
@@ -289,18 +295,22 @@ def import_group(
             raw_path=raw_path,
         )
 
-    # Insert chunks
+    # Insert chunks — batch in single connection
     chunks = chunk_text(full_text)
-    for ci, chunk in enumerate(chunks):
-        insert_chunk(
-            conn=None,
-            document_id=doc_id,
-            chunk_index=ci,
-            text=chunk,
-            timestamp_start=first_dt,
-            timestamp_end=last_dt,
-            embedding_id=None,
-        )
+    ts_start = first_dt.isoformat() if first_dt else None
+    ts_end = last_dt.isoformat() if last_dt else None
+
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            for ci, chunk in enumerate(chunks):
+                cur.execute(
+                    """
+                    INSERT INTO chunks (document_id, chunk_index, text, timestamp_start, timestamp_end)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (doc_id, ci, chunk, ts_start, ts_end),
+                )
+        conn.commit()
 
     return 1, len(chunks)
 
@@ -337,17 +347,15 @@ def run() -> None:
     messages, new_offset = read_new_messages(offset)
 
     if not messages:
-        print(f"[{datetime.now(tz=timezone.utc).strftime('%H:%M')}] WhatsApp live: no new messages")
+        logger.info("no_new_messages")
         return
 
-    print(
-        f"[{datetime.now(tz=timezone.utc).strftime('%H:%M')}] WhatsApp live: {len(messages)} new messages"
-    )
+    logger.info("new_messages", count=len(messages))
 
     # Group by chat+day
     groups = group_messages_by_chat_day(messages)
     if not groups:
-        print("  All messages filtered (self-chat only)")
+        logger.info("all_filtered", reason="self-chat only")
         state["last_offset"] = new_offset
         save_state(state)
         return
@@ -377,12 +385,22 @@ def run() -> None:
         total_docs += docs
         total_chunks += chunks
 
-    # Save state
+    # Save state with metrics
     state["last_offset"] = new_offset
+    state["metrics"] = {
+        "last_import_at": datetime.now(tz=timezone.utc).isoformat(),
+        "messages_this_run": len(messages),
+        "docs_this_run": total_docs,
+        "chunks_this_run": total_chunks,
+    }
     save_state(state)
 
-    print(f"  Imported: {total_docs} documents, {total_chunks} chunks")
-    print(f"  Chats touched: {list(groups.keys())}")
+    logger.info(
+        "import_complete",
+        docs=total_docs,
+        chunks=total_chunks,
+        chats=len(groups),
+    )
 
 
 def _read_all_messages_for_key(key: str) -> list[dict]:
