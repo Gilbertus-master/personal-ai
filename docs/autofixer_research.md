@@ -1,28 +1,10 @@
-# Autofixer v2 — Research (2026-03-29)
+# Autofixer v2 — Research Findings
 
-## Current State
+## Data (2026-03-29)
 
-| Metric | Value |
-|--------|-------|
-| Total findings | 871 |
-| Resolved | 107 (12.3%) |
-| Open | 764 |
-| Stuck (attempted, not resolved) | 252 |
-| Manual review | 0 |
-| Success rate | ~30% of attempted |
-
-## Cluster Analysis
-
-Only 2 clusters with 2+ findings by exact (category, title):
-- `[high] convention/fetchone() vs fetchall()` → 2 files
-- `[low] quality/Missing return type annotations` → 2 files
-
-**Conclusion:** Title-based clustering yields almost no multi-file batches. Category-based tiering is the primary optimization lever.
-
-## Category Distribution (open, non-manual)
-
+### Open findings: 764
 | Category | Count |
-|----------|-------|
+|---|---|
 | correctness | 288 |
 | quality | 182 |
 | convention | 153 |
@@ -30,33 +12,40 @@ Only 2 clusters with 2+ findings by exact (category, title):
 | improvement | 38 |
 | security | 30 |
 
-## Successfully Fixed Patterns
+### Fixed: 107
+| Category | Fixed |
+|---|---|
+| correctness | 49 |
+| convention | 32 |
+| security | 16 |
+| optimization | 8 |
+| quality | 2 |
 
-10 unique patterns fixed so far — all singletons. Mix of correctness, convention, security. No pattern-based batch fixes yet.
+### Clusters (>=2 files)
+- [high] convention/fetchone() — 2 files
+- [low] quality/Missing return type annotations — 2 files
+- All other findings are 1-file clusters (title uniqueness)
 
-## Current Code Architecture
+### Tier1 failures
+Tier1 executor returns "No files were modified" for all attempts because:
+1. `_fix_print_to_structlog` skips files not under `app/` — most convention findings are in `scripts/`
+2. `_fix_print_to_structlog` skips files with `__main__` block — even if they have non-CLI print() calls
+3. `_fix_unused_imports` runs ruff F401/F811 but findings may reference imports that ruff considers used
+4. Title normalization missing — similar issues get separate clusters
 
-`app/analysis/code_fixer.py`:
-- Single-finding-at-a-time model
-- `run()` for single, `run_parallel(N)` for N workers on different files
-- Each fix = one `claude -p` session ($0.50 budget)
-- Verification: ruff check + git diff (no changes = fail)
-- Retry: max 6 attempts (3 per round × 2 rounds), then manual_review=true
+### Potential Tier1 patterns found
+- print→structlog: ~5 findings across convention category
+- Unused imports: ~2 findings
+- Missing structlog: ~1 finding
+- Dead code: ~1 finding
+- Missing return type annotations: ~2 findings (borderline T1)
 
-## Problems Identified
+### Tier2 stats
+- No tier2 attempts logged yet (all clusters assigned tier1 first)
+- Budget model: $0.50/1-file, $1.00/2-5, $2.00/6+
 
-1. **No tiering** — simple fixes (unused imports, print→structlog) burn $0.50 LLM calls when ruff/sed could handle them
-2. **No clustering** — same pattern across N files = N separate LLM sessions instead of one
-3. **No context enrichment** — LLM doesn't see resolved examples or project conventions
-4. **No category-specific strategies** — all findings get identical prompts
-5. **High stuck rate** — 252/359 attempted findings stuck = 70% failure on retries
-
-## Existing DB Schema
-
-Columns: id, file_id, file_path, severity, category, title, description, line_start, line_end, suggested_fix, model_used, resolved, resolved_at, created_at, fix_attempted_at, fix_attempt_count, manual_review
-
-**Missing:** cluster_id, tier — need migration.
-
-## Log Analysis
-
-No recent entries in logs/code_fix.log — fixer may not be running or logging elsewhere.
+## Conclusions
+1. Title-based clustering produces too many 1-file clusters — need title normalization
+2. Tier1 scope too narrow — need to handle scripts/ and more patterns
+3. Most findings (correctness, quality, optimization) are inherently Tier2
+4. Fix rate: 107/871 = 12.3% — significant room for improvement

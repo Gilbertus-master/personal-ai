@@ -3,6 +3,8 @@ Cluster manager — groups code_review_findings into clusters and assigns tiers.
 
 Tier 1: deterministic fixes (ruff, regex) — no LLM needed
 Tier 2: requires LLM (claude -p) with enriched context
+
+Title normalization collapses similar findings into larger clusters.
 """
 from __future__ import annotations
 
@@ -20,27 +22,50 @@ MAX_CLUSTER_SIZE = 10
 MAX_ATTEMPTS_PER_ROUND = 3
 MAX_ROUNDS = 2
 
-# Patterns that can be fixed deterministically (Tier 1)
-TIER1_PATTERNS: list[tuple[str, re.Pattern]] = [
-    ("convention", re.compile(r"unused.*(import|variable)", re.IGNORECASE)),
-    ("convention", re.compile(r"(print\(\)|print statement|structlog)", re.IGNORECASE)),
-    ("quality", re.compile(r"unused.*(import|variable)", re.IGNORECASE)),
+# Tier 1 patterns: category-agnostic regex matching on title
+TIER1_PATTERNS: list[re.Pattern] = [
+    re.compile(r"unused.*(import|variable)", re.IGNORECASE),
+    re.compile(r"(print\s*\(|print statement|print\(\).*structlog|structlog.*print)", re.IGNORECASE),
+    re.compile(r"(dead code|unreachable code)", re.IGNORECASE),
+    re.compile(r"\bdate\b.*format|date\(\).*locale|\$\(date\)", re.IGNORECASE),
+    re.compile(r"redundant.*import|duplicate.*import", re.IGNORECASE),
+    re.compile(r"missing structlog|no structlog|no logging", re.IGNORECASE),
+]
+
+# Normalization rules: strip file-specific details from titles for better clustering
+_TITLE_NORM_RULES: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"\(lines? \d+[-\u2013]\d+\)"), ""),
+    (re.compile(r"on line \d+"), ""),
+    (re.compile(r"line \d+"), ""),
+    (re.compile(r"[`'\"][\w.]+[`'\"]"), "\u00abname\u00bb"),
+    (re.compile(r"\b[\w/]+\.py\b"), "\u00abfile\u00bb"),
+    (re.compile(r"\b[\w/]+\.sh\b"), "\u00abfile\u00bb"),
+    (re.compile(r"\s+"), " "),
 ]
 
 
+def _normalize_title(title: str) -> str:
+    """Normalize title for clustering — strip file-specific info."""
+    result = title
+    for pattern, replacement in _TITLE_NORM_RULES:
+        result = pattern.sub(replacement, result)
+    return result.strip()
+
+
 def _assign_tier(category: str, title: str) -> int:
-    """Assign tier based on category and title pattern."""
-    for pat_category, pat_re in TIER1_PATTERNS:
-        if category == pat_category and pat_re.search(title):
+    """Assign tier based on title pattern (category-agnostic)."""
+    for pat_re in TIER1_PATTERNS:
+        if pat_re.search(title):
             return 1
     return 2
 
 
 def _make_cluster_id(category: str, title: str) -> str:
-    """Generate a stable cluster ID from category + title."""
-    raw = f"{category}__{title}"
+    """Generate a stable cluster ID from category + normalized title."""
+    norm = _normalize_title(title)
+    raw = f"{category}__{norm}"
     short_hash = hashlib.md5(raw.encode()).hexdigest()[:8]
-    slug = re.sub(r"[^a-z0-9]+", "_", title.lower())[:40]
+    slug = re.sub(r"[^a-z0-9]+", "_", norm.lower())[:40]
     return f"{category}__{slug}__{short_hash}"
 
 
@@ -54,7 +79,6 @@ def build_clusters(exclude_files: list[str] | None = None) -> list[dict]:
 
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
-            # Fetch all eligible findings
             if exclude:
                 placeholders = ",".join(["%s"] * len(exclude))
                 where_excl = f"AND file_path NOT IN ({placeholders})"
@@ -88,7 +112,7 @@ def build_clusters(exclude_files: list[str] | None = None) -> list[dict]:
         log.info("no_eligible_findings")
         return []
 
-    # Group by (category, title)
+    # Group by (category, normalized_title) for better clustering
     groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for r in rows:
         finding = {
@@ -97,7 +121,8 @@ def build_clusters(exclude_files: list[str] | None = None) -> list[dict]:
             "line_start": r[6], "line_end": r[7], "suggested_fix": r[8],
             "fix_attempt_count": r[9],
         }
-        groups[(r[3], r[4])].append(finding)
+        norm_title = _normalize_title(r[4])
+        groups[(r[3], norm_title)].append(finding)
 
     # Build clusters (split large groups)
     clusters: list[dict] = []
@@ -105,7 +130,6 @@ def build_clusters(exclude_files: list[str] | None = None) -> list[dict]:
         tier = _assign_tier(category, title)
         cluster_id = _make_cluster_id(category, title)
 
-        # Split into chunks of MAX_CLUSTER_SIZE
         for i in range(0, len(findings), MAX_CLUSTER_SIZE):
             chunk = findings[i:i + MAX_CLUSTER_SIZE]
             part = i // MAX_CLUSTER_SIZE
@@ -118,7 +142,7 @@ def build_clusters(exclude_files: list[str] | None = None) -> list[dict]:
                 "tier": tier,
                 "findings": chunk,
                 "file_paths": list({f["file_path"] for f in chunk}),
-                "severity": chunk[0]["severity"],  # highest in group (pre-sorted)
+                "severity": chunk[0]["severity"],
                 "size": len(chunk),
             })
 
