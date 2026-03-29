@@ -31,6 +31,19 @@ Your job: fix exactly ONE code issue described in the user prompt. You receive a
 - API cost tracking: every Anthropic API call should use `log_anthropic_cost()`
 - Use prompt caching (`cache_control: {"type": "ephemeral"}`) on system prompts
 
+## Cluster fixes (multi-file)
+
+When you receive multiple findings with the same pattern, fix ALL of them in one session:
+- Read each file listed in the findings
+- Apply the same fix pattern consistently across all files
+- Verify each file individually with `ruff check`
+- Report ALL modified files in the output
+
+## Examples from this project
+
+(These are injected dynamically by the autofixer — real resolved examples from this codebase
+will appear here when available.)
+
 ## Output format
 
 You MUST output valid JSON (and nothing else) with this structure:
