@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import requests
+import structlog
 from dotenv import load_dotenv
 
 from app.ingestion.graph_api.auth import get_access_token
@@ -24,6 +25,8 @@ from app.ingestion.common.db import (
 )
 
 load_dotenv()
+
+log = structlog.get_logger(__name__)
 
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 MS_GRAPH_USER_ID = os.getenv("MS_GRAPH_USER_ID")  # email or object ID; if set, uses /users/{id}/ instead of /me/
@@ -61,6 +64,18 @@ def _load_delta_state(chat_id: str) -> str | None:
         return None
 
 
+def _clear_delta_state(chat_id: str) -> None:
+    """Remove delta state for a chat (used on 400 errors)."""
+    state = {}
+    if DELTA_STATE_FILE.exists():
+        try:
+            state = json.loads(DELTA_STATE_FILE.read_text())
+        except json.JSONDecodeError:
+            pass
+    state.pop(chat_id, None)
+    DELTA_STATE_FILE.write_text(json.dumps(state, indent=2))
+
+
 def list_chats(token: str) -> list[dict[str, Any]]:
     """List all Teams chats the user is part of."""
     user_path = "me"  # Delegated permissions require /me/ for Teams
@@ -79,18 +94,26 @@ def list_chats(token: str) -> list[dict[str, Any]]:
 def sync_chat_messages(
     chat_id: str,
     chat_topic: str,
+    chat_type: str,
     source_id: int,
     token: str,
     limit: int | None = None,
 ) -> tuple[int, int]:
     """Sync messages from a single Teams chat."""
-    delta_link = _load_delta_state(chat_id)
+    IS_MEETING = chat_type == "meeting"
 
-    if delta_link:
-        url = delta_link
+    if IS_MEETING:
+        # Meeting chats: delta unsupported by MS Graph API → always use regular endpoint
+        # Clear any stale delta state that may exist from previous runs
+        _clear_delta_state(chat_id)
+        delta_link = None
+        url = f"{GRAPH_BASE}/me/chats/{chat_id}/messages"
     else:
-        user_path = "me"  # Delegated permissions require /me/ for Teams
-        url = f"{GRAPH_BASE}/{user_path}/chats/{chat_id}/messages"
+        delta_link = _load_delta_state(chat_id)
+        if delta_link:
+            url = delta_link
+        else:
+            url = f"{GRAPH_BASE}/me/chats/{chat_id}/messages"
 
     params = {"$top": "50"}
     imported = 0
@@ -103,7 +126,16 @@ def sync_chat_messages(
         try:
             data = _graph_get(url, token, params if not delta_link else None)
         except requests.HTTPError as e:
-            print(f"  Error syncing chat {chat_topic}: {e}")
+            if e.response is not None and e.response.status_code == 400:
+                if delta_link or "delta" in url:
+                    _clear_delta_state(chat_id)
+                    log.warning("teams_sync.400_on_delta", chat=chat_topic, action="cleared delta state, will full-sync next run")
+                elif "$skiptoken" in url:
+                    log.warning("teams_sync.400_on_skiptoken", chat=chat_topic, imported_so_far=imported)
+                else:
+                    log.warning("teams_sync.400", chat=chat_topic, error=str(e))
+                break
+            log.error("teams_sync.http_error", chat=chat_topic, error=str(e))
             break
 
         messages = data.get("value", [])
@@ -192,7 +224,7 @@ def sync_all_chats(
     source_id = insert_source(conn=None, source_type=source_type, source_name=source_name)
 
     chats = list_chats(token)
-    print(f"Found {len(chats)} Teams chats")
+    log.info("teams_sync.chats_found", count=len(chats))
 
     total_imported = 0
     total_chunks = 0
@@ -200,11 +232,12 @@ def sync_all_chats(
     for chat in chats:
         chat_id = chat["id"]
         topic = chat.get("topic") or chat.get("chatType", "unknown")
-        print(f"  Syncing: {topic} ({chat.get('chatType')})")
+        log.info("teams_sync.syncing_chat", topic=topic, chat_type=chat.get("chatType"))
 
         imported, chunks = sync_chat_messages(
             chat_id=chat_id,
             chat_topic=topic,
+            chat_type=chat.get("chatType", ""),
             source_id=source_id,
             token=token,
             limit=limit_per_chat,
@@ -214,9 +247,9 @@ def sync_all_chats(
         total_chunks += chunks
 
         if imported > 0:
-            print(f"    → {imported} messages, {chunks} chunks")
+            log.info("teams_sync.chat_imported", topic=topic, messages=imported, chunks=chunks)
 
-    print(f"Teams sync complete: {total_imported} messages, {total_chunks} chunks")
+    log.info("teams_sync.complete", total_messages=total_imported, total_chunks=total_chunks)
     return total_imported, total_chunks
 
 
