@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useChat } from '@/lib/hooks/use-chat';
 import { useChatStore, selectActiveConversation } from '@/lib/stores/chat-store';
@@ -20,16 +20,6 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
 
   const [maximized, setMaximized] = useState(false);
 
-  // Auto-send question from sidebar redirect (?q=...)
-  useEffect(() => {
-    const q = searchParams.get('q');
-    if (q) {
-      sendMessage(decodeURIComponent(q));
-      router.replace('/chat'); // clean URL
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const {
     conversations,
     activeConversationId,
@@ -39,6 +29,18 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
     sendMessage,
     handleQuickAction,
   } = useChat();
+
+  // Auto-send question from sidebar redirect (?q=...) — ref guard prevents double-send (StrictMode)
+  const sentQueryRef = useRef<string | null>(null);
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q && sentQueryRef.current !== q) {
+      sentQueryRef.current = q;
+      sendMessage(decodeURIComponent(q));
+      router.replace('/chat'); // clean URL
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const activeConv = useChatStore(selectActiveConversation);
 
