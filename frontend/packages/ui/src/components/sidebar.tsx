@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -9,11 +9,10 @@ import type { RoleName } from '@gilbertus/rbac';
 import {
   LayoutDashboard, Sunrise, MessageSquare, Users, Brain, Shield,
   TrendingUp, DollarSign, Workflow, Scale, Calendar, FileText,
-  Mic, Settings, Bot, PanelLeftClose, PanelLeft, Send, Loader2, GripVertical,
+  Mic, Settings, Bot, PanelLeftClose, PanelLeft, Send, GripVertical,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { askGilbertus } from '@gilbertus/api-client';
 
 const ICON_MAP: Record<string, LucideIcon> = {
   LayoutDashboard, Sunrise, MessageSquare, Users, Brain, Shield,
@@ -32,6 +31,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle, onMobileClose, mobileOpen }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { data: session } = useSession();
   const role = (session?.user as { role?: RoleName } | undefined)?.role ?? 'ceo';
   const baseModules = getNavigationModules(role);
@@ -80,24 +80,15 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, mobileOpen }: Side
     dragId.current = null; dragOver.current = null;
   }, []);
 
-  // ── Inline chat ─────────────────────────────────────────────────────────
+  // ── Sidebar quick-send → przekieruj do /chat z pytaniem ─────────────────
   const [chatQ, setChatQ] = useState('');
-  const [chatA, setChatA] = useState('');
-  const [chatLoading, setChatLoading] = useState(false);
 
-  const sendChat = useCallback(async () => {
-    if (!chatQ.trim() || chatLoading) return;
-    setChatLoading(true);
-    setChatA('');
-    try {
-      const res = await askGilbertus({ query: chatQ.trim() });
-      setChatA(res.answer ?? 'Brak odpowiedzi.');
-    } catch {
-      setChatA('Błąd połączenia z Gilbertusem.');
-    } finally {
-      setChatLoading(false);
-    }
-  }, [chatQ, chatLoading]);
+  const sendChat = useCallback(() => {
+    if (!chatQ.trim()) return;
+    const q = encodeURIComponent(chatQ.trim());
+    setChatQ('');
+    router.push(\`/chat?q=\${q}\`);
+  }, [chatQ, router]);
 
   const nav = (
     <aside
@@ -163,16 +154,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, mobileOpen }: Side
             Zapytaj Gilbertusa
           </p>
 
-          {/* Answer bubble */}
-          {(chatA || chatLoading) && (
-            <div className="rounded-md bg-[var(--surface-hover)] px-3 py-2 text-xs text-[var(--text)] max-h-32 overflow-y-auto leading-relaxed">
-              {chatLoading
-                ? <Loader2 className="h-3 w-3 animate-spin text-[var(--accent)]" />
-                : chatA}
-            </div>
-          )}
-
-          {/* Input */}
+          {/* Input — Enter sends to /chat */}
           <div className="flex items-center gap-1.5">
             <input
               value={chatQ}
@@ -183,12 +165,10 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, mobileOpen }: Side
             />
             <button
               onClick={sendChat}
-              disabled={chatLoading || !chatQ.trim()}
+              disabled={!chatQ.trim()}
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[var(--accent)] text-white disabled:opacity-40 hover:opacity-90 transition-opacity"
             >
-              {chatLoading
-                ? <Loader2 className="h-3 w-3 animate-spin" />
-                : <Send className="h-3 w-3" />}
+              <Send className="h-3 w-3" />
             </button>
           </div>
         </div>

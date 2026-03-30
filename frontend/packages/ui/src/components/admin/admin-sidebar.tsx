@@ -12,6 +12,7 @@ import {
   FileSearch,
   Bot,
   MousePointerClick,
+  AlertTriangle,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -27,6 +28,7 @@ const ADMIN_NAV: NavItem[] = [
   { path: '/admin/crons', label: 'Cron Manager', icon: Clock },
   { path: '/admin/status', label: 'Status systemu', icon: Activity },
   { path: '/admin/costs', label: 'Koszty API', icon: DollarSign },
+  { path: '/admin/alerts', label: 'Alerty', icon: AlertTriangle },
   { path: '/admin/code-review', label: 'Code Review', icon: Code },
   { path: '/admin/users', label: 'Użytkownicy', icon: Users },
   { path: '/admin/activity', label: 'Aktywność', icon: MousePointerClick },

@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useMemo, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useChat } from '@/lib/hooks/use-chat';
 import { useChatStore, selectActiveConversation } from '@/lib/stores/chat-store';
 import type { ChatMessage } from '@/lib/stores/chat-store';
@@ -16,6 +16,20 @@ import type { MessageBubbleMessage } from '@gilbertus/ui';
 
 export default function ChatLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [maximized, setMaximized] = useState(false);
+
+  // Auto-send question from sidebar redirect (?q=...)
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q) {
+      sendMessage(decodeURIComponent(q));
+      router.replace('/chat'); // clean URL
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const {
     conversations,
     activeConversationId,
@@ -53,7 +67,7 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
   };
 
   return (
-    <div className="-m-6 flex h-[calc(100%+3rem)]">
+    <div className={maximized ? 'fixed inset-0 z-[100] flex bg-[var(--bg)]' : '-m-6 flex h-[calc(100%+3rem)]'}>
       {/* children sets activeConversationId — renders nothing visible */}
       {children}
 
@@ -74,6 +88,8 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
             <ChatHeader
               title={activeConv.title}
               onRename={(t) => renameConversation(activeConv.id, t)}
+              isMaximized={maximized}
+              onToggleMaximize={() => setMaximized(m => !m)}
             />
             <MessageList
               messages={mappedMessages}

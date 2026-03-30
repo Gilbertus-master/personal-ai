@@ -10,6 +10,7 @@ function AdminSidebarPlaceholder() {
       {[
         { label: 'Cron Manager', href: '/admin/crons' },
         { label: 'System Status', href: '/admin/status' },
+        { label: 'Alerty', href: '/admin/alerts' },
         { label: 'API Costs', href: '/admin/costs' },
         { label: 'Code Review', href: '/admin/code-review' },
         { label: 'Users', href: '/admin/users' },
