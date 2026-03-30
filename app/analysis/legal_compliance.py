@@ -1591,9 +1591,11 @@ def check_contracts_compliance() -> dict[str, Any]:
                             f"Automatyczny przegląd compliance kontraktu '{c_title}' (typ: {c_type})",
                             c_id,
                         ))
+                        rows = cur.fetchall()
+                        new_matter_id = rows[0][0] if rows else None
                         matters_created += 1
                         log.info("contract_compliance_matter_created",
-                                 contract_id=c_id, title=c_title)
+                                 contract_id=c_id, title=c_title, matter_id=new_matter_id)
 
                 # 3. Contracts expiring within 30 days → deadline
                 if c_end_date and (c_end_date - date.today()).days <= 30:

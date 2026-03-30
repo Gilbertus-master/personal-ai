@@ -25,6 +25,13 @@ load_dotenv()
 
 
 # ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+KNOWN_COMPANIES = ["REH", "REF"]
+
+
+# ---------------------------------------------------------------------------
 # Schema
 # ---------------------------------------------------------------------------
 
@@ -349,7 +356,7 @@ def get_api_cost_summary(months: int = 3) -> dict:
 def get_financial_dashboard(company: str | None = None) -> dict:
     """Comprehensive financial dashboard across companies."""
     _ensure_tables()
-    companies_filter = [company] if company else ["REH", "REF"]
+    companies_filter = [company] if company else KNOWN_COMPANIES
     dashboard: dict[str, Any] = {"companies": {}, "active_alerts": 0}
 
     with get_pg_connection() as conn:
@@ -452,7 +459,7 @@ def get_financial_context_for_decision(description: str = "") -> str:
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             # Latest metrics per company
-            for comp in ["REH", "REF"]:
+            for comp in KNOWN_COMPANIES:
                 cur.execute(
                     """SELECT DISTINCT ON (metric_type)
                               metric_type, value, currency, period_start

@@ -70,17 +70,21 @@ def resolve_person_aliases(query: str) -> str:
 
 def embed_query(text: str) -> list[float]:
     try:
-        resp = client.embeddings.create(model=EMBEDDING_MODEL, input=text)
+        resp = client.embeddings.create(model=EMBEDDING_MODEL, input=text, timeout=10.0)
         from app.db.cost_tracker import log_openai_cost
         if hasattr(resp, "usage") and hasattr(resp.usage, "total_tokens"):
             log_openai_cost(EMBEDDING_MODEL, "retrieval.query_embed", resp.usage.total_tokens)
         return resp.data[0].embedding
     except (APIConnectionError, APITimeoutError) as e:
-        raise RuntimeError(f"OpenAI embedding request failed (connection/timeout): {e}") from e
+        import structlog as _sl
+        _sl.get_logger().warning("embed_query.openai_unavailable", error=str(e))
+        return []  # Empty vector — fallback to keyword search
     except RateLimitError as e:
         raise RuntimeError(f"OpenAI embedding rate limit hit: {e}") from e
     except Exception as e:
-        raise RuntimeError(f"OpenAI embedding request failed: {e}") from e
+        import structlog as _sl
+        _sl.get_logger().warning("embed_query.failed", error=str(e))
+        return []  # Fallback to keyword search
 
 
 def fetch_document_metadata(document_ids: list[int]) -> dict[int, dict[str, Any]]:
@@ -214,6 +218,59 @@ def filter_matches(
     return result
 
 
+
+def _keyword_search_fallback(
+    query: str,
+    top_k: int = 8,
+    source_types: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Full-text keyword fallback when vector embeddings are unavailable."""
+    from app.db.postgres import get_pg_connection
+    terms = [t.strip() for t in query.split() if len(t.strip()) > 2][:6]
+    if not terms:
+        return []
+    like_clauses = " AND ".join("c.text ILIKE %s" for _ in terms)
+    params: list = [f"%{t}%" for t in terms]
+
+    type_filter = ""
+    if source_types:
+        placeholders = ",".join(["%s"] * len(source_types))
+        type_filter = f" AND d.source_type IN ({placeholders})"
+        params += source_types
+
+    params.append(top_k)
+
+    sql = f"""
+        SELECT c.id, c.document_id, c.text, s.source_type, s.source_name,
+               d.title, d.created_at, 0.5 as score
+        FROM chunks c
+        JOIN documents d ON d.id = c.document_id
+        JOIN sources s ON s.id = d.source_id
+        WHERE {like_clauses}{type_filter}
+        ORDER BY d.created_at DESC
+        LIMIT %s
+    """
+    results = []
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, params)
+                for row in cur.fetchall():
+                    results.append({
+                        "chunk_id": row[0],
+                        "document_id": row[1],
+                        "text": row[2] or "",
+                        "source_type": row[3],
+                        "source_name": row[4],
+                        "title": row[5],
+                        "date": str(row[6]) if row[6] else None,
+                        "score": row[7],
+                    })
+    except Exception as e:
+        import structlog as _sl
+        _sl.get_logger().warning("keyword_fallback.failed", error=str(e))
+    return results
+
 def search_chunks(
     query: str,
     top_k: int = 8,
@@ -229,10 +286,18 @@ def search_chunks(
     # Expand query with person aliases for better recall
     expanded_query = resolve_person_aliases(query)
 
+    query_vector = embed_query(expanded_query)
+
+    if not query_vector:
+        # OpenAI unavailable — fallback to keyword search via PostgreSQL
+        import structlog as _sl
+        _sl.get_logger().info("search_chunks.keyword_fallback", query=query[:80])
+        return _keyword_search_fallback(query, top_k, source_types)
+
     try:
         hits = qdrant.query_points(
             collection_name=QDRANT_COLLECTION,
-            query=embed_query(expanded_query),
+            query=query_vector,
             limit=limit,
             with_payload=True,
         ).points

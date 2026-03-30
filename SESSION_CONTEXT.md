@@ -1,9 +1,11 @@
 # Session Context — Auto-generated
-**Generated:** 2026-03-31 00:30:01 CEST (2026-03-30 22:30:01 UTC)
+**Generated:** 2026-03-31 00:50:38 CEST (2026-03-30 22:50:38 UTC)
 **Project:** Gilbertus Albans (personal-ai)
 **Plan:** ~/.claude/plans/effervescent-squishing-sky.md
 
 ## Database Stats
+
+## Achievement Inventory (non-regression baseline)
 - **alerts:** 134
 - **chunks:** 105778
 - **decisions:** 5
@@ -32,21 +34,10 @@
 - **chatgpt:** 2026-03-15 12:23:44.362875+00
 
 ## Running Processes
-- Extraction workers: 24
-
-## Git
-- Branch: main
-- Last commit: 633332b feat: alerts — clickable with full action panel, free-form Gilbertus prompt, research inline
-- Uncommitted changes: 6 files
-
----
-*Read the plan at ~/.claude/plans/effervescent-squishing-sky.md for full context.*
-
-## Achievement Inventory (non-regression baseline)
 - MCP tools: 8
 - Cron jobs: 57
-- Lessons learned: ?
-- DB tables: ?
+- Lessons learned: 20
+- DB tables: 133
 - App modules: 197
 - Scripts: 129
 - Memory files: 26

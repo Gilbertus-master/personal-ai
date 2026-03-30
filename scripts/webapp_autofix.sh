@@ -47,11 +47,13 @@ except: print(0)
 
   # Zapisz nową pozycję
   python3 -c "
-import json
+import json, os
 try: s=json.load(open('$STATE'))
 except: s={}
 s['turbopack_line']=$current_lines
-json.dump(s, open('$STATE','w'))
+tmp='$STATE.tmp'
+json.dump(s, open(tmp,'w'))
+os.replace(tmp, '$STATE')
 " 2>/dev/null
 
   if [[ -z "$new_errors" ]]; then return; fi
@@ -147,11 +149,13 @@ Only fix this specific error. Do not refactor unrelated code." 2>&1 | tail -5)
 
   # Zapisz timestamp fixa
   python3 -c "
-import json, time
+import json, time, os
 try: s=json.load(open('$STATE'))
 except: s={}
 s['fix_$error_key']=int(time.time())
-json.dump(s, open('$STATE','w'))
+tmp='$STATE.tmp'
+json.dump(s, open(tmp,'w'))
+os.replace(tmp, '$STATE')
 " 2>/dev/null
 }
 

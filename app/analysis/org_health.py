@@ -458,7 +458,7 @@ def run_health_assessment() -> dict:
                         trend_vs_last,
                         health["top_risks"],
                         health["top_improvements"],
-                        json.dumps({"calculated_at": health["calculated_at"]}, default=str),
+                        json.dumps({"calculated_at": health["calculated_at"], "raw_values": {k: v.get("value") for k, v in health["dimensions"].items()}}, default=str),
                     ),
                 )
                 rows = cur.fetchall()
