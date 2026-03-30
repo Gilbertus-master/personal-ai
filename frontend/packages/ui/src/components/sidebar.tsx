@@ -33,7 +33,7 @@ interface SidebarProps {
 export function Sidebar({ collapsed, onToggle, onMobileClose, mobileOpen }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const role = (session?.user as { role?: RoleName } | undefined)?.role ?? 'specialist';
+  const role = (session?.user as { role?: RoleName } | undefined)?.role ?? 'ceo';
   const baseModules = getNavigationModules(role);
 
   // ── Drag-and-drop order ─────────────────────────────────────────────────
