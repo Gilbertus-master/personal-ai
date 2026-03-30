@@ -257,28 +257,30 @@ def scan_applications(days: int = 90) -> dict[str, Any]:
 
     if uncategorized:
         app_list = ", ".join(f"{a[0]} ({a[1]} mentions)" for a in uncategorized[:20])
-        response = client.messages.create(
-            model=ANTHROPIC_FAST,
-            max_tokens=500,
-            temperature=0,
-            messages=[{"role": "user", "content": f"Categorize these apps used in an energy trading company. Return JSON: {{\"AppName\": \"category\"}}. Categories: trading, finance, hr, communication, document, development, analytics, compliance, other.\n\nApps: {app_list}"}],
-        )
-        log_anthropic_cost(ANTHROPIC_FAST, "app_inventory", response.usage)
-
-        raw = response.content[0].text.strip()
-        if raw.startswith("```"):
-            raw = raw.split("\n", 1)[-1]
-            if raw.endswith("```"):
-                raw = raw[:-3].strip()
         try:
+            response = client.messages.create(
+                model=ANTHROPIC_FAST,
+                max_tokens=500,
+                temperature=0,
+                messages=[{"role": "user", "content": f"Categorize these apps used in an energy trading company. Return JSON: {{\"AppName\": \"category\"}}. Categories: trading, finance, hr, communication, document, development, analytics, compliance, other.\n\nApps: {app_list}"}],
+            )
+            log_anthropic_cost(ANTHROPIC_FAST, "app_inventory", response.usage)
+
+            raw = response.content[0].text.strip()
+            if raw.startswith("```"):
+                raw = raw.split("\n", 1)[-1]
+                if raw.endswith("```"):
+                    raw = raw[:-3].strip()
             categories = json.loads(raw)
             with get_pg_connection() as conn:
                 with conn.cursor() as cur:
                     for app_name, cat in categories.items():
                         cur.execute("UPDATE app_inventory SET category = %s WHERE name = %s", (cat, app_name))
                     conn.commit()
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as e:
+            log.warning("app_categorization_json_failed", error=str(e), raw=raw[:200] if 'raw' in locals() else None)
+        except Exception as e:
+            log.warning("app_categorization_failed", error=str(e))
 
     latency_ms = int((datetime.now(tz=timezone.utc) - started).total_seconds() * 1000)
     log.info("app_scan_done", apps=stored, latency_ms=latency_ms)

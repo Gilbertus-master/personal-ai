@@ -1,8 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useRef, useState } from 'react';
 import {
   getProcessDashboard,
   getBusinessLines,
   discoverBusinessLines,
+  discoverBusinessLinesBg,
+  mineProcessesBg,
+  generateOptimizationsBg,
+  getJobStatus,
   getProcesses,
   mineProcesses,
   getApps,
@@ -147,27 +152,64 @@ export function useTechAlignment() {
   });
 }
 
+// ── Background job mutation — uruchamia w tle, polluje status ───────────────
+function useBgMutation(startFn: () => Promise<{ job_id: string }>, onDone?: () => void) {
+  const [isPending, setIsPending] = useState(false);
+  const [jobStatus, setJobStatus] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const mutate = useCallback(async () => {
+    if (isPending) return;
+    setIsPending(true);
+    setJobStatus('queued');
+    try {
+      const { job_id } = await startFn();
+      pollRef.current = setInterval(async () => {
+        try {
+          const job = await getJobStatus(job_id);
+          setJobStatus(job.status);
+          if (job.status === 'done' || job.status === 'error') {
+            clearInterval(pollRef.current!);
+            setIsPending(false);
+            if (job.status === 'done') onDone?.();
+          }
+        } catch {
+          clearInterval(pollRef.current!);
+          setIsPending(false);
+        }
+      }, 3000);
+    } catch {
+      setIsPending(false);
+      setJobStatus('error');
+    }
+  }, [isPending, startFn, onDone]);
+
+  return { mutate, isPending, jobStatus };
+}
+
 // ── Mutation hooks ──────────────────────────────────────────────────────────
 
 export function useDiscoverBusinessLines() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: discoverBusinessLines,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['business-lines'] });
-      qc.invalidateQueries({ queryKey: ['process-dashboard'] });
-    },
+  return useBgMutation(discoverBusinessLinesBg, () => {
+    qc.invalidateQueries({ queryKey: ['business-lines'] });
+    qc.invalidateQueries({ queryKey: ['process-dashboard'] });
   });
 }
 
 export function useMineProcesses() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: mineProcesses,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['processes'] });
-      qc.invalidateQueries({ queryKey: ['process-dashboard'] });
-    },
+  return useBgMutation(mineProcessesBg, () => {
+    qc.invalidateQueries({ queryKey: ['processes'] });
+    qc.invalidateQueries({ queryKey: ['process-dashboard'] });
+  });
+}
+
+export function useGenerateOptimizations() {
+  const qc = useQueryClient();
+  return useBgMutation(generateOptimizationsBg, () => {
+    qc.invalidateQueries({ queryKey: ['optimizations'] });
+    qc.invalidateQueries({ queryKey: ['process-dashboard'] });
   });
 }
 

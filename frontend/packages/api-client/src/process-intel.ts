@@ -222,3 +222,38 @@ export async function getTechAlignment(): Promise<TechAlignment> {
     method: 'GET',
   });
 }
+
+export interface BackgroundJob {
+  job_id: string;
+  status: 'queued' | 'running' | 'done' | 'error' | 'not_found';
+  result?: unknown;
+  error?: string;
+}
+
+export async function discoverBusinessLinesBg(): Promise<BackgroundJob> {
+  return customFetch<BackgroundJob>({
+    url: '/process-intel/discover-bg',
+    method: 'POST',
+  });
+}
+
+export async function mineProcessesBg(): Promise<BackgroundJob> {
+  return customFetch<BackgroundJob>({
+    url: '/process-intel/mine-bg',
+    method: 'POST',
+  });
+}
+
+export async function generateOptimizationsBg(): Promise<BackgroundJob> {
+  return customFetch<BackgroundJob>({
+    url: '/process-intel/optimize-bg',
+    method: 'POST',
+  });
+}
+
+export async function getJobStatus(jobId: string): Promise<BackgroundJob> {
+  return customFetch<BackgroundJob>({
+    url: `/process-intel/job/${jobId}`,
+    method: 'GET',
+  });
+}

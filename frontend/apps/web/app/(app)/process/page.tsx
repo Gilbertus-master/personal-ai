@@ -111,13 +111,13 @@ export default function ProcessPage() {
           <div className="flex items-center gap-2">
             <ActionButton
               label="Odkryj linie"
-              loadingLabel="Odkrywanie..."
+              loadingLabel="W toku…"
               isPending={discoverMut.isPending}
               onClick={() => discoverMut.mutate()}
             />
             <ActionButton
               label="Wydobądź procesy"
-              loadingLabel="Wydobywanie..."
+              loadingLabel="W toku…"
               isPending={mineMut.isPending}
               onClick={() => mineMut.mutate()}
             />
@@ -130,15 +130,31 @@ export default function ProcessPage() {
           </div>
         </div>
 
-        {/* Mutation success messages */}
-        {discoverMut.isSuccess && discoverMut.data && (
-          <div className="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-sm text-green-400">
-            Odkrywanie zakończone: {discoverMut.data.business_lines ?? 0} linii biznesowych
+        {/* Background job status messages */}
+        {discoverMut.jobStatus && discoverMut.jobStatus !== 'done' && (
+          <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-2.5 text-sm text-blue-400 flex items-center gap-2">
+            <span className="inline-block h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
+            {discoverMut.jobStatus === 'queued' && 'Odkrywanie linii biznesowych w kolejce…'}
+            {discoverMut.jobStatus === 'running' && 'Gilbertus analizuje dane i odkrywa linie biznesowe… (może potrwać ~60 sek)'}
+            {discoverMut.jobStatus === 'error' && '❌ Błąd podczas odkrywania linii biznesowych'}
           </div>
         )}
-        {mineMut.isSuccess && mineMut.data && (
+        {discoverMut.jobStatus === 'done' && (
           <div className="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-sm text-green-400">
-            Wydobywanie zakończone: {mineMut.data.processes ?? 0} procesów
+            ✓ Odkrywanie zakończone — dane zaktualizowane
+          </div>
+        )}
+        {mineMut.jobStatus && mineMut.jobStatus !== 'done' && (
+          <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-2.5 text-sm text-blue-400 flex items-center gap-2">
+            <span className="inline-block h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
+            {mineMut.jobStatus === 'running' && 'Gilbertus wydobywa procesy z danych… (może potrwać ~60 sek)'}
+            {mineMut.jobStatus === 'queued' && 'Wydobywanie procesów w kolejce…'}
+            {mineMut.jobStatus === 'error' && '❌ Błąd podczas wydobywania procesów'}
+          </div>
+        )}
+        {mineMut.jobStatus === 'done' && (
+          <div className="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-sm text-green-400">
+            ✓ Wydobywanie zakończone — dane zaktualizowane
           </div>
         )}
         {optimizeMut.isSuccess && (

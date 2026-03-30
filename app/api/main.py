@@ -2482,3 +2482,53 @@ def tech_solution_status_endpoint(solution_id: int, status: str = "approved"):
 def tech_alignment_endpoint():
     from app.analysis.tech_radar import get_tech_strategic_alignment
     return get_tech_strategic_alignment()
+# ── Background Jobs — długie operacje (discover, mine, optimize) ──────────────
+import threading
+import uuid as _uuid
+
+_bg_jobs: dict[str, dict] = {}  # job_id → {status, progress, result, error}
+
+def _run_in_background(job_id: str, fn, *args, **kwargs):
+    """Uruchamia fn w osobnym wątku, śledzi status w _bg_jobs."""
+    def _worker():
+        try:
+            _bg_jobs[job_id]["status"] = "running"
+            result = fn(*args, **kwargs)
+            _bg_jobs[job_id].update({"status": "done", "result": result})
+        except Exception as exc:
+            _bg_jobs[job_id].update({"status": "error", "error": str(exc)})
+    _bg_jobs[job_id] = {"status": "queued", "progress": "", "result": None, "error": None}
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()
+
+@app.post("/process-intel/discover-bg")
+def discover_business_lines_bg():
+    """Odkrywanie linii biznesowych w tle — zwraca job_id natychmiast."""
+    from app.analysis.business_lines import discover_business_lines
+    job_id = str(_uuid.uuid4())[:8]
+    _run_in_background(job_id, discover_business_lines, True)
+    return {"job_id": job_id, "status": "queued", "message": "Odkrywanie uruchomione w tle"}
+
+@app.post("/process-intel/mine-bg")
+def mine_processes_bg():
+    """Wydobywanie procesów w tle — zwraca job_id natychmiast."""
+    from app.analysis.process_mining import mine_processes
+    job_id = str(_uuid.uuid4())[:8]
+    _run_in_background(job_id, mine_processes, True)
+    return {"job_id": job_id, "status": "queued", "message": "Wydobywanie uruchomione w tle"}
+
+@app.post("/process-intel/optimize-bg")
+def optimize_processes_bg():
+    """Generowanie optymalizacji w tle — zwraca job_id natychmiast."""
+    from app.analysis.process_mining import generate_optimizations
+    job_id = str(_uuid.uuid4())[:8]
+    _run_in_background(job_id, generate_optimizations, True)
+    return {"job_id": job_id, "status": "queued", "message": "Optymalizacje generowane w tle"}
+
+@app.get("/process-intel/job/{job_id}")
+def get_job_status(job_id: str):
+    """Pobierz status background joba."""
+    job = _bg_jobs.get(job_id)
+    if not job:
+        return {"status": "not_found"}
+    return {"job_id": job_id, **job}
