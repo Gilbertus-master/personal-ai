@@ -53,7 +53,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             notificationAlerts={alertsBell.data?.alerts}
             notificationDismissedIds={dismissedAlertIds}
             onNotificationDismiss={dismissAlert}
-            onNotificationViewAll={() => router.push('/dashboard')}
+            onNotificationViewAll={() => router.push('/market/alerts')}
           />
           <OfflineBanner />
           <main className="flex-1 overflow-y-auto p-6">{children}</main>
