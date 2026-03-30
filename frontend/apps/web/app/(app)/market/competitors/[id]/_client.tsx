@@ -8,10 +8,6 @@ import { useCompetitorAnalysis, useCompetitorSignals } from '@/lib/hooks/use-mar
 import { RbacGate, SwotCard, SignalTimeline, cn } from '@gilbertus/ui';
 import type { CompetitorSignal } from '@gilbertus/api-client';
 
-// Tauri static export: dynamic params resolved client-side
-export function generateStaticParams() { return []; }
-
-
 const SIGNAL_TYPES: { value: string; label: string }[] = [
   { value: '', label: 'Wszystkie typy' },
   { value: 'krs_change', label: 'KRS' },
@@ -145,7 +141,7 @@ function CompetitorDetailContent({ id }: { id: number }) {
   );
 }
 
-export default function CompetitorDetailPage({
+export function PageClient({
   params,
 }: {
   params: Promise<{ id: string }>;

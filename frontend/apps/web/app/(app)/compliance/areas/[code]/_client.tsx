@@ -7,10 +7,6 @@ import { RbacGate, ComplianceBadge } from '@gilbertus/ui';
 import { useComplianceArea } from '@/lib/hooks/use-compliance';
 import { useComplianceStore } from '@/lib/stores/compliance-store';
 
-// Tauri static export: dynamic params resolved client-side
-export function generateStaticParams() { return []; }
-
-
 const TABS = [
   { id: 'overview', label: 'Przegląd' },
   { id: 'obligations', label: 'Obowiązki' },
@@ -24,7 +20,7 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]['id'];
 
-export default function AreaDetailPage() {
+export function PageClient() {
   const params = useParams<{ code: string }>();
   const router = useRouter();
   const code = params.code;

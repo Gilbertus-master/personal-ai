@@ -7,12 +7,7 @@ import { RbacGate } from '@gilbertus/ui';
 import { TrainingStatusGrid } from '@gilbertus/ui/compliance';
 import { useTrainingStatus, useCompleteTraining } from '@/lib/hooks/use-compliance';
 import { useRole } from '@gilbertus/rbac';
-
-// Tauri static export: dynamic params resolved client-side
-export function generateStaticParams() { return []; }
-
-
-export default function TrainingDetailPage() {
+export function PageClient() {
   const { id } = useParams<{ id: string }>();
   const trainingId = Number(id);
 

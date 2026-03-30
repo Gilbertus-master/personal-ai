@@ -14,10 +14,6 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
-// Tauri static export: dynamic params resolved client-side
-export function generateStaticParams() { return []; }
-
-
 const STATUS_BADGE: Record<StrategicGoal['status'], { label: string; className: string }> = {
   on_track: { label: 'Na dobrej drodze', className: 'bg-emerald-500/20 text-emerald-400' },
   at_risk: { label: 'Zagrożony', className: 'bg-amber-500/20 text-amber-400' },
@@ -35,7 +31,7 @@ const AREA_BADGE: Record<StrategicGoal['area'], { label: string; className: stri
   wellbeing: { label: 'Wellbeing', className: 'bg-teal-500/20 text-teal-400' },
 };
 
-export default function GoalDetailPage() {
+export function PageClient() {
   const params = useParams();
   const goalId = Number(params.id);
   const { data: goal, isLoading, error } = useGoalDetail(goalId);

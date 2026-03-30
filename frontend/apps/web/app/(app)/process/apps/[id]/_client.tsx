@@ -4,10 +4,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { RbacGate } from '@gilbertus/ui';
 import { useAppDetail } from '@/lib/hooks/use-process-intel';
 import {
-
-// Tauri static export: dynamic params resolved client-side
-export function generateStaticParams() { return []; }
-
   ArrowLeft,
   Building2,
   Tag,
@@ -39,7 +35,7 @@ function FeasibilityBar({ value }: { value: number }) {
   );
 }
 
-export default function AppDetailPage() {
+export function PageClient() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const appId = Number(id);

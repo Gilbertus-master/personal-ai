@@ -4,15 +4,11 @@ import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useChatStore } from '@/lib/stores/chat-store';
 
-// Tauri static export: dynamic params resolved client-side
-export function generateStaticParams() { return []; }
-
-
 /**
  * /chat/[id] — activates the conversation matching the URL param.
  * Redirects to /chat if the conversation doesn't exist.
  */
-export default function ConversationPage() {
+export function PageClient() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const conversations = useChatStore((s) => s.conversations);

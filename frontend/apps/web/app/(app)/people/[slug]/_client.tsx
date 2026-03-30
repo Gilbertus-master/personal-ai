@@ -24,10 +24,6 @@ import {
 import { usePeopleStore } from '@/lib/stores/people-store';
 import type { EvaluateRequest } from '@gilbertus/api-client';
 
-// Tauri static export: dynamic params resolved client-side
-export function generateStaticParams() { return []; }
-
-
 interface TabDef {
   id: 'timeline' | 'loops' | 'roles' | 'sentiment' | 'delegation';
   label: string;
@@ -42,7 +38,7 @@ const TABS: TabDef[] = [
   { id: 'delegation', label: 'Delegacja', boardOnly: true },
 ];
 
-export default function PersonProfilePage() {
+export function PageClient() {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
   const { role } = useRole();

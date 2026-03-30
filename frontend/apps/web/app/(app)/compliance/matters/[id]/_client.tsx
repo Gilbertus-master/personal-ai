@@ -15,11 +15,7 @@ import {
 } from '@/lib/hooks/use-compliance';
 import { useComplianceStore } from '@/lib/stores/compliance-store';
 
-// Tauri static export: dynamic params resolved client-side
-export function generateStaticParams() { return []; }
-
-
-export default function MatterDetailPage() {
+export function PageClient() {
   const { id } = useParams<{ id: string }>();
   const matterId = Number(id);
 
