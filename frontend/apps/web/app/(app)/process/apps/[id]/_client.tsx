@@ -217,3 +217,5 @@ export function PageClient() {
     </RbacGate>
   );
 }
+
+export default PageClient;

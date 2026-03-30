@@ -155,3 +155,5 @@ function AreaOverview({ area }: { area: ComplianceArea }) {
     </div>
   );
 }
+
+export default PageClient;

@@ -25,3 +25,5 @@ export function PageClient() {
 
   return null;
 }
+
+export default PageClient;
