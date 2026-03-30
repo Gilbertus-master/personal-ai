@@ -273,6 +273,100 @@ def _keyword_search_fallback(
         _sl.get_logger().warning("keyword_fallback.failed", error=str(e))
     return results
 
+
+def _date_filtered_search(
+    query: str,
+    top_k: int,
+    date_from: str | None,
+    date_to: str | None,
+    source_types: list[str] | None,
+    source_names: list[str] | None,
+    query_vector: list[float] | None,
+) -> list[dict[str, Any]]:
+    """When date range is specified: fetch from SQL, rerank by vector similarity."""
+    import structlog as _sl
+    _sl.get_logger().info("date_filtered_search", date_from=date_from, date_to=date_to)
+
+    where_clauses = ["1=1"]
+    params: list = []
+
+    if date_from:
+        where_clauses.append("d.created_at >= %s::timestamptz")
+        params.append(f"{date_from}T00:00:00+00:00")
+    if date_to:
+        where_clauses.append("d.created_at <= %s::timestamptz")
+        params.append(f"{date_to}T23:59:59+00:00")
+    if source_types:
+        ph = ",".join(["%s"] * len(source_types))
+        where_clauses.append(f"s.source_type IN ({ph})")
+        params += source_types
+    if source_names:
+        ph = ",".join(["%s"] * len(source_names))
+        where_clauses.append(f"s.source_name IN ({ph})")
+        params += source_names
+
+    where_sql = " AND ".join(where_clauses)
+    params.append(max(top_k * 5, 50))
+
+    sql = f"""
+        SELECT c.id, c.document_id, c.text, s.source_type, s.source_name,
+               d.title, d.created_at, d.author, d.participants
+        FROM chunks c
+        JOIN documents d ON d.id = c.document_id
+        JOIN sources s ON s.id = d.source_id
+        WHERE {where_sql}
+        ORDER BY d.created_at DESC
+        LIMIT %s
+    """
+
+    rows = []
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+
+    if not rows:
+        return []
+
+    results = []
+    for row in rows:
+        results.append({
+            "chunk_id": row[0],
+            "document_id": row[1],
+            "text": row[2] or "",
+            "source_type": row[3],
+            "source_name": row[4],
+            "title": row[5],
+            "created_at": row[6].isoformat() if row[6] else None,
+            "author": row[7],
+            "participants": row[8],
+            "score": 0.5,  # default score, override below if vector available
+        })
+
+    # Rerank by vector similarity if query_vector available
+    if query_vector and results:
+        from qdrant_client import models as qmodels
+        chunk_ids = [r["chunk_id"] for r in results if r["chunk_id"]]
+        if chunk_ids:
+            try:
+                hits = qdrant.query_points(
+                    collection_name=QDRANT_COLLECTION,
+                    query=query_vector,
+                    query_filter=qmodels.Filter(
+                        must=[qmodels.HasIdCondition(has_id=chunk_ids)]
+                    ),
+                    limit=len(chunk_ids),
+                    with_payload=False,
+                ).points
+                score_map = {h.id: h.score for h in hits}
+                for r in results:
+                    r["score"] = score_map.get(r["chunk_id"], 0.3)
+                results.sort(key=lambda x: x["score"], reverse=True)
+            except Exception:
+                pass  # Keep default ordering if Qdrant filter fails
+
+    return results[:top_k]
+
 def search_chunks(
     query: str,
     top_k: int = 8,
@@ -295,6 +389,15 @@ def search_chunks(
         import structlog as _sl
         _sl.get_logger().info("search_chunks.keyword_fallback", query=query[:80])
         return _keyword_search_fallback(query, top_k, source_types)
+
+    # When date range explicitly specified — use SQL pre-filter + vector reranking
+    if date_from or date_to:
+        return _date_filtered_search(
+            query=query, top_k=top_k,
+            date_from=date_from, date_to=date_to,
+            source_types=source_types, source_names=source_names,
+            query_vector=query_vector,
+        )
 
     try:
         hits = qdrant.query_points(
