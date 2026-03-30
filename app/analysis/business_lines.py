@@ -45,7 +45,11 @@ Respond ONLY with JSON array:
 Nie hardcoduj — bazuj WYŁĄCZNIE na dostarczonych danych. Szukaj klastrów: te same osoby + te same tematy = linia biznesowa."""
 
 
+_tables_ensured = False
 def _ensure_tables():
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -76,6 +80,7 @@ def _ensure_tables():
                 CREATE INDEX IF NOT EXISTS idx_bls_bl ON business_line_signals(business_line_id);
             """)
             conn.commit()
+    _tables_ensured = True
 
 
 def _gather_discovery_data() -> str:

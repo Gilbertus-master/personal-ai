@@ -63,15 +63,15 @@ OPENCLAW_BIN = os.path.expanduser("~/.npm-global/bin/openclaw")
 SESSIONS_DIR = Path(os.path.expanduser("~/.openclaw/agents/main/sessions"))
 STATE_FILE = Path("/home/sebastian/personal-ai/.task_monitor_state.json")
 
-client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"), timeout=60.0)
 
 
 def load_state() -> dict:
     if STATE_FILE.exists():
         try:
             return json.loads(STATE_FILE.read_text())
-        except Exception:
-            pass
+        except Exception as e:
+            log.warning("state_load_failed", error=str(e))
     return {"last_processed_line": 0, "last_session": ""}
 
 
@@ -117,14 +117,24 @@ def get_new_messages(session_file: Path, last_line: int) -> list[dict]:
             if "self):" in text:
                 try:
                     text = text.split("self):", 1)[1].strip()
-                except Exception:
-                    pass
+                except Exception as e:
+                    log.warning("text_split_failed", error=str(e))
 
             # Extract sender_phone from OpenClaw metadata if available
             sender_phone = ""
-            sender_match = re.search(r'"sender_id"\s*:\s*"(\+?\d+)"', content if isinstance(content, str) else str(content))
-            if sender_match:
-                sender_phone = sender_match.group(1)
+            if isinstance(content, str):
+                sender_match = re.search(r'"sender_id"\s*:\s*"(\+?\d+)"', content)
+                if sender_match:
+                    sender_phone = sender_match.group(1)
+            elif isinstance(content, list):
+                for item in content:
+                    if isinstance(item, dict):
+                        item_text = item.get("text", "")
+                        if isinstance(item_text, str):
+                            sender_match = re.search(r'"sender_id"\s*:\s*"(\+?\d+)"', item_text)
+                            if sender_match:
+                                sender_phone = sender_match.group(1)
+                                break
 
             if text.strip():
                 messages.append({"line": i, "text": text.strip(), "timestamp": entry.get("timestamp"), "sender_phone": sender_phone})
@@ -211,7 +221,8 @@ def classify_message(text: str) -> dict:
 
         try:
             meta = json.loads(response.content[0].text.strip())
-        except Exception:
+        except Exception as e:
+            log.warning("decision_meta_parse_failed", error=str(e))
             meta = {"area": "general", "context": "", "expected_outcome": "", "confidence": 0.5}
 
         return {
@@ -246,7 +257,8 @@ def classify_message(text: str) -> dict:
 
         try:
             meta = json.loads(response.content[0].text.strip())
-        except Exception:
+        except Exception as e:
+            log.warning("task_meta_parse_failed", error=str(e))
             meta = {"priority": "medium", "area": "general"}
 
         return {
@@ -292,8 +304,8 @@ def execute_task(task_id: int, description: str, area: str) -> str:
         if r.status_code == 200:
             answer = r.json().get("answer", "Brak odpowiedzi")
             return answer[:1500]
-    except Exception:
-        pass
+    except Exception as e:
+        log.error("task_execution_failed", task_id=task_id, error=str(e))
 
     return "Nie udało się wykonać zadania automatycznie. Wymaga ręcznej interwencji."
 
@@ -305,13 +317,16 @@ def send_whatsapp(message: str):
         log.warning("whatsapp_skipped", reason="WA_TARGET not configured")
         return
     try:
-        subprocess.run(
+        result = subprocess.run(
             [OPENCLAW_BIN, "message", "send", "--channel", "whatsapp",
              "--target", wa_target, "--message", message],
             capture_output=True, text=True, timeout=30,
         )
-    except Exception:
-        pass
+        if result.returncode != 0:
+            log.error("whatsapp_send_failed", returncode=result.returncode,
+                      stderr=result.stderr[:200])
+    except Exception as e:
+        log.error("whatsapp_send_exception", error=str(e))
 
 
 def update_task_status(task_id: int, status: str, result: str):
@@ -353,7 +368,8 @@ def _handle_approval_with_graph(text: str, sender_phone: str = "") -> dict | Non
         try:
             from app.orchestrator.action_graph import graph_resume_action
             return graph_resume_action(action_id, "reject")
-        except Exception:
+        except Exception as e:
+            log.warning("graph_resume_failed", error=str(e), fallback=True)
             from app.orchestrator.action_pipeline import reject_action
             return reject_action(action_id)
 
@@ -363,7 +379,8 @@ def _handle_approval_with_graph(text: str, sender_phone: str = "") -> dict | Non
         try:
             from app.orchestrator.action_graph import graph_resume_action
             return graph_resume_action(action_id, "edit", edit_text)
-        except Exception:
+        except Exception as e:
+            log.warning("graph_resume_failed", error=str(e), fallback=True)
             from app.orchestrator.action_pipeline import approve_action
             return approve_action(action_id, edit_text)
 
@@ -387,7 +404,7 @@ def process_new_messages():
     if not messages:
         return
 
-    log.info("{len(messages)} new messages")
+    log.info("new_messages_found", count=len(messages))
 
     for msg in messages:
         text = msg["text"]
@@ -395,7 +412,7 @@ def process_new_messages():
         classification = classify_message(text)
         msg_type = classification.get("type", "chat")
 
-        log.info("[{msg_type}] {text[:60]}...")
+        log.info("message_classified", msg_type=msg_type, preview=text[:60])
 
         if msg_type == "task":
             desc = classification.get("task_description", text)
@@ -411,12 +428,12 @@ def process_new_messages():
                     )
                     existing = cur.fetchall()
             if existing:
-                log.info("Skipping duplicate task: {desc[:50]}")
+                log.info("skipping_duplicate_task", description=desc[:50])
                 continue
 
             # Create task
             task_id = create_task_in_db(desc, priority, area, text)
-            log.info("Created task #{task_id}: {desc[:50]}")
+            log.info("task_created", task_id=task_id, description=desc[:50])
 
             # Notify Sebastian
             emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(priority, "📋")
@@ -428,7 +445,7 @@ def process_new_messages():
 
             # Report back
             send_whatsapp(f"✅ *Task #{task_id} wykonany*\n\n{result[:800]}")
-            log.info("Task #{task_id} completed")
+            log.info("task_completed", task_id=task_id)
 
         elif msg_type == "decision":
             decision_text = classification.get("decision_text", text)
@@ -454,7 +471,7 @@ def process_new_messages():
                 f"{decision_text[:300]}\n\n"
                 f"_Przypomnę o sprawdzeniu wyniku za 7 dni._"
             )
-            log.info("Decision #{decision_id} saved ({area})")
+            log.info("decision_saved", decision_id=decision_id, area=area)
 
         elif msg_type == "gtd":
             desc = classification.get("task_description", text)
@@ -484,12 +501,12 @@ def process_new_messages():
                         )
                     conn.commit()
                 send_whatsapp(f"📝 Doprecyzowanie dopisane do task #{task_id}")
-                log.info("GTD appended to task #{task_id}")
+                log.info("gtd_appended", task_id=task_id)
             else:
                 # Create new GTD note (pending, not auto-executed)
                 task_id = create_task_in_db(desc, "medium", area, text)
                 send_whatsapp(f"📝 *GTD #{task_id} zapisane*\n{desc[:300]}\n\n_Nie wykonuję automatycznie — czekam na 'Gilbertusie task:' jeśli chcesz uruchomić._")
-                log.info("GTD #{task_id} saved (not executed)")
+                log.info("gtd_saved", task_id=task_id, executed=False)
 
         elif msg_type == "communication_command":
             text_cmd = classification["text"]
@@ -501,27 +518,27 @@ def process_new_messages():
                 result = handle_authority_command(text_cmd)
                 if result:
                     send_whatsapp(json.dumps(result, ensure_ascii=False, default=str))
-                    log.info("Authority command processed")
+                    log.info("authority_command_processed")
             # Decision outcome commands
             elif text_cmd_lower.startswith("outcome #") or text_cmd_lower.startswith("skip #"):
                 from app.analysis.decision_intelligence import handle_decision_outcome
                 result = handle_decision_outcome(text_cmd)
                 if result:
                     send_whatsapp(result.get("response", json.dumps(result, ensure_ascii=False, default=str)))
-                    log.info("Decision outcome recorded")
+                    log.info("decision_outcome_recorded")
             # Delegation commands
             elif any(text_cmd_lower.startswith(p) for p in ["remind #", "cancel #", "extend #"]):
                 from app.orchestrator.delegation_chain import handle_delegation_command
                 result = handle_delegation_command(text_cmd, sender_phone=sender_phone)
                 if result:
                     send_whatsapp(result.get("response", json.dumps(result, ensure_ascii=False, default=str)))
-                    log.info("Delegation command processed")
+                    log.info("delegation_command_processed")
             else:
                 from app.orchestrator.communication import handle_communication_command
                 result = handle_communication_command(text_cmd)
                 if result:
                     send_whatsapp(result["response"])
-                    log.info("Communication: {result['type']}")
+                    log.info("communication_processed", comm_type=result.get("type"))
 
         elif msg_type == "query_command":
             cmd = classification.get("command", "")
@@ -669,10 +686,10 @@ def process_new_messages():
                         )
                 conn.commit()
             emoji = "\U0001f44d" if rating > 0 else "\U0001f44e"
-            log.info("Feedback {emoji} recorded (run_id={run_id})")
+            log.info("feedback_recorded", rating=rating, run_id=run_id)
 
         elif msg_type == "feedback":
-            log.info("Feedback recorded")
+            log.info("feedback_recorded")
 
     # Save state
     state["last_processed_line"] = messages[-1]["line"]

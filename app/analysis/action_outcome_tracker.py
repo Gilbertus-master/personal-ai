@@ -88,8 +88,12 @@ Respond ONLY with JSON array."""
 # Database
 # ================================================================
 
+_tables_ensured = False
 def _ensure_tables():
     """Create action_outcomes table if not exists."""
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -115,6 +119,7 @@ def _ensure_tables():
                 ON action_outcomes(outcome)
             """)
         conn.commit()
+    _tables_ensured = True
 
 
 # ================================================================

@@ -21,8 +21,12 @@ from app.db.postgres import get_pg_connection
 # Database
 # ================================================================
 
+_tables_ensured = False
 def _ensure_tables():
     """Ensure response tracking columns exist on sent_communications."""
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -34,6 +38,7 @@ def _ensure_tables():
                     ADD COLUMN IF NOT EXISTS response_time_hours NUMERIC
             """)
         conn.commit()
+    _tables_ensured = True
 
 
 # ================================================================

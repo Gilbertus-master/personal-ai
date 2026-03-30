@@ -87,7 +87,7 @@ if [ $ERRORS -gt 0 ]; then
         fi
     fi
 
-    if [ $SEND_ALERT -eq 1 ] && [ -f "$OPENCLAW" ]; then
+    if [ $SEND_ALERT -eq 1 ] && [ -f "$OPENCLAW" ] && [ -n "$WA_TARGET" ]; then
         $OPENCLAW message send --channel whatsapp --target "$WA_TARGET" \
             --message "$(echo -e "$ALERT_MSG")" 2>/dev/null || true
         date +%s > "$LAST_ALERT_FILE"

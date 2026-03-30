@@ -286,13 +286,18 @@ def _send_teams(recipient: str, message: str) -> dict:
 
 def _send_whatsapp_to(recipient: str, message: str) -> dict:
     try:
-        subprocess.run(
+        result = subprocess.run(
             [OPENCLAW_BIN, "message", "send", "--channel", "whatsapp",
              "--target", recipient, "--message", message],
             capture_output=True, text=True, timeout=30,
         )
+        if result.returncode != 0:
+            log.error("whatsapp_send_failed", recipient=recipient,
+                      returncode=result.returncode, stderr=result.stderr[:200])
+            return {"whatsapp_status": "error", "error": f"returncode={result.returncode}"}
         return {"whatsapp_status": "sent"}
     except Exception as e:
+        log.error("whatsapp_send_exception", recipient=recipient, error=str(e))
         return {"whatsapp_status": "error", "error": str(e)}
 
 

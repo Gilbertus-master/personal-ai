@@ -52,8 +52,12 @@ Respond ONLY with JSON:
 {"overall_score": N.N, "stress_score": N.N, "family_score": N.N, "health_score": N.N, "work_life_balance": N.N, "analysis": "...", "suggestions": ["...", ...]}"""
 
 
+_tables_ensured = False
 def _ensure_tables() -> None:
     """Create wellbeing_scores table if not exists."""
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -73,6 +77,7 @@ def _ensure_tables() -> None:
             """)
             conn.commit()
     log.info("wellbeing_monitor.tables_ensured")
+    _tables_ensured = True
 
 
 def gather_wellbeing_indicators(week_start: str) -> dict[str, Any]:

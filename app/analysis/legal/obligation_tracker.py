@@ -131,6 +131,10 @@ def create_obligation(
     required_documents: list[str] | None = None,
 ) -> dict[str, Any]:
     """Tworzy nowy obowiązek prawny. Automatycznie tworzy deadline jeśli next_deadline podany."""
+    deadline_date = None
+    if next_deadline:
+        deadline_date = date.fromisoformat(next_deadline)
+
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT id FROM compliance_areas WHERE code = %s",
@@ -140,12 +144,6 @@ def create_obligation(
                 return {"error": "area_not_found", "code": area_code}
             area_id = row[0]
 
-    deadline_date = None
-    if next_deadline:
-        deadline_date = date.fromisoformat(next_deadline)
-
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO compliance_obligations

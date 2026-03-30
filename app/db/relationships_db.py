@@ -3,11 +3,11 @@ Relationships DB — migration, seed data, and SQL helper functions.
 """
 from __future__ import annotations
 
-import logging
+import structlog
 
 from app.db.postgres import get_pg_connection
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # ── Migration ──────────────────────────────────────────────────────
 
@@ -169,10 +169,10 @@ def get_person_by_slug(cur, slug: str) -> dict | None:
         """,
         (slug,),
     )
-    row = cur.fetchone()
-    if row is None:
+    rows = cur.fetchall()
+    if not rows:
         return None
-    return _person_row_to_dict(row)
+    return _person_row_to_dict(rows[0])
 
 
 def get_person_full_profile(cur, person_id: int) -> dict:

@@ -1,6 +1,11 @@
+import hashlib
 import json
 
+import structlog
+
 from app.db.postgres import get_pg_connection
+
+log = structlog.get_logger(__name__)
 
 
 def get_connection():
@@ -68,23 +73,25 @@ def insert_chunk(
     timestamp_start,
     timestamp_end,
     embedding_id: str | None = None,
-) -> int:
+) -> int | None:
     ts_start = timestamp_start.isoformat() if timestamp_start else None
     ts_end = timestamp_end.isoformat() if timestamp_end else None
+    text_hash = hashlib.md5(text.encode()).hexdigest()
 
     with get_pg_connection() as pg:
         with pg.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO chunks (document_id, chunk_index, text, timestamp_start, timestamp_end, embedding_id)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO chunks (document_id, chunk_index, text, timestamp_start, timestamp_end, embedding_id, text_hash)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (document_id, text_hash) DO NOTHING
                 RETURNING id
                 """,
-                (document_id, chunk_index, text, ts_start, ts_end, embedding_id),
+                (document_id, chunk_index, text, ts_start, ts_end, embedding_id, text_hash),
             )
             row = cur.fetchone()
         pg.commit()
-    return row[0]
+    return row[0] if row else None
 
 
 def get_document_row(document_id: int) -> dict[str, str] | None:

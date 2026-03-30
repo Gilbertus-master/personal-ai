@@ -47,8 +47,12 @@ If no conflicts found, return [].
 Respond ONLY with JSON array."""
 
 
+_tables_ensured = False
 def _ensure_tables() -> None:
     """Ensure rule reinforcement schema exists."""
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             # Add tracking columns to self_rules
@@ -109,6 +113,7 @@ def _ensure_tables() -> None:
             """)
         conn.commit()
     log.info("rule_reinforcement.tables_ensured")
+    _tables_ensured = True
 
 
 def log_rule_application(rule_id: int, context: str, applied_in: str) -> int:

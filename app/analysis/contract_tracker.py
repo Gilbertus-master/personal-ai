@@ -46,8 +46,12 @@ Return JSON array of contracts found. If no contracts found, return [].
 Respond ONLY with JSON array. Be precise with dates — only extract if explicitly stated."""
 
 
+_tables_ensured = False
 def _ensure_tables() -> None:
     """Create contracts table if it doesn't exist."""
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -77,6 +81,7 @@ def _ensure_tables() -> None:
             """)
         conn.commit()
     log.debug("contracts_table_ensured")
+    _tables_ensured = True
 
 
 def scan_for_contracts(hours: int = 24) -> list[dict[str, Any]]:

@@ -100,7 +100,11 @@ Respond ONLY with JSON."""
 # Schema
 # ================================================================
 
+_tables_ensured = False
 def _ensure_tables():
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -126,6 +130,7 @@ def _ensure_tables():
                     ON strategic_radar_snapshots(created_at DESC);
             """)
             conn.commit()
+    _tables_ensured = True
 
 
 # ================================================================

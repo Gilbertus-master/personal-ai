@@ -44,8 +44,11 @@ def derive_thread_html_path(target_path: str) -> Path | None:
 
 
 def load_rows():
+    csv_files = sorted(REPORTS_ROOT.glob("Items_*.csv"))
+    if not csv_files:
+        raise FileNotFoundError(f"No Items_*.csv found in {REPORTS_ROOT}")
     rows = []
-    for csv_path in sorted(REPORTS_ROOT.glob("Items_*.csv")):
+    for csv_path in csv_files:
         with csv_path.open("r", encoding="utf-8-sig", newline="") as f:
             reader = csv.DictReader(f)
             for row in reader:

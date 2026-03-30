@@ -38,7 +38,11 @@ from app.db.postgres import get_pg_connection
 # DB Setup
 # ================================================================
 
+_tables_ensured = False
 def _ensure_tables():
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -67,6 +71,7 @@ def _ensure_tables():
             """)
         conn.commit()
     log.debug("cron_registry_tables_ensured")
+    _tables_ensured = True
 
 
 # ================================================================

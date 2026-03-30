@@ -45,7 +45,11 @@ NEVER_ALONE = 4     # Always requires Sebastian
 # Database
 # ================================================================
 
+_tables_ensured = False
 def _ensure_tables():
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -122,6 +126,7 @@ def _ensure_tables():
                     ON authority_log(created_at)
             """)
         conn.commit()
+    _tables_ensured = True
 
 
 # ================================================================

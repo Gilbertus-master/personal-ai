@@ -10,7 +10,7 @@ from app.ingestion.common.db import (
     insert_document,
     insert_source,
 )
-from app.ingestion.teams.parser import parse_teams_thread_html
+from app.ingestion.teams.parser import TeamsMessage, parse_teams_thread_html
 
 log = structlog.get_logger(__name__)
 
@@ -27,7 +27,7 @@ def build_chunk_text(messages) -> str:
     return "\n".join(parts)
 
 
-def chunk_messages(messages):
+def chunk_messages(messages: list[TeamsMessage]) -> list[list[TeamsMessage]]:
     chunks = []
     current = []
     current_len = 0
@@ -150,7 +150,11 @@ def main() -> None:
     # 2) optional limit via CLI: python -m ... --limit 100
     limit = None
     if len(sys.argv) == 3 and sys.argv[1] == "--limit":
-        limit = int(sys.argv[2])
+        try:
+            limit = int(sys.argv[2])
+        except ValueError:
+            log.error("Invalid --limit value", value=sys.argv[2])
+            sys.exit(1)
 
     paths = load_existing_thread_paths(limit=limit)
 

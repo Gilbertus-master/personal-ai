@@ -46,7 +46,11 @@ Dla każdego procesu zaproponuj plan optymalizacji:
 Respond ONLY with JSON array."""
 
 
+_tables_ensured = False
 def _ensure_tables():
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -69,6 +73,7 @@ def _ensure_tables():
                 CREATE INDEX IF NOT EXISTS idx_op_priority ON optimization_plans(priority_score DESC);
             """)
             conn.commit()
+    _tables_ensured = True
 
 
 def generate_plans() -> dict[str, Any]:

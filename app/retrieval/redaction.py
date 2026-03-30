@@ -74,17 +74,17 @@ def redact_match(match: dict[str, Any]) -> tuple[dict[str, Any], int]:
     total_redactions = 0
 
     if "text" in redacted:
-        new_text, count = redact_text(redacted.get("text"))
+        new_text, count = redact_text(redacted["text"])
         redacted["text"] = new_text
         total_redactions += count
 
     if "chunk_text" in redacted:
-        new_text, count = redact_text(redacted.get("chunk_text"))
+        new_text, count = redact_text(redacted["chunk_text"])
         redacted["chunk_text"] = new_text
         total_redactions += count
 
     if "excerpt" in redacted:
-        new_text, count = redact_text(redacted.get("excerpt"))
+        new_text, count = redact_text(redacted["excerpt"])
         redacted["excerpt"] = new_text
         total_redactions += count
 
@@ -92,7 +92,7 @@ def redact_match(match: dict[str, Any]) -> tuple[dict[str, Any], int]:
     if isinstance(metadata, dict):
         metadata_copy = dict(metadata)
         if "text" in metadata_copy:
-            new_text, count = redact_text(metadata_copy.get("text"))
+            new_text, count = redact_text(metadata_copy["text"])
             metadata_copy["text"] = new_text
             total_redactions += count
         redacted["metadata"] = metadata_copy

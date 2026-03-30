@@ -148,7 +148,11 @@ WAŻNE: Nie zwracaj oczywistych (email, przeglądarka). Szukaj SPECJALISTYCZNYCH
 Odpowiedz TYLKO JSON array."""
 
 
+_tables_ensured = False
 def _ensure_tables():
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -201,6 +205,7 @@ def _ensure_tables():
                 CREATE INDEX IF NOT EXISTS idx_ach_app ON app_cost_history(app_id);
             """)
             conn.commit()
+    _tables_ensured = True
 
 
 # ---------------------------------------------------------------------------

@@ -85,8 +85,12 @@ COMMITMENT_TOOL_SCHEMA = {
 }
 
 
+_tables_ensured = False
 def _ensure_tables() -> None:
     """Create commitment-related tables if they don't exist."""
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -124,6 +128,7 @@ def _ensure_tables() -> None:
             """)
         conn.commit()
     log.info("tables_ensured", tables=["commitments", "chunks_commitment_checked"])
+    _tables_ensured = True
 
 
 def parse_args() -> tuple[int, int, int, str | None]:

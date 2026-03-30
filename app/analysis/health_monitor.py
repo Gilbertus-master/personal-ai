@@ -33,7 +33,11 @@ BASELINE = {
 }
 
 
+_tables_ensured = False
 def _ensure_tables():
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -49,6 +53,7 @@ def _ensure_tables():
                     ON health_checks(check_time DESC);
             """)
             conn.commit()
+    _tables_ensured = True
 
 
 def _send_alert(message: str) -> bool:

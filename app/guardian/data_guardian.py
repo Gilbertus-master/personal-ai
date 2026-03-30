@@ -206,8 +206,8 @@ def _check_breaker_state(source_type: str) -> str | None:
         breaker = BREAKERS.get(breaker_name)
         if breaker:
             return breaker.state
-    except Exception:
-        pass
+    except Exception as e:
+        log.warning("breaker_state_check_failed", source_type=source_type, error=str(e))
     return None
 
 
@@ -505,7 +505,8 @@ def _should_send_alert(source_type: str) -> bool:
                     LIMIT 1
                 """, (f"%{source_type}%", ALERT_DEDUP_HOURS))
                 return not cur.fetchall()
-    except Exception:
+    except Exception as e:
+        log.warning("alert_dedup_check_failed", source_type=source_type, error=str(e))
         return True  # if DB check fails, send alert anyway
 
 
@@ -694,6 +695,19 @@ def check_processing_backlog() -> list[dict[str, Any]]:
     return issues
 
 
+def _is_process_running(pattern: str) -> bool:
+    """Check if a process matching the pattern is already running."""
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", pattern],
+            capture_output=True, text=True, timeout=10,
+        )
+        return result.returncode == 0
+    except Exception as e:
+        log.warning("process_check_failed", pattern=pattern, error=str(e))
+        return False
+
+
 def fix_processing_backlog(issues: list[dict[str, Any]]) -> None:
     """Auto-restart stalled processing workers."""
     for issue in issues:
@@ -702,14 +716,21 @@ def fix_processing_backlog(issues: list[dict[str, Any]]) -> None:
                     count=issue["count"], action=action)
 
         cmd: list[str] | None = None
+        check_pattern: str | None = None
         if action == "restart_index_chunks":
             cmd = [".venv/bin/python3", "-m", "app.retrieval.index_chunks", "--batch-size", "100"]
+            check_pattern = "app.retrieval.index_chunks"
         elif action == "restart_entity_extraction":
             cmd = [".venv/bin/python3", "-m", "app.extraction.entities", "200"]
+            check_pattern = "app.extraction.entities"
         elif action == "restart_event_extraction":
             cmd = [".venv/bin/python3", "-m", "app.extraction.events", "200"]
+            check_pattern = "app.extraction.events"
 
         if cmd:
+            if check_pattern and _is_process_running(check_pattern):
+                log.info("processing_worker_already_running", action=action, pattern=check_pattern)
+                continue
             try:
                 subprocess.Popen(
                     cmd,

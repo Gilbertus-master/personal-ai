@@ -7,8 +7,12 @@ from app.db.postgres import get_pg_connection
 log = structlog.get_logger(__name__)
 
 
+_tables_ensured = False
 def _ensure_tables() -> None:
     """Run migration inline if tables don't exist yet."""
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -19,6 +23,7 @@ def _ensure_tables() -> None:
             """)
             if not cur.fetchall()[0][0]:
                 log.warning("roi_hierarchy table missing — run migrations/019_roi.sql")
+    _tables_ensured = True
 
 
 def get_entity(entity_id: int) -> dict | None:

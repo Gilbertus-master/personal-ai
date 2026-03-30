@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 
+import structlog
+
 from app.ingestion.common.db import (
     document_exists_by_raw_path,
     get_connection,
@@ -8,8 +10,9 @@ from app.ingestion.common.db import (
     insert_document,
     insert_source,
 )
-from app.ingestion.whatsapp.parser import parse_whatsapp_file, extract_participants
+from app.ingestion.whatsapp.parser import parse_whatsapp_file, extract_participants, WhatsAppMessage
 
+log = structlog.get_logger(__name__)
 
 CHUNK_TARGET_CHARS = 5000
 
@@ -23,7 +26,7 @@ def build_chunk_text(messages) -> str:
     return "\n".join(parts)
 
 
-def chunk_messages(messages):
+def chunk_messages(messages: list[WhatsAppMessage]) -> list[list[WhatsAppMessage]]:
     chunks = []
     current = []
     current_len = 0
@@ -51,14 +54,18 @@ def main() -> None:
         print("Usage: python -m app.ingestion.whatsapp.importer <path_to_chat.txt>")
         sys.exit(1)
 
-    file_path = Path(sys.argv[1])
+    file_path = Path(sys.argv[1]).resolve()
     source_name = file_path.stem
 
     if document_exists_by_raw_path(str(file_path)):
         print(f"Skipping already imported file: {file_path}")
         sys.exit(0)
 
-    messages = parse_whatsapp_file(file_path)
+    try:
+        messages = parse_whatsapp_file(file_path)
+    except (FileNotFoundError, UnicodeDecodeError) as exc:
+        log.error("whatsapp_parse_failed", path=str(file_path), error=str(exc))
+        sys.exit(1)
     participants = extract_participants(messages)
 
     if not messages:

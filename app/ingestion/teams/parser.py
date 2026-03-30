@@ -133,6 +133,9 @@ def parse_teams_thread_html(file_path: str | Path) -> TeamsThread:
         if author:
             participants.add(author)
 
+        if not text and author:
+            text = "[attachment or non-text message]"
+
         if text:
             messages.append(
                 TeamsMessage(

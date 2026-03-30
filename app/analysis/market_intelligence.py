@@ -94,7 +94,11 @@ DEFAULT_SOURCES = [
 # Schema
 # ================================================================
 
+_tables_ensured = False
 def _ensure_tables() -> None:
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -159,6 +163,7 @@ def _ensure_tables() -> None:
             """)
             conn.commit()
     log.info("market_intelligence.tables_ensured")
+    _tables_ensured = True
 
 
 def _seed_default_sources() -> int:

@@ -46,7 +46,11 @@ Dla każdego procesu:
 Respond ONLY with JSON array. Szukaj WZORCÓW, nie pojedynczych zdarzeń."""
 
 
+_tables_ensured = False
 def _ensure_tables():
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -69,6 +73,7 @@ def _ensure_tables():
                 CREATE INDEX IF NOT EXISTS idx_dp_automation ON discovered_processes(automation_potential DESC);
             """)
             conn.commit()
+    _tables_ensured = True
 
 
 def _gather_process_data() -> str:

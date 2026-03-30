@@ -134,20 +134,23 @@ def _verify_fix(file_paths: list[str]) -> tuple[bool, str]:
     return True, diff.stdout.strip()
 
 
-def _revert_changes() -> None:
-    """Revert all uncommitted changes."""
+def _revert_changes(file_paths: list[str] | None = None) -> None:
+    """Revert uncommitted changes. If file_paths given, only revert those files."""
     try:
-        result = subprocess.run(
-            ["git", "diff", "--name-only"],
-            capture_output=True, text=True, timeout=10, cwd=str(PROJECT_DIR),
-        )
-        for fp in result.stdout.strip().split("\n"):
-            if fp.strip():
-                subprocess.run(
-                    ["git", "checkout", "--", fp.strip()],
-                    capture_output=True, text=True, timeout=10,
-                    cwd=str(PROJECT_DIR),
-                )
+        if file_paths:
+            targets = file_paths
+        else:
+            result = subprocess.run(
+                ["git", "diff", "--name-only"],
+                capture_output=True, text=True, timeout=10, cwd=str(PROJECT_DIR),
+            )
+            targets = [fp.strip() for fp in result.stdout.strip().split("\n") if fp.strip()]
+        for fp in targets:
+            subprocess.run(
+                ["git", "checkout", "--", fp],
+                capture_output=True, text=True, timeout=10,
+                cwd=str(PROJECT_DIR),
+            )
     except Exception as e:
         log.error("revert_failed", error=str(e))
 
@@ -222,10 +225,10 @@ def execute_tier2(cluster: dict, context: dict, prompt: str) -> dict:
                     "error": None, "cost_usd": result.get("cost_usd", 0)}
         else:
             log.warning("tier2_verify_failed", detail=detail)
-            _revert_changes()
+            _revert_changes(file_paths)
 
     # Second attempt with retry context
-    _revert_changes()
+    _revert_changes(file_paths)
     error_msg = ""
     if result:
         error_msg = result.get("error", "") or "verification failed"
@@ -253,7 +256,7 @@ def execute_tier2(cluster: dict, context: dict, prompt: str) -> dict:
                     "error": None, "cost_usd": total_cost}
 
     # Both attempts failed
-    _revert_changes()
+    _revert_changes(file_paths)
     _mark_attempted(finding_ids)
 
     final_error = "2x failed"

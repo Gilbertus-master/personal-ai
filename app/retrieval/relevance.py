@@ -50,44 +50,55 @@ def overlap_count(query_tokens: list[str], haystack: str) -> int:
     if not query_tokens or not haystack:
         return 0
 
-    text = haystack.lower()
-    score = 0
-    for token in query_tokens:
-        if token in text:
-            score += 1
-    return score
+    haystack_tokens = set(tokenize(haystack))
+    return len(set(query_tokens) & haystack_tokens)
 
 
-def domain_bonus(query_tokens: list[str], match: dict[str, Any]) -> float:
+def domain_score_delta(query_tokens: list[str], match: dict[str, Any]) -> float:
     """
     Bardzo lekki bonus/punishment zależny od domeny pytania.
+    Zwraca wartość dodatnią (bonus) lub ujemną (kara).
+
+    Wagi dobrane empirycznie na podstawie jakości rankingu:
+      +1.2  — dopasowanie tytułu do domeny relacji/partnera
+      +0.4  — bonus źródłowy WhatsApp dla zapytań o relacje (rozmowy prywatne)
+      +1.5  — dopasowanie tytułu do domeny Gilbertus/projekt
+      -0.5  — kara dla chunków BEZ pasującego tytułu w domenie Gilbertus;
+              INTENTIONAL: zapytania o architekturę/projekt preferują dokumenty
+              z jawnym tytułem projektowym. Kara może pominąć legitymne wyniki
+              z nieopatrzonych tytułem źródeł (np. surowe e-maile) — jest to
+              akceptowalny kompromis dla tej domeny.
+      +1.2  — dopasowanie tytułu do domeny trading/energia
+
+    TODO: rozważyć eksternalizację reguł do tabeli DB `domain_boost_rules`
+    lub pliku TOML, aby umożliwić zmianę wag bez redeploy.
     """
     title = get_match_title(match).lower()
     source_type = get_source_type(match).lower()
     query_blob = " ".join(query_tokens)
 
-    bonus = 0.0
+    delta = 0.0
 
     # Relacje / Zosia / partnerka
     if any(token in query_blob for token in ["zosia", "zosią", "partnerka", "relacji", "związek", "zwiazek"]):
         if "zosia" in title or "zwią" in title or "zwia" in title or "partner" in title:
-            bonus += 1.2
+            delta += 1.2
         if source_type == "whatsapp":
-            bonus += 0.4
+            delta += 0.4
 
     # Gilbertus / projekt / architektura
     if any(token in query_blob for token in ["gilbertus", "architektura", "ingestion", "projekt"]):
         if any(word in title for word in ["gilbertus", "projekt", "faza", "plan", "setup", "architektur"]):
-            bonus += 1.5
+            delta += 1.5
         else:
-            bonus -= 0.5
+            delta -= 0.5
 
     # trading / rynek / energia
     if any(token in query_blob for token in ["trading", "rynek", "energia", "energii", "trader"]):
         if any(word in title for word in ["trading", "energia", "market", "rynek", "trader"]):
-            bonus += 1.2
+            delta += 1.2
 
-    return bonus
+    return delta
 
 
 def compute_relevance_score(match: dict[str, Any], normalized_query: str) -> float:
@@ -109,7 +120,7 @@ def compute_relevance_score(match: dict[str, Any], normalized_query: str) -> flo
         semantic_score * 10.0
         + text_overlap * 0.8
         + title_overlap * 2.0
-        + domain_bonus(query_tokens, match)
+        + domain_score_delta(query_tokens, match)
     )
 
     return score

@@ -63,8 +63,12 @@ Zasady:
 """
 
 
+_tables_ensured = False
 def _ensure_tables() -> None:
     """Create meeting_minutes table if not exists."""
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -84,6 +88,7 @@ def _ensure_tables() -> None:
             """)
             conn.commit()
     log.info("meeting_minutes_table_ensured")
+    _tables_ensured = True
 
 
 def _get_unprocessed_recordings() -> list[dict[str, Any]]:

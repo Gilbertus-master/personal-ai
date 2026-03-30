@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 
+import structlog
+
 from app.ingestion.common.db import (
     document_exists_by_raw_path,
     get_connection,
@@ -9,6 +11,8 @@ from app.ingestion.common.db import (
     insert_source,
 )
 from app.ingestion.docs.parser import parse_document_file
+
+log = structlog.get_logger(__name__)
 
 
 CHUNK_TARGET_CHARS = 5000
@@ -43,13 +47,17 @@ def import_one_document(file_path: str | Path) -> bool:
     file_path = str(file_path)
 
     if document_exists_by_raw_path(file_path):
-        print(f"Skipping already imported file: {file_path}")
+        log.info("document_already_imported", file_path=file_path)
         return False
 
-    parsed = parse_document_file(file_path)
+    try:
+        parsed = parse_document_file(file_path)
+    except ValueError as exc:
+        log.warning("unsupported_document_format", file_path=file_path, error=str(exc))
+        return False
 
     if not parsed.text.strip():
-        print(f"No text extracted from file: {file_path}")
+        log.warning("no_text_extracted", file_path=file_path)
         return False
 
     conn = get_connection()
@@ -72,8 +80,9 @@ def import_one_document(file_path: str | Path) -> bool:
 
     chunks = chunk_text(parsed.text)
 
+    skip_count = 0
     for idx, chunk in enumerate(chunks):
-        insert_chunk(
+        result = insert_chunk(
             conn=conn,
             document_id=document_id,
             chunk_index=idx,
@@ -82,18 +91,32 @@ def import_one_document(file_path: str | Path) -> bool:
             timestamp_end=None,
             embedding_id=None,
         )
+        if result is None:
+            skip_count += 1
 
-    print(f"Imported document: {file_path}")
-    print(f"Type: {parsed.file_type}")
-    print(f"Title: {parsed.title}")
-    print(f"Chars: {len(parsed.text)}")
-    print(f"Chunks: {len(chunks)}")
+    if skip_count > 0:
+        log.warning(
+            "duplicate_chunks_skipped",
+            file_path=file_path,
+            skip_count=skip_count,
+            total_chunks=len(chunks),
+        )
+
+    log.info(
+        "document_imported",
+        file_path=file_path,
+        file_type=parsed.file_type,
+        title=parsed.title,
+        chars=len(parsed.text),
+        chunks=len(chunks),
+        skipped=skip_count,
+    )
     return True
 
 
 def main() -> None:
     if len(sys.argv) < 2:
-        print("Usage: python -m app.ingestion.docs.importer <path_to_document>")
+        log.error("usage_error", usage="python -m app.ingestion.docs.importer <path_to_document>")
         sys.exit(1)
 
     import_one_document(sys.argv[1])

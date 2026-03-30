@@ -18,7 +18,11 @@ from typing import Any
 from app.db.postgres import get_pg_connection
 
 
+_tables_ensured = False
 def _ensure_tables():
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -43,6 +47,7 @@ def _ensure_tables():
                 CREATE INDEX IF NOT EXISTS idx_df_automation ON data_flows(automation_status);
             """)
             conn.commit()
+    _tables_ensured = True
 
 
 def map_data_flows(days: int = 30) -> dict[str, Any]:

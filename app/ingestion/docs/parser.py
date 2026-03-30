@@ -43,15 +43,28 @@ def read_docx(path: Path) -> str:
         if text:
             parts.append(text)
 
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                text = cell.text.strip()
+                if text:
+                    parts.append(text)
+
     return "\n".join(parts).strip()
 
 
 def read_doc(path: Path) -> str:
-    raise NotImplementedError("DOC support not enabled yet. Convert DOC first.")
+    raise ValueError(f"Unsupported file format .doc — convert to DOCX first: {path}")
+
+
+MAX_FILE_BYTES = 100 * 1024 * 1024  # 100 MB
 
 
 def parse_document_file(file_path: str | Path) -> ParsedDocument:
     path = Path(file_path)
+    size = path.stat().st_size
+    if size > MAX_FILE_BYTES:
+        raise ValueError(f"File too large to parse: {size} bytes ({path.name})")
     suffix = path.suffix.lower()
 
     if suffix == ".txt":

@@ -10,7 +10,7 @@ from app.ingestion.common.db import (
     insert_document,
     insert_source,
 )
-from app.ingestion.chatgpt.parser import parse_chatgpt_export_file
+from app.ingestion.chatgpt.parser import ChatGPTMessage, parse_chatgpt_export_file
 
 log = structlog.get_logger()
 
@@ -25,7 +25,7 @@ def build_chunk_text(messages) -> str:
     return "\n".join(parts)
 
 
-def chunk_messages(messages):
+def chunk_messages(messages: list[ChatGPTMessage]) -> list[list[ChatGPTMessage]]:
     chunks = []
     current = []
     current_len = 0

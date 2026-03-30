@@ -33,8 +33,12 @@ load_dotenv()
 # Schema
 # ---------------------------------------------------------------------------
 
+_tables_ensured = False
 def _ensure_tables() -> None:
     """Create org_health_scores table if not exists."""
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -55,6 +59,7 @@ def _ensure_tables() -> None:
             """)
         conn.commit()
     log.info("org_health.tables_ensured")
+    _tables_ensured = True
 
 
 # ---------------------------------------------------------------------------

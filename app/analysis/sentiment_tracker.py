@@ -44,8 +44,12 @@ Respond ONLY with JSON:
 {"sentiment_score": N.N, "analysis": "...", "red_flags": ["...", ...]}"""
 
 
+_tables_ensured = False
 def _ensure_tables() -> None:
     """Create sentiment_scores table if not exists."""
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -70,6 +74,7 @@ def _ensure_tables() -> None:
             """)
             conn.commit()
     log.info("sentiment_tracker.tables_ensured")
+    _tables_ensured = True
 
 
 def _gather_person_data(person_name: str, week_start: str) -> dict[str, Any]:

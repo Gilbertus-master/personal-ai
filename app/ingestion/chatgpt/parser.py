@@ -4,6 +4,10 @@ from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
+import structlog
+
+log = structlog.get_logger(__name__)
+
 
 @dataclass
 class ChatGPTMessage:
@@ -20,7 +24,7 @@ class ChatGPTConversation:
     messages: list[ChatGPTMessage]
 
 
-def _ts(value) -> datetime | None:
+def _ts(value: float | int | None) -> datetime | None:
     if value is None:
         return None
     return datetime.fromtimestamp(value, tz=UTC)
@@ -34,6 +38,9 @@ def _extract_text_parts(message: dict[str, Any]) -> str:
     for part in parts:
         if isinstance(part, str) and part.strip():
             text_parts.append(part.strip())
+        elif not isinstance(part, str):
+            # Non-string parts (images, tool outputs) are intentionally skipped
+            log.warning("chatgpt_parser.non_string_part_skipped", part_type=type(part).__name__)
 
     return "\n".join(text_parts).strip()
 
@@ -63,7 +70,9 @@ def _flatten_messages(mapping: dict[str, Any]) -> list[ChatGPTMessage]:
             )
         )
 
-    items.sort(key=lambda m: m.timestamp or datetime.min.replace(tzinfo=UTC))
+    items = list(enumerate(items))
+    items.sort(key=lambda t: (t[1].timestamp or datetime.min.replace(tzinfo=UTC), t[0]))
+    items = [m for _, m in items]
     return items
 
 

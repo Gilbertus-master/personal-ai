@@ -253,6 +253,8 @@ def ingest_chatgpt_exports() -> tuple[int, int]:
 
 def ingest_claude_code_sessions() -> tuple[int, int]:
     """Import Claude Code session logs into Gilbertus."""
+    import time as _time
+
     state = load_state()
     processed = set(state.get("claude_sessions", []))
 
@@ -264,6 +266,13 @@ def ingest_claude_code_sessions() -> tuple[int, int]:
     for sessions_dir in CLAUDE_CODE_SESSIONS.rglob("*.jsonl"):
         fname = str(sessions_dir)
         if fname in processed:
+            continue
+
+        # Skip files modified in the last 5 minutes (may be actively written)
+        try:
+            if _time.time() - sessions_dir.stat().st_mtime < 300:
+                continue
+        except OSError:
             continue
 
         raw_path = f"claudecode://{sessions_dir.name}"

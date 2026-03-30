@@ -26,8 +26,12 @@ load_dotenv()
 log = structlog.get_logger(__name__)
 
 
+_tables_ensured = False
 def _ensure_tables() -> None:
     """Create communication_edges table if it doesn't exist."""
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -51,6 +55,7 @@ def _ensure_tables() -> None:
             """)
         conn.commit()
     log.debug("communication_edges_table_ensured")
+    _tables_ensured = True
 
 
 def build_weekly_graph(week_start: str | None = None) -> dict[str, Any]:

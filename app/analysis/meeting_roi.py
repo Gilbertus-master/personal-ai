@@ -35,8 +35,12 @@ MAX_ITEMS_FOR_SCALE = 5  # normalisation: 5 decisions = max score contribution
 # Schema
 # ---------------------------------------------------------------------------
 
+_tables_ensured = False
 def _ensure_tables() -> None:
     """Add ROI columns to meeting_minutes if they don't exist."""
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -51,6 +55,7 @@ def _ensure_tables() -> None:
             """)
             conn.commit()
     log.info("meeting_roi_tables_ensured")
+    _tables_ensured = True
 
 
 # ---------------------------------------------------------------------------
@@ -63,10 +68,12 @@ def score_meeting(minutes_id: int) -> dict:
     Score formula: (decisions*3 + action_items*2 + commitments*1) / max_possible * 5
     Capped at 5.0.
     """
+    _ensure_tables()
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT id, document_id, decisions, action_items, summary, title
+                SELECT id, document_id, decisions, action_items, summary, title,
+                       duration_planned_min, duration_actual_min
                 FROM meeting_minutes
                 WHERE id = %s
             """, (minutes_id,))
@@ -77,7 +84,20 @@ def score_meeting(minutes_id: int) -> dict:
                 log.warning("meeting_not_found", minutes_id=minutes_id)
                 return {"error": f"Meeting minutes {minutes_id} not found"}
 
-            mm_id, document_id, decisions_json, action_items_json, summary, title = row
+            mm_id, document_id, decisions_json, action_items_json, summary, title, \
+                duration_planned, duration_actual = row
+
+            # Populate duration_actual_min from chunk timestamps if not already set
+            if document_id and not duration_actual:
+                cur.execute("""
+                    SELECT EXTRACT(EPOCH FROM (MAX(timestamp_end) - MIN(timestamp_start))) / 60
+                    FROM chunks
+                    WHERE document_id = %s
+                      AND timestamp_start IS NOT NULL AND timestamp_end IS NOT NULL
+                """, (document_id,))
+                dur_row = cur.fetchone()
+                if dur_row and dur_row[0] and dur_row[0] > 0:
+                    duration_actual = round(dur_row[0])
 
             # Count decisions
             decisions_count = 0
@@ -130,10 +150,11 @@ def score_meeting(minutes_id: int) -> dict:
                     action_items_count = %s,
                     commitments_count = %s,
                     meeting_roi_score = %s,
-                    meeting_type = %s
+                    meeting_type = %s,
+                    duration_actual_min = COALESCE(duration_actual_min, %s)
                 WHERE id = %s
             """, (decisions_count, action_items_count, commitments_count,
-                  roi_score, meeting_type, mm_id))
+                  roi_score, meeting_type, duration_actual, mm_id))
             conn.commit()
 
     result = {

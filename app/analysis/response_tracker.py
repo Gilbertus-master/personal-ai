@@ -35,8 +35,12 @@ client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"), timeout=60.0)
 # Database
 # ================================================================
 
+_tables_ensured = False
 def _ensure_tables():
     """Add response tracking columns to sent_communications."""
+    global _tables_ensured
+    if _tables_ensured:
+        return
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -74,6 +78,7 @@ def _ensure_tables():
             """)
         conn.commit()
     log.debug("response_tracker_tables_ensured")
+    _tables_ensured = True
 
 
 # ================================================================
