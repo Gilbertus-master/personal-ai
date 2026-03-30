@@ -1,0 +1,48 @@
+name: Build Desktop MSI (Manual)
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'App to build'
+        required: true
+        default: 'gilbertus'
+        type: choice
+        options: [gilbertus, omnius]
+
+jobs:
+  build-windows-msi:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        run: cd frontend && pnpm install --frozen-lockfile
+
+      - name: Build web (static export)
+        run: cd frontend && pnpm --filter @gilbertus/web build
+        env:
+          TAURI_BUILD: '1'
+
+      - name: Build Tauri app (MSI)
+        run: cd frontend/apps/desktop && node node_modules/.bin/tauri build --bundles msi
+        env:
+          TAURI_BUILD: '1'
+
+      - name: Upload MSI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GilbertusAlbans-MSI
+          path: frontend/apps/desktop/src-tauri/target/release/bundle/msi/*.msi
+          retention-days: 7
