@@ -151,7 +151,8 @@ export function useVoice() {
       s.addMessage(sessionId, { role: 'user', text: result.transcript });
       s.addMessage(sessionId, { role: 'assistant', text: result.answer });
 
-      if (s.autoPlayTts && result.tts_available) {
+      // Play TTS only if responseMode === 'voice' (persisted preference)
+      if (s.autoPlayTts && result.tts_available && s.responseMode !== 'text') {
         const ttsBlob = await textToSpeech(result.answer, s.voiceName);
         playAudio(ttsBlob);
       }

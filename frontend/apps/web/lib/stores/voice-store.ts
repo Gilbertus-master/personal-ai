@@ -32,6 +32,7 @@ interface VoiceStore {
   language: 'pl' | 'en';
   autoPlayTts: boolean;
   voiceName: string;
+  responseMode: 'voice' | 'text';  // persisted preference — voice or text reply
 
   // --- Persisted sessions ---
   sessions: VoiceSession[];
@@ -50,6 +51,7 @@ interface VoiceStore {
   setLanguage: (l: 'pl' | 'en') => void;
   setAutoPlayTts: (v: boolean) => void;
   setVoiceName: (v: string) => void;
+  setResponseMode: (m: 'voice' | 'text') => void;
 
   // --- Session actions ---
   createSession: () => string;
@@ -83,6 +85,7 @@ export const useVoiceStore = create<VoiceStore>()(
       language: 'pl',
       autoPlayTts: true,
       voiceName: 'pl-PL-ZofiaNeural',
+      responseMode: 'voice',
 
       // Persisted session defaults
       sessions: [],
@@ -100,6 +103,7 @@ export const useVoiceStore = create<VoiceStore>()(
       setMode: (m) => set({ mode: m }),
       setLanguage: (l) => set({ language: l }),
       setAutoPlayTts: (v) => set({ autoPlayTts: v }),
+      setResponseMode: (m) => set({ responseMode: m }),
       setVoiceName: (v) => set({ voiceName: v }),
 
       // Session actions

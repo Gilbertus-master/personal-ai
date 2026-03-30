@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Sidebar, Topbar, CommandPalette, UserMenu, OfflineBanner, VoiceFab, VoiceQuickPanel, ToastContainer, AlertDetailDrawer, showToast } from '@gilbertus/ui';
+import { useVoiceStore } from '@/lib/stores/voice-store';
 import { useRole } from '@gilbertus/rbac';
 import { OfflineProvider } from '@/lib/providers/offline-provider';
 import { useSidebarStore } from '@/lib/stores/sidebar-store';
@@ -26,6 +27,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { roleLevel } = useRole();
   const voice = useVoice();
+  const { responseMode, setResponseMode } = useVoiceStore();
   const queryClient = useQueryClient();
 
   const alertsBell = useAlertsBell();
@@ -123,6 +125,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               onRecordStop={voice.stopRecording}
               onStopPlayback={voice.stopPlayback}
               onOpenFullPage={() => { setVoicePanelOpen(false); router.push('/voice'); }}
+              responseMode={responseMode}
+              onResponseModeChange={setResponseMode}
             />
           </>
         )}

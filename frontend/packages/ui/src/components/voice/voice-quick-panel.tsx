@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
-import { X, Maximize2 } from 'lucide-react';
+import { X, Maximize2, Volume2, Type } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { PushToTalkButton } from './push-to-talk-button';
 
@@ -17,6 +17,8 @@ export interface VoiceQuickPanelProps {
   onRecordStop: () => void;
   onStopPlayback: () => void;
   onOpenFullPage: () => void;
+  responseMode?: 'voice' | 'text';
+  onResponseModeChange?: (m: 'voice' | 'text') => void;
 }
 
 export function VoiceQuickPanel({
@@ -31,6 +33,8 @@ export function VoiceQuickPanel({
   onRecordStop,
   onStopPlayback,
   onOpenFullPage,
+  responseMode = 'voice',
+  onResponseModeChange,
 }: VoiceQuickPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -97,7 +101,7 @@ export function VoiceQuickPanel({
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
           {!transcript && !response && (
             <p className="text-sm text-[var(--text-secondary)] text-center py-4">
-              Przytrzymaj przycisk i zadaj pytanie
+Kliknij mikrofon i zadaj pytanie
             </p>
           )}
 
