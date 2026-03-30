@@ -26,11 +26,14 @@ interface BudgetData {
   budgets: Array<{ status: string }>;
 }
 
+export type TileKey = 'documents' | 'events' | 'entities' | 'commitments' | 'budget' | 'alerts';
+
 interface KpiGridProps {
   status?: StatusData;
   commitmentsCount?: number;
   budget?: BudgetData;
   isLoading?: boolean;
+  onTileClick?: (tile: TileKey) => void;
 }
 
 function getBudgetColor(budget?: BudgetData): 'success' | 'warning' | 'danger' {
@@ -44,7 +47,7 @@ function getBudgetColor(budget?: BudgetData): 'success' | 'warning' | 'danger' {
   return 'success';
 }
 
-export function KpiGrid({ status, commitmentsCount, budget, isLoading = false }: KpiGridProps) {
+export function KpiGrid({ status, commitmentsCount, budget, isLoading = false, onTileClick }: KpiGridProps) {
   if (isLoading) {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -64,36 +67,42 @@ export function KpiGrid({ status, commitmentsCount, budget, isLoading = false }:
         value={status?.db.documents ?? 0}
         icon={<FileText />}
         color="default"
+        onClick={() => onTileClick?.('documents')}
       />
       <KpiCard
         label="Eventy"
         value={status?.db.events ?? 0}
         icon={<Calendar />}
         color="default"
+        onClick={() => onTileClick?.('events')}
       />
       <KpiCard
         label="Encje"
         value={status?.db.entities ?? 0}
         icon={<Users />}
         color="default"
+        onClick={() => onTileClick?.('entities')}
       />
       <KpiCard
         label="Otwarte zobowiązania"
         value={commitmentsCount ?? 0}
         icon={<Target />}
         color={(commitmentsCount ?? 0) > 10 ? 'warning' : 'default'}
+        onClick={() => onTileClick?.('commitments')}
       />
       <KpiCard
         label="Koszty dziś"
         value={budget ? `$${budget.daily_total_usd.toFixed(2)}` : '$0.00'}
         icon={<DollarSign />}
         color={getBudgetColor(budget)}
+        onClick={() => onTileClick?.('budget')}
       />
       <KpiCard
         label="Aktywne alerty"
         value={alertCount}
         icon={<AlertTriangle />}
         color={alertCount > 0 ? 'danger' : 'success'}
+        onClick={() => onTileClick?.('alerts')}
       />
     </div>
   );

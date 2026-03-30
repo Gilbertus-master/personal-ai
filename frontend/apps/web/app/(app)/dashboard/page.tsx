@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useRole } from '@gilbertus/rbac';
 import {
   KpiGrid,
@@ -8,7 +9,12 @@ import {
   ActivityTimeline,
   SystemStatus,
   DashboardQuickActions,
+  DashboardDetailDrawer,
+  AlertDetailDrawer,
 } from '@gilbertus/ui';
+import type { TileKey } from '@gilbertus/ui';
+import type { AlertItem } from '@gilbertus/api-client';
+import { resolveAlert } from '@gilbertus/api-client';
 import {
   useBrief,
   useAlerts,
@@ -24,6 +30,9 @@ export default function DashboardPage() {
   const { role } = useRole();
   const queryClient = useQueryClient();
   const store = useDashboardStore();
+  const [drawerTile, setDrawerTile] = useState<TileKey | null>(null);
+  const [selectedAlert, setSelectedAlert] = useState<AlertItem | null>(null);
+  const [isResolving, setIsResolving] = useState(false);
 
   const brief = useBrief();
   const alerts = useAlerts();
@@ -34,6 +43,24 @@ export default function DashboardPage() {
 
   const handleBriefRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ['brief'] });
+  };
+
+  const handleResolveAlert = async (
+    alertId: number,
+    action: 'fix' | 'suppress',
+    comment: string,
+    fixInstruction?: string,
+  ) => {
+    setIsResolving(true);
+    try {
+      await resolveAlert(alertId, { action, comment, fix_instruction: fixInstruction });
+      setSelectedAlert(null);
+      queryClient.invalidateQueries({ queryKey: ['alerts'] });
+    } catch (err) {
+      console.error('Failed to resolve alert', err);
+    } finally {
+      setIsResolving(false);
+    }
   };
 
   const isFullAccess = role === 'gilbertus_admin' || role === 'ceo';
@@ -71,6 +98,7 @@ export default function DashboardPage() {
           commitmentsCount={commitments.data?.commitments?.length}
           budget={budget.data}
           isLoading={status.isLoading || commitments.isLoading || budget.isLoading}
+          onTileClick={setDrawerTile}
         />
       )}
 
@@ -124,6 +152,22 @@ export default function DashboardPage() {
           <DashboardQuickActions />
         </div>
       </div>
+
+      <DashboardDetailDrawer
+        tile={drawerTile}
+        onClose={() => setDrawerTile(null)}
+        onOpenAlert={(alert) => {
+          setDrawerTile(null);
+          setSelectedAlert(alert);
+        }}
+      />
+
+      <AlertDetailDrawer
+        alert={selectedAlert}
+        onClose={() => setSelectedAlert(null)}
+        onResolve={handleResolveAlert}
+        isResolving={isResolving}
+      />
     </div>
   );
 }

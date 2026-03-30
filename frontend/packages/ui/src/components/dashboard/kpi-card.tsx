@@ -1,7 +1,7 @@
 'use client';
 
-import type { ReactNode } from 'react';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { TrendingUp, TrendingDown, Minus, ChevronRight } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 interface KpiCardProps {
@@ -12,6 +12,7 @@ interface KpiCardProps {
   trendValue?: string;
   color?: 'default' | 'success' | 'warning' | 'danger';
   isLoading?: boolean;
+  onClick?: () => void;
 }
 
 const VALUE_COLOR_MAP = {
@@ -35,7 +36,9 @@ export function KpiCard({
   trendValue,
   color = 'default',
   isLoading = false,
+  onClick,
 }: KpiCardProps) {
+  const [hovered, setHovered] = useState(false);
   if (isLoading) {
     return (
       <div className="rounded-lg bg-[var(--surface)] border border-[var(--border)] p-4">
@@ -52,7 +55,15 @@ export function KpiCard({
   const trendConfig = trend ? TREND_CONFIG[trend] : null;
 
   return (
-    <div className="rounded-lg bg-[var(--surface)] border border-[var(--border)] p-4 flex flex-col justify-between">
+    <div
+      className={cn(
+        'rounded-lg bg-[var(--surface)] border border-[var(--border)] p-4 flex flex-col justify-between relative transition-all',
+        onClick && 'cursor-pointer hover:ring-1 hover:ring-[var(--accent)] hover:border-[var(--accent)]',
+      )}
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       {icon && (
         <div className="text-[var(--text-muted)] mb-2 [&>svg]:h-5 [&>svg]:w-5">
           {icon}
@@ -69,6 +80,9 @@ export function KpiCard({
           <trendConfig.Icon className="h-3.5 w-3.5" />
           {trendValue && <span>{trendValue}</span>}
         </div>
+      )}
+      {onClick && hovered && (
+        <ChevronRight className="absolute bottom-2 right-2 h-3 w-3 text-[var(--accent)]" />
       )}
     </div>
   );
