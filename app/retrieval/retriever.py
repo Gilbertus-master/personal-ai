@@ -6,6 +6,8 @@ from typing import Any
 
 from dotenv import load_dotenv
 from openai import OpenAI, APIConnectionError, APITimeoutError, RateLimitError
+from app.utils.dns_patch import apply_dns_patch
+apply_dns_patch(["api.openai.com"])
 from qdrant_client import QdrantClient
 
 from app.db.postgres import get_pg_connection
