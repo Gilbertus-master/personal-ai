@@ -28,6 +28,31 @@ load_dotenv()
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
 ANTHROPIC_FAST = os.getenv("ANTHROPIC_FAST_MODEL", "claude-haiku-4-5")
 
+_tables_ready = False
+
+
+def _ensure_tables() -> None:
+    global _tables_ready
+    if _tables_ready:
+        return
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS wa_tasks (
+                    id BIGSERIAL PRIMARY KEY,
+                    description TEXT NOT NULL,
+                    priority TEXT DEFAULT 'medium',
+                    area TEXT DEFAULT 'general',
+                    source_text TEXT,
+                    status TEXT DEFAULT 'pending',
+                    result TEXT,
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    completed_at TIMESTAMPTZ
+                )
+            """)
+        conn.commit()
+    _tables_ready = True
+
 # Whitelist of phone numbers authorized to approve actions via WhatsApp
 AUTHORIZED_SENDERS = set(
     s.strip() for s in
@@ -238,22 +263,9 @@ def classify_message(text: str) -> dict:
 
 def create_task_in_db(description: str, priority: str, area: str, source_text: str) -> int:
     """Create a task record in the database."""
+    _ensure_tables()
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
-            # Create tasks table if not exists
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS wa_tasks (
-                    id BIGSERIAL PRIMARY KEY,
-                    description TEXT NOT NULL,
-                    priority TEXT DEFAULT 'medium',
-                    area TEXT DEFAULT 'general',
-                    source_text TEXT,
-                    status TEXT DEFAULT 'pending',
-                    result TEXT,
-                    created_at TIMESTAMPTZ DEFAULT NOW(),
-                    completed_at TIMESTAMPTZ
-                )
-            """)
             cur.execute(
                 """INSERT INTO wa_tasks (description, priority, area, source_text, status)
                    VALUES (%s, %s, %s, %s, 'pending') RETURNING id""",
