@@ -26,3 +26,4 @@ export * from './components/settings';
 export * from './components/admin';
 export * from './components/omnius-bridge';
 export * from './components/voice';
+export * from './components/context-chat';

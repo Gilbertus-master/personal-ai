@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Sidebar, Topbar, CommandPalette, UserMenu, OfflineBanner, VoiceFab, VoiceQuickPanel } from '@gilbertus/ui';
+import { Sidebar, Topbar, CommandPalette, UserMenu, OfflineBanner, VoiceFab, VoiceQuickPanel, ContextChatWidget } from '@gilbertus/ui';
+import type { ChatContext } from '@gilbertus/ui';
 import { useRole } from '@gilbertus/rbac';
 import { OfflineProvider } from '@/lib/providers/offline-provider';
 import { useSidebarStore } from '@/lib/stores/sidebar-store';
@@ -24,6 +25,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const alertsBell = useAlertsBell();
   const { dismissedAlertIds, dismissAlert } = useDashboardStore();
+
+  // Derive chat context from current route
+  const chatContext: ChatContext = (() => {
+    if (!pathname) return 'general';
+    if (pathname.startsWith('/brief')) return 'brief';
+    if (pathname.startsWith('/compliance')) return 'compliance';
+    if (pathname.startsWith('/market')) return 'market';
+    if (pathname.startsWith('/finance')) return 'finance';
+    if (pathname.startsWith('/intelligence')) return 'intelligence';
+    if (pathname.startsWith('/people')) return 'people';
+    if (pathname.startsWith('/process')) return 'process';
+    if (pathname.startsWith('/decisions')) return 'decisions';
+    if (pathname.startsWith('/calendar')) return 'calendar';
+    if (pathname.startsWith('/documents')) return 'documents';
+    if (pathname.startsWith('/voice')) return 'voice';
+    if (pathname.startsWith('/admin')) return 'admin';
+    return 'general';
+  })();
 
   return (
     <OfflineProvider>
@@ -84,6 +103,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               onOpenFullPage={() => { setVoicePanelOpen(false); router.push('/voice'); }}
             />
           </>
+        )}
+
+        {/* Context-aware chat widget — hidden on /chat (has its own chat UI) */}
+        {!pathname?.startsWith('/chat') && (
+          <ContextChatWidget context={chatContext} />
         )}
       </div>
     </OfflineProvider>

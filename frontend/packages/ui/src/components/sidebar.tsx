@@ -7,6 +7,7 @@ import { getNavigationModules } from '@gilbertus/rbac';
 import type { RoleName } from '@gilbertus/rbac';
 import {
   LayoutDashboard,
+  Sunrise,
   MessageSquare,
   Users,
   Brain,
@@ -28,6 +29,7 @@ import { cn } from '../lib/utils';
 
 const ICON_MAP: Record<string, LucideIcon> = {
   LayoutDashboard,
+  Sunrise,
   MessageSquare,
   Users,
   Brain,
