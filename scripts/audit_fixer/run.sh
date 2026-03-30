@@ -9,7 +9,7 @@ source .venv/bin/activate
 
 echo "Gilbertus Audit Fixer Orchestrator"
 echo "  Repo: $REPO_DIR"
-echo "  Tasks: $(python3 -c "import json; q=json.load(open('$SCRIPT_DIR/queue.json')); print(f\"{sum(1 for t in q['tasks'] if t['status']=='pending')} pending / {len(q['tasks'])} total\")")"
+echo "  Tasks: $(.venv/bin/python -c "import json; q=json.load(open('$SCRIPT_DIR/queue.json')); print(f\"{sum(1 for t in q['tasks'] if t['status']=='pending')} pending / {len(q['tasks'])} total\")")"
 echo ""
 
-python3 "$SCRIPT_DIR/runner.py" "$@"
+.venv/bin/python "$SCRIPT_DIR/runner.py" "$@"

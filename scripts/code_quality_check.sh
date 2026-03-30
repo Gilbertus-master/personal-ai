@@ -149,7 +149,7 @@ fi
 echo "12. Non-regression..."
 BASELINE_FILE="logs/.qc_baseline.json"
 CURRENT_MCP=$(echo '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}
-{"jsonrpc":"2.0","method":"tools/list","id":2,"params":{}}' | timeout 5 .venv/bin/python mcp_gilbertus/server.py 2>/dev/null | .venv/bin/python -c "
+{"jsonrpc":"2.0","method":"tools/list","id":2,"params":{}}' | timeout 5 .venv/bin/python mcp_gilbertus/server.py --full 2>/dev/null | .venv/bin/python -c "
 import sys
 for line in sys.stdin:
     line=line.strip()

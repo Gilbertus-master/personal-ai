@@ -58,7 +58,7 @@ else
 fi
 
 # 6. Check services
-API_STATUS=$(curl -sf http://127.0.0.1:8000/health 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','?'))" 2>/dev/null || echo "DOWN")
+API_STATUS=$(curl -sf http://127.0.0.1:8000/health 2>/dev/null | .venv/bin/python -c "import sys,json; print(json.load(sys.stdin).get('status','?'))" 2>/dev/null || echo "DOWN")
 QDRANT_STATUS=$(curl -sf http://127.0.0.1:6333/collections 2>/dev/null && echo "OK" || echo "DOWN")
 echo "  SERVICES: API=${API_STATUS}, Qdrant=${QDRANT_STATUS}"
 

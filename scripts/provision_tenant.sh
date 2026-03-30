@@ -47,7 +47,7 @@ curl -s -X PUT "${QDRANT_URL}/collections/${QDRANT_COLLECTION}" \
       "size": 3072,
       "distance": "Cosine"
     }
-  }' 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'  Collection: {d.get(\"result\", d.get(\"status\", \"?\"))}')" 2>/dev/null || echo "  Collection may already exist"
+  }' 2>/dev/null | .venv/bin/python -c "import sys,json; d=json.load(sys.stdin); print(f'  Collection: {d.get(\"result\", d.get(\"status\", \"?\"))}')" 2>/dev/null || echo "  Collection may already exist"
 
 # 4. Seed admin user
 echo "Step 4: Seeding admin user (${ADMIN_EMAIL})..."

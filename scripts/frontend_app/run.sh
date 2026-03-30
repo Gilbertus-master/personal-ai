@@ -15,4 +15,4 @@ echo "  Repo: $REPO_DIR"
 echo "  Frontend: $REPO_DIR/frontend"
 echo ""
 
-python3 "$SCRIPT_DIR/master.py" "$@"
+.venv/bin/python "$SCRIPT_DIR/master.py" "$@"

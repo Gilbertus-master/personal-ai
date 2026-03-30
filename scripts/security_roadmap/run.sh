@@ -11,4 +11,4 @@ echo "Gilbertus Security Roadmap Runner"
 echo "  Repo: $REPO_DIR"
 echo ""
 
-python3 "$SCRIPT_DIR/runner.py" "$@"
+.venv/bin/python "$SCRIPT_DIR/runner.py" "$@"

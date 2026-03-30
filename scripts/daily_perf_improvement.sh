@@ -8,6 +8,6 @@ source .venv/bin/activate
 
 echo "=== Perf Improvement Run: $(date -Iseconds) ==="
 
-python3 -m app.analysis.perf_improver.improvement_agent 2>&1
+.venv/bin/python -m app.analysis.perf_improver.improvement_agent 2>&1
 
 echo "=== Done: $(date -Iseconds) ==="

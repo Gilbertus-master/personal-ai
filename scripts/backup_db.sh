@@ -60,7 +60,7 @@ QDRANT_SNAP_DIR="$BACKUP_DIR/qdrant_snapshots"
 mkdir -p "$QDRANT_SNAP_DIR"
 
 COLLECTIONS=$(curl -sf $QDRANT_AUTH "$QDRANT_URL/collections" 2>/dev/null | \
-    python3 -c "import sys,json; [print(c['name']) for c in json.load(sys.stdin).get('result',{}).get('collections',[])]" 2>/dev/null || true)
+    .venv/bin/python -c "import sys,json; [print(c['name']) for c in json.load(sys.stdin).get('result',{}).get('collections',[])]" 2>/dev/null || true)
 
 QDRANT_OK=false
 if [ -n "$COLLECTIONS" ]; then
@@ -71,7 +71,7 @@ if [ -n "$COLLECTIONS" ]; then
             echo "==> WARNING: Failed to create Qdrant snapshot for $COLL"
             continue
         fi
-        SNAP_NAME=$(echo "$SNAP_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('result',{}).get('name',''))" 2>/dev/null || echo "")
+        SNAP_NAME=$(echo "$SNAP_RESP" | .venv/bin/python -c "import sys,json; print(json.load(sys.stdin).get('result',{}).get('name',''))" 2>/dev/null || echo "")
         if [ -n "$SNAP_NAME" ]; then
             curl -sf $QDRANT_AUTH "$QDRANT_URL/collections/$COLL/snapshots/$SNAP_NAME" \
                 -o "$QDRANT_SNAP_DIR/${COLL}.snapshot" 2>/dev/null || true

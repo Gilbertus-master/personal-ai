@@ -48,9 +48,9 @@ LAST_MSG=""
 QR_PENDING=false
 if HEALTH_RESPONSE=$(curl -s --max-time 5 "$HEALTH_URL" 2>/dev/null); then
     HEALTH_OK=true
-    CONNECTED=$(echo "$HEALTH_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('connected', False))" 2>/dev/null || echo "false")
-    LAST_MSG=$(echo "$HEALTH_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('last_msg_at', ''))" 2>/dev/null || echo "")
-    QR_PENDING=$(echo "$HEALTH_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('qr_pending', False))" 2>/dev/null || echo "false")
+    CONNECTED=$(echo "$HEALTH_RESPONSE" | .venv/bin/python -c "import sys,json; print(json.load(sys.stdin).get('connected', False))" 2>/dev/null || echo "false")
+    LAST_MSG=$(echo "$HEALTH_RESPONSE" | .venv/bin/python -c "import sys,json; print(json.load(sys.stdin).get('last_msg_at', ''))" 2>/dev/null || echo "")
+    QR_PENDING=$(echo "$HEALTH_RESPONSE" | .venv/bin/python -c "import sys,json; print(json.load(sys.stdin).get('qr_pending', False))" 2>/dev/null || echo "false")
 fi
 
 # 4. If QR pending, let repair monitor handle it

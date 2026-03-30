@@ -32,7 +32,7 @@ case "$ACTION" in
     # Qdrant snapshot
     echo "Snapshotting Qdrant..."
     curl -s -X POST "http://127.0.0.1:6333/collections/gilbertus_chunks/snapshots" > /dev/null
-    SNAP=$(curl -s "http://127.0.0.1:6333/collections/gilbertus_chunks/snapshots" | python3 -c "import sys,json; snaps=json.load(sys.stdin)['result']; print(snaps[-1]['name'])" 2>/dev/null)
+    SNAP=$(curl -s "http://127.0.0.1:6333/collections/gilbertus_chunks/snapshots" | .venv/bin/python -c "import sys,json; snaps=json.load(sys.stdin)['result']; print(snaps[-1]['name'])" 2>/dev/null)
     curl -s "http://127.0.0.1:6333/collections/gilbertus_chunks/snapshots/${SNAP}" -o backups/migration/qdrant_snapshot.tar
     echo "  Qdrant: $(du -h backups/migration/qdrant_snapshot.tar | cut -f1)"
 

@@ -63,7 +63,7 @@ fi
 # 2. Pre-deploy non-regression check (ZASADA ZERO)
 echo ""
 echo ">>> Non-regression check (pre-deploy)..."
-if python3 scripts/non_regression_gate.py check 2>/dev/null; then
+if .venv/bin/python scripts/non_regression_gate.py check 2>/dev/null; then
     echo "  ✅ Gilbertus baseline OK"
 else
     echo "  ❌ NON-REGRESSION FAILED — deploy blocked"
@@ -72,7 +72,7 @@ else
 fi
 
 # Save pre-deploy snapshot for post-deploy comparison
-python3 scripts/non_regression_gate.py snapshot pre_deploy 2>/dev/null || true
+.venv/bin/python scripts/non_regression_gate.py snapshot pre_deploy 2>/dev/null || true
 echo "  Pre-deploy snapshot saved"
 
 # 3. Sync omnius/ code via rsync
@@ -111,7 +111,7 @@ echo ">>> Health check..."
 HEALTH=$(curl -sf --max-time 10 "https://${REMOTE_HOST}/health" 2>/dev/null || echo '{"status":"unreachable"}')
 echo "  $HEALTH"
 
-STATUS=$(echo "$HEALTH" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "unknown")
+STATUS=$(echo "$HEALTH" | .venv/bin/python -c "import sys,json; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "unknown")
 
 if [ "$STATUS" = "ok" ]; then
     echo ""
@@ -123,7 +123,7 @@ if [ "$STATUS" = "ok" ]; then
     # Post-deploy non-regression check
     echo ""
     echo ">>> Post-deploy non-regression check..."
-    if python3 scripts/non_regression_gate.py compare pre_deploy 2>/dev/null; then
+    if .venv/bin/python scripts/non_regression_gate.py compare pre_deploy 2>/dev/null; then
         echo "  ✅ No regression detected"
     else
         echo "  ⚠️  Regression detected — consider rollback"

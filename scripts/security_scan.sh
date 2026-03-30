@@ -8,12 +8,12 @@ cd "$REPO"
 source .venv/bin/activate
 
 RESULT=$(pip-audit -r requirements.txt --format=json 2>/dev/null || echo '{"vulnerabilities":[]}')
-VULN_COUNT=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d.get('vulnerabilities',[])))")
+VULN_COUNT=$(echo "$RESULT" | .venv/bin/python -c "import sys,json; d=json.load(sys.stdin); print(len(d.get('vulnerabilities',[])))")
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Vulnerabilities found: $VULN_COUNT" >> "$LOG"
 
 if [ "$VULN_COUNT" -gt "0" ]; then
-    DETAILS=$(echo "$RESULT" | python3 -c "
+    DETAILS=$(echo "$RESULT" | .venv/bin/python -c "
 import sys, json
 d = json.load(sys.stdin)
 for v in d['vulnerabilities'][:5]:

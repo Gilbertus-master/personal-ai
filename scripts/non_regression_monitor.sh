@@ -19,9 +19,9 @@ if [ ! -f "$BASELINE_FILE" ]; then
     exit 0
 fi
 
-BASE_MCP=$(python3 -c "import json; print(json.load(open('$BASELINE_FILE')).get('mcp',0))" 2>/dev/null || echo 0)
-BASE_CRON=$(python3 -c "import json; print(json.load(open('$BASELINE_FILE')).get('cron',0))" 2>/dev/null || echo 0)
-BASE_TABLES=$(python3 -c "import json; print(json.load(open('$BASELINE_FILE')).get('tables',0))" 2>/dev/null || echo 0)
+BASE_MCP=$(.venv/bin/python -c "import json; print(json.load(open('$BASELINE_FILE')).get('mcp',0))" 2>/dev/null || echo 0)
+BASE_CRON=$(.venv/bin/python -c "import json; print(json.load(open('$BASELINE_FILE')).get('cron',0))" 2>/dev/null || echo 0)
+BASE_TABLES=$(.venv/bin/python -c "import json; print(json.load(open('$BASELINE_FILE')).get('tables',0))" 2>/dev/null || echo 0)
 
 # Check MCP tools
 CURRENT_MCP=$(grep -c 'Tool(name=' mcp_gilbertus/server.py 2>/dev/null || echo 0)

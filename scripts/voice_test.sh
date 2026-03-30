@@ -49,7 +49,7 @@ if [ -z "$AUDIO" ]; then
     echo "  bash scripts/voice_test.sh --text 'status'    # system status"
     echo ""
     echo "Testing API health..."
-    curl -s "$API_URL/voice/health" 2>/dev/null | python3 -m json.tool 2>/dev/null || echo "API not reachable"
+    curl -s "$API_URL/voice/health" 2>/dev/null | .venv/bin/python -m json.tool 2>/dev/null || echo "API not reachable"
     exit 0
 fi
 
@@ -61,8 +61,8 @@ RESULT=$(curl -s -X POST "$API_URL/voice/ask" \
     -F "audio=@$AUDIO" \
     -F "language=pl" 2>/dev/null)
 
-TRANSCRIPT=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('transcript',''))" 2>/dev/null)
-ANSWER=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('answer',''))" 2>/dev/null)
+TRANSCRIPT=$(echo "$RESULT" | .venv/bin/python -c "import sys,json; d=json.load(sys.stdin); print(d.get('transcript',''))" 2>/dev/null)
+ANSWER=$(echo "$RESULT" | .venv/bin/python -c "import sys,json; d=json.load(sys.stdin); print(d.get('answer',''))" 2>/dev/null)
 
 echo "Transcript: $TRANSCRIPT"
 echo ""

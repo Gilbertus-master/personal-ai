@@ -128,7 +128,7 @@ QDRANT_SNAP_DIR="$MIGRATE_DIR/qdrant_snapshots"
 mkdir -p "$QDRANT_SNAP_DIR"
 
 COLLECTIONS=$(curl -sf "$QDRANT_URL/collections" 2>/dev/null | \
-    python3 -c "import sys,json; [print(c['name']) for c in json.load(sys.stdin).get('result',{}).get('collections',[])]" 2>/dev/null || true)
+    .venv/bin/python -c "import sys,json; [print(c['name']) for c in json.load(sys.stdin).get('result',{}).get('collections',[])]" 2>/dev/null || true)
 
 declare -A LOCAL_QDRANT_COUNTS
 
@@ -138,7 +138,7 @@ if [ -n "$COLLECTIONS" ]; then
 
         # Get point count for verification
         POINT_COUNT=$(curl -sf "$QDRANT_URL/collections/$COLL" 2>/dev/null | \
-            python3 -c "import sys,json; print(json.load(sys.stdin).get('result',{}).get('points_count',0))" 2>/dev/null || echo "0")
+            .venv/bin/python -c "import sys,json; print(json.load(sys.stdin).get('result',{}).get('points_count',0))" 2>/dev/null || echo "0")
         LOCAL_QDRANT_COUNTS[$COLL]="$POINT_COUNT"
         log "    Points: $POINT_COUNT"
 
@@ -150,7 +150,7 @@ if [ -n "$COLLECTIONS" ]; then
         fi
 
         SNAP_NAME=$(echo "$SNAP_RESP" | \
-            python3 -c "import sys,json; print(json.load(sys.stdin).get('result',{}).get('name',''))" 2>/dev/null || echo "")
+            .venv/bin/python -c "import sys,json; print(json.load(sys.stdin).get('result',{}).get('name',''))" 2>/dev/null || echo "")
 
         if [ -n "$SNAP_NAME" ]; then
             curl -sf "$QDRANT_URL/collections/$COLL/snapshots/$SNAP_NAME" \
@@ -297,7 +297,7 @@ QDRANT_OK=true
 for COLL in "${!LOCAL_QDRANT_COUNTS[@]}"; do
     LOCAL_PTS="${LOCAL_QDRANT_COUNTS[$COLL]}"
     REMOTE_PTS=$(remote "curl -sf http://127.0.0.1:6333/collections/$COLL 2>/dev/null" | \
-        python3 -c "import sys,json; print(json.load(sys.stdin).get('result',{}).get('points_count',0))" 2>/dev/null || echo "?")
+        .venv/bin/python -c "import sys,json; print(json.load(sys.stdin).get('result',{}).get('points_count',0))" 2>/dev/null || echo "?")
 
     echo "    $COLL:  local=$LOCAL_PTS  remote=$REMOTE_PTS"
 

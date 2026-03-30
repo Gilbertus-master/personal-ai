@@ -9,7 +9,7 @@ cd /home/sebastian/personal-ai
 echo "$(date '+%Y-%m-%d %H:%M:%S') [INFO] Starting cron health check..."
 
 # Run health checker
-python3 -c "
+.venv/bin/python -c "
 from app.guardian.cron_health_checker import check_cron_health, check_cron_freshness
 import json
 
