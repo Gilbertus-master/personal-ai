@@ -90,7 +90,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, mobileOpen }: Side
     setChatLoading(true);
     setChatA('');
     try {
-      const res = await askGilbertus(chatQ.trim());
+      const res = await askGilbertus({ query: chatQ.trim() });
       setChatA(res.answer ?? 'Brak odpowiedzi.');
     } catch {
       setChatA('Błąd połączenia z Gilbertusem.');

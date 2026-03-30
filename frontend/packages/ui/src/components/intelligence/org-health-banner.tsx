@@ -17,11 +17,13 @@ const SCORE_COLOR = (score: number) =>
 const RING_STROKE = (score: number) =>
   score > 70 ? 'stroke-emerald-400' : score > 40 ? 'stroke-amber-400' : 'stroke-red-400';
 
-const TREND_CONFIG = {
+const TREND_CONFIG: Record<string, { label: string; Icon: typeof TrendingUp; className: string }> = {
   improving: { label: 'Poprawa', Icon: TrendingUp, className: 'text-emerald-400 bg-emerald-400/10' },
   declining: { label: 'Spadek', Icon: TrendingDown, className: 'text-red-400 bg-red-400/10' },
   stable: { label: 'Stabilnie', Icon: Minus, className: 'text-[var(--text-muted)] bg-[var(--surface-hover)]' },
-} as const;
+  no_data: { label: 'Brak danych', Icon: Minus, className: 'text-[var(--text-muted)] bg-[var(--surface-hover)]' },
+};
+const TREND_FALLBACK = { label: 'Nieznany', Icon: Minus, className: 'text-[var(--text-muted)] bg-[var(--surface-hover)]' };
 
 function CircularProgress({ score }: { score: number }) {
   const radius = 40;
@@ -84,7 +86,7 @@ export function OrgHealthBanner({ data, isLoading, onAssess, isAssessing }: OrgH
 
   if (!data) return null;
 
-  const trend = TREND_CONFIG[data.trend];
+  const trend = TREND_CONFIG[data.trend] ?? TREND_FALLBACK;
 
   return (
     <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] border-l-4 border-l-[var(--accent)] p-6">
