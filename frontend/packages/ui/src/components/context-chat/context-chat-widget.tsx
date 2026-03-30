@@ -163,7 +163,10 @@ interface ContextChatWidgetProps {
 }
 
 export function ContextChatWidget({ context = 'general' }: ContextChatWidgetProps) {
+  const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
   const [messages, setMessages] = useState<ContextMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -242,6 +245,8 @@ export function ContextChatWidget({ context = 'general' }: ContextChatWidgetProp
       handleSend();
     }
   };
+
+  if (!mounted) return null;
 
   return (
     <>
