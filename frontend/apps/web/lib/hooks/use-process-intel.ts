@@ -252,17 +252,6 @@ export function useMapFlows() {
   });
 }
 
-export function useGenerateOptimizations() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: generateOptimizations,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['optimizations'] });
-      qc.invalidateQueries({ queryKey: ['process-dashboard'] });
-    },
-  });
-}
-
 export function useAnalyzeEmployee() {
   const qc = useQueryClient();
   return useMutation({
