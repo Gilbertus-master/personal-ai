@@ -95,20 +95,27 @@ def _create_deadline_from_obligation(
     return deadline_id
 
 
-def _send_reminder_wa(message: str) -> None:
-    """Wysyła WhatsApp reminder via openclaw. Timeout 30s."""
+def _send_reminder_wa(message: str) -> bool:
+    """Wysyła WhatsApp reminder via openclaw. Timeout 30s. Returns True if sent successfully."""
     if not WA_TARGET:
         log.warning("wa_reminder_skipped", reason="WA_TARGET not set")
-        return
+        return False
     try:
-        subprocess.run(
+        result = subprocess.run(
             [OPENCLAW_BIN, "message", "send", "--channel", "whatsapp",
              "--target", WA_TARGET, "--message", message],
             capture_output=True, text=True, timeout=30,
         )
+        if result.returncode != 0:
+            log.error("wa_reminder_failed",
+                      returncode=result.returncode,
+                      stderr=result.stderr[:500])
+            return False
         log.info("wa_reminder_sent", target=WA_TARGET)
+        return True
     except Exception as e:
         log.error("wa_reminder_failed", error=str(e))
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -399,14 +406,13 @@ def check_deadlines_and_remind() -> dict[str, Any]:
                         f"Termin: {dl_date} ({days_until} dni)\n"
                         f"Obszar: {area_name or area_code or 'N/A'}\n"
                     )
-                    _send_reminder_wa(message)
-
-                    cur.execute("""
-                        UPDATE compliance_deadlines
-                        SET last_reminder_sent = %s
-                        WHERE id = %s
-                    """, (today, dl_id))
-                    reminded += 1
+                    if _send_reminder_wa(message):
+                        cur.execute("""
+                            UPDATE compliance_deadlines
+                            SET last_reminder_sent = %s
+                            WHERE id = %s
+                        """, (today, dl_id))
+                        reminded += 1
 
         conn.commit()
 

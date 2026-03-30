@@ -2,7 +2,7 @@
 # Webapp Auto-Fix Monitor — sprawdza błędy w Gilbertus App co 2 min i naprawia je automatycznie
 # Log: /home/sebastian/personal-ai/logs/webapp_autofix.log
 
-set -uo pipefail
+set -euo pipefail
 PROJ=/home/sebastian/personal-ai
 LOG="$PROJ/logs/webapp_autofix.log"
 STATE="$PROJ/logs/webapp_autofix_state.json"
@@ -124,6 +124,7 @@ print(s.get('fix_$error_key', 0))
 
   # Uruchom Claude Code z błędem
   local fix_result
+  local fix_exit
   fix_result=$(cd "$PROJ" && timeout 120 claude --permission-mode bypassPermissions --print \
     "Fix this error in the Gilbertus web app (frontend directory: $PROJ/frontend).
 
@@ -144,8 +145,15 @@ If this is a TypeScript type error, fix the type mismatch.
 If this is a missing export, add the export.
 
 Only fix this specific error. Do not refactor unrelated code." 2>&1 | tail -5)
+  fix_exit=$?
 
-  log "✅ Auto-fix zakończony: $fix_result"
+  if [[ $fix_exit -eq 0 && -n "$fix_result" ]]; then
+    log "✅ Auto-fix zakończony: $fix_result"
+  elif [[ $fix_exit -eq 124 ]]; then
+    log "⏱️ Auto-fix timeout (120s) dla $error_location"
+  else
+    log "❌ Auto-fix nieudany (exit $fix_exit): $fix_result"
+  fi
 
   # Zapisz timestamp fixa
   python3 -c "

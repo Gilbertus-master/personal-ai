@@ -12,6 +12,8 @@ from openai import RateLimitError
 
 from dotenv import load_dotenv
 from openai import OpenAI, APIConnectionError, APITimeoutError
+from app.utils.dns_patch import apply_dns_patch
+apply_dns_patch(["api.openai.com"])
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 import psycopg
