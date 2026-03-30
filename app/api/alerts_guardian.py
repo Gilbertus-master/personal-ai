@@ -1,26 +1,31 @@
 """Guardian Alert API — list, acknowledge, and manage three-tier alerts."""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from functools import lru_cache
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.guardian.alert_manager import AlertManager
 
 router = APIRouter(prefix="/alerts/guardian", tags=["guardian-alerts"])
 
-_mgr = AlertManager()
+
+@lru_cache(maxsize=1)
+def _get_mgr() -> AlertManager:
+    return AlertManager()
 
 
 @router.get("")
-def list_alerts(tier: int | None = None, limit: int = 20):
+def list_alerts(tier: int | None = None, limit: int = 20, mgr: AlertManager = Depends(_get_mgr)) -> dict:
     """List recent guardian alerts, optionally filtered by tier."""
-    return {"alerts": _mgr.get_active(tier=tier, limit=limit)}
+    return {"alerts": mgr.get_active(tier=tier, limit=limit)}
 
 
 @router.post("/{alert_id}/acknowledge")
-def acknowledge_alert(alert_id: int):
+def acknowledge_alert(alert_id: int, mgr: AlertManager = Depends(_get_mgr)) -> dict:
     """Acknowledge a single alert — stops critical repeat."""
-    ok = _mgr.acknowledge(alert_id)
+    ok = mgr.acknowledge(alert_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Alert not found or already acknowledged")
     return {"status": "acknowledged", "alert_id": alert_id}
@@ -31,15 +36,15 @@ class AckAllRequest(BaseModel):
 
 
 @router.post("/acknowledge-all")
-def acknowledge_all(req: AckAllRequest | None = None):
+def acknowledge_all(req: AckAllRequest | None = None, mgr: AlertManager = Depends(_get_mgr)) -> dict:
     """Acknowledge all unacknowledged critical alerts."""
     category = req.category if req else None
-    count = _mgr.acknowledge_latest(category=category)
+    count = mgr.acknowledge_latest(category=category)
     return {"status": "acknowledged", "count": count}
 
 
 @router.get("/stats")
-def alert_stats():
+def alert_stats() -> dict:
     """Summary counts by tier and acknowledgment status."""
     from app.db.postgres import get_pg_connection
 

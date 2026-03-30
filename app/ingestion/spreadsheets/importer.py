@@ -3,7 +3,6 @@ from pathlib import Path
 
 from app.ingestion.common.db import (
     document_exists_by_raw_path,
-    get_connection,
     insert_chunk,
     insert_document,
     insert_source,
@@ -52,16 +51,12 @@ def import_one_spreadsheet(file_path: str | Path) -> bool:
         print(f"No text extracted from spreadsheet: {file_path}")
         return False
 
-    conn = get_connection()
-
     source_id = insert_source(
-        conn=conn,
         source_type="spreadsheet",
         source_name=parsed.file_type,
     )
 
     document_id = insert_document(
-        conn=conn,
         source_id=source_id,
         title=parsed.title,
         created_at=parsed.created_at,
@@ -77,7 +72,6 @@ def import_one_spreadsheet(file_path: str | Path) -> bool:
 
     for idx, chunk in enumerate(chunks):
         insert_chunk(
-            conn=conn,
             document_id=document_id,
             chunk_index=idx,
             text=chunk,

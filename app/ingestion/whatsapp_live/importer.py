@@ -221,7 +221,6 @@ def ensure_source() -> int:
                 return rows[0][0]
 
     return insert_source(
-        conn=None,
         source_type="whatsapp_live",
         source_name="whatsapp_all_chats",
     )
@@ -304,7 +303,6 @@ def import_group(
             title = f"WhatsApp grupa {chat_name} {date_str}"
 
         doc_id = insert_document(
-            conn=None,
             source_id=source_id,
             title=title,
             created_at=first_dt,

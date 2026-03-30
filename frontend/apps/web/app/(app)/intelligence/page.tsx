@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useRole } from '@gilbertus/rbac';
 import { useIntelligenceStore } from '@/lib/stores/intelligence-store';
 import {
@@ -8,14 +9,24 @@ import {
   useOpportunities,
   useScanOpportunities,
   useInefficiency,
+  useCorrelation,
+  useScenarios,
+  useCreateScenario,
+  useAnalyzeScenario,
+  usePredictions,
 } from '@/lib/hooks/use-intelligence';
 import {
   RbacGate,
   OrgHealthBanner,
   OpportunitiesTable,
   InefficiencyReport,
+  CorrelationExplorer,
+  ScenariosList,
+  ScenarioForm,
+  PredictiveAlerts,
 } from '@gilbertus/ui';
 import { cn } from '@gilbertus/ui';
+import type { CorrelationRequest, CorrelationResult } from '@gilbertus/api-client';
 
 type IntelTab = 'opportunities' | 'inefficiencies' | 'correlations' | 'scenarios' | 'predictions';
 
@@ -37,9 +48,28 @@ function IntelligenceContent() {
   const scanMutation = useScanOpportunities();
   const inefficiency = useInefficiency();
 
+  // Correlations
+  const correlationMutation = useCorrelation();
+  const [correlationResult, setCorrelationResult] = useState<CorrelationResult | null>(null);
+
+  // Scenarios
+  const scenarios = useScenarios();
+  const createScenarioMutation = useCreateScenario();
+  const analyzeScenarioMutation = useAnalyzeScenario();
+  const [showScenarioForm, setShowScenarioForm] = useState(false);
+
+  // Predictions
+  const predictions = usePredictions();
+
   const tabs = isCeo
     ? [...BASE_TABS.slice(0, 3), { id: 'scenarios' as IntelTab, label: 'Scenariusze' }, BASE_TABS[3]]
     : BASE_TABS;
+
+  const handleRunCorrelation = (request: CorrelationRequest) => {
+    correlationMutation.mutate(request, {
+      onSuccess: (data) => setCorrelationResult(data),
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -90,21 +120,49 @@ function IntelligenceContent() {
       )}
 
       {store.activeTab === 'correlations' && (
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--text-secondary)]">
-          Korelacje — w budowie
-        </div>
+        <CorrelationExplorer
+          correlationType={store.correlationType}
+          onTypeChange={store.setCorrelationType}
+          params={store.correlationParams}
+          onParamChange={store.setCorrelationParam}
+          onReset={store.resetCorrelationParams}
+          onRun={handleRunCorrelation}
+          result={correlationResult}
+          isRunning={correlationMutation.isPending}
+        />
       )}
 
       {store.activeTab === 'scenarios' && isCeo && (
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--text-secondary)]">
-          Scenariusze — w budowie
-        </div>
+        <>
+          <ScenariosList
+            scenarios={scenarios.data ?? []}
+            isLoading={scenarios.isLoading}
+            statusFilter={store.scenarioStatus}
+            onStatusFilterChange={store.setScenarioStatus}
+            onCreateNew={() => setShowScenarioForm(true)}
+            onAnalyze={(id) => analyzeScenarioMutation.mutate(id)}
+            onCompare={() => {/* compare handled inline */}}
+            isAnalyzing={analyzeScenarioMutation.isPending}
+            isCeo={isCeo}
+          />
+          <ScenarioForm
+            isOpen={showScenarioForm}
+            onClose={() => setShowScenarioForm(false)}
+            onSubmit={(params) => {
+              createScenarioMutation.mutate(params, {
+                onSuccess: () => setShowScenarioForm(false),
+              });
+            }}
+            isSubmitting={createScenarioMutation.isPending}
+          />
+        </>
       )}
 
       {store.activeTab === 'predictions' && (
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--text-secondary)]">
-          Predykcje — w budowie
-        </div>
+        <PredictiveAlerts
+          data={predictions.data}
+          isLoading={predictions.isLoading}
+        />
       )}
     </div>
   );

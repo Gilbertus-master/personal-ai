@@ -8,11 +8,6 @@ from app.db.postgres import get_pg_connection
 log = structlog.get_logger(__name__)
 
 
-def get_connection():
-    """Legacy no-op. Connection management is handled internally by each function."""
-    return None
-
-
 def document_exists_by_raw_path(raw_path: str) -> bool:
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
@@ -24,7 +19,7 @@ def document_exists_by_raw_path(raw_path: str) -> bool:
             return row is not None and row[0] > 0
 
 
-def insert_source(conn, source_type: str, source_name: str) -> int:
+def insert_source(source_type: str, source_name: str) -> int:
     with get_pg_connection() as pg:
         with pg.cursor() as cur:
             cur.execute(
@@ -39,7 +34,6 @@ def insert_source(conn, source_type: str, source_name: str) -> int:
 
 
 def insert_document(
-    conn,
     source_id: int,
     title: str,
     created_at,
@@ -66,7 +60,6 @@ def insert_document(
 
 
 def insert_chunk(
-    conn,
     document_id: int,
     chunk_index: int,
     text: str,
@@ -92,6 +85,40 @@ def insert_chunk(
             row = cur.fetchone()
         pg.commit()
     return row[0] if row else None
+
+
+def insert_chunks_batch(
+    chunks: list[dict],
+) -> list[int | None]:
+    """Insert multiple chunks in a single transaction to reduce round-trips."""
+    results = []
+    with get_pg_connection() as pg:
+        with pg.cursor() as cur:
+            for chunk in chunks:
+                ts_start = chunk["timestamp_start"].isoformat() if chunk["timestamp_start"] else None
+                ts_end = chunk["timestamp_end"].isoformat() if chunk["timestamp_end"] else None
+                text_hash = hashlib.md5(chunk["text"].encode()).hexdigest()
+                cur.execute(
+                    """
+                    INSERT INTO chunks (document_id, chunk_index, text, timestamp_start, timestamp_end, embedding_id, text_hash)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (document_id, text_hash) DO NOTHING
+                    RETURNING id
+                    """,
+                    (
+                        chunk["document_id"],
+                        chunk["chunk_index"],
+                        chunk["text"],
+                        ts_start,
+                        ts_end,
+                        chunk.get("embedding_id"),
+                        text_hash,
+                    ),
+                )
+                row = cur.fetchone()
+                results.append(row[0] if row else None)
+        pg.commit()
+    return results
 
 
 def get_document_row(document_id: int) -> dict[str, str] | None:

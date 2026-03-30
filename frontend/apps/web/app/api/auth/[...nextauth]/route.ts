@@ -1,15 +1,27 @@
-// Tauri static export: NextAuth not needed in desktop app.
-// generateStaticParams required for dynamic API routes in output: 'export'.
-export const dynamic = 'force-static';
+// Auth route stub — works for both dev (no Azure AD configured) and Tauri builds.
+// Returns minimal valid JSON responses so NextAuth client doesn't crash.
+export const dynamic = 'force-dynamic';
 
 export function generateStaticParams() {
   return [{ nextauth: ['session'] }, { nextauth: ['csrf'] }];
 }
 
-export async function GET(_req: Request): Promise<Response> {
-  return new Response(null, { status: 404 });
+export async function GET(req: Request): Promise<Response> {
+  const url = new URL(req.url);
+  const path = url.pathname;
+
+  if (path.endsWith('/session')) {
+    return Response.json({}); // no session = not authenticated
+  }
+  if (path.endsWith('/csrf')) {
+    return Response.json({ csrfToken: 'dev-stub' });
+  }
+  if (path.endsWith('/providers')) {
+    return Response.json({});
+  }
+  return Response.json({ error: 'not_configured' }, { status: 404 });
 }
 
-export async function POST(_req: Request): Promise<Response> {
-  return new Response(null, { status: 404 });
+export async function POST(req: Request): Promise<Response> {
+  return Response.json({ error: 'not_configured' }, { status: 404 });
 }

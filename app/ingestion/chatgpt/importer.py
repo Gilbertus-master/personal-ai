@@ -5,7 +5,6 @@ import structlog
 
 from app.ingestion.common.db import (
     document_exists_by_raw_path,
-    get_connection,
     insert_chunk,
     insert_document,
     insert_source,
@@ -62,8 +61,6 @@ def main() -> None:
         log.warning("chatgpt.import.empty", file=str(file_path))
         sys.exit(1)
 
-    conn = get_connection()
-
     imported = 0
     skipped = 0
 
@@ -76,13 +73,11 @@ def main() -> None:
             continue
 
         source_id = insert_source(
-            conn=conn,
             source_type="chatgpt",
             source_name=file_path.name,
         )
 
         document_id = insert_document(
-            conn=conn,
             source_id=source_id,
             title=conv.title,
             created_at=conv.created_at or conv.messages[0].timestamp,
@@ -95,7 +90,6 @@ def main() -> None:
 
         for idx, group in enumerate(grouped_chunks):
             insert_chunk(
-                conn=conn,
                 document_id=document_id,
                 chunk_index=idx,
                 text=build_chunk_text(group),

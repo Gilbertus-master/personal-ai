@@ -5,7 +5,6 @@ import structlog
 
 from app.ingestion.common.db import (
     document_exists_by_raw_path,
-    get_connection,
     insert_chunk,
     insert_document,
     insert_source,
@@ -60,16 +59,12 @@ def import_one_document(file_path: str | Path) -> bool:
         log.warning("no_text_extracted", file_path=file_path)
         return False
 
-    conn = get_connection()
-
     source_id = insert_source(
-        conn=conn,
         source_type="document",
         source_name=parsed.file_type,
     )
 
     document_id = insert_document(
-        conn=conn,
         source_id=source_id,
         title=parsed.title,
         created_at=parsed.created_at,
@@ -83,7 +78,6 @@ def import_one_document(file_path: str | Path) -> bool:
     skip_count = 0
     for idx, chunk in enumerate(chunks):
         result = insert_chunk(
-            conn=conn,
             document_id=document_id,
             chunk_index=idx,
             text=chunk,

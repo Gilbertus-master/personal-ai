@@ -1,7 +1,7 @@
 """DLQ (Dead Letter Queue) API endpoints for monitoring and retrying failed imports."""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.db.postgres import get_pg_connection
 
@@ -12,8 +12,8 @@ router = APIRouter(prefix="/dlq", tags=["dlq"])
 def list_dlq(
     status: str | None = None,
     source_type: str | None = None,
-    limit: int = 50,
-    offset: int = 0,
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
 ):
     """List DLQ items with optional filters."""
     conditions = []

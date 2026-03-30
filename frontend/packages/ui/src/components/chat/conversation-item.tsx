@@ -116,10 +116,13 @@ export function ConversationItem({
   }
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onSelect}
       onDoubleClick={handleDoubleClick}
-      className={`group w-full text-left px-3 py-2.5 rounded-lg transition-colors relative ${
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(); }}
+      className={`group w-full text-left px-3 py-2.5 rounded-lg transition-colors relative cursor-pointer ${
         isActive
           ? 'bg-[var(--surface-hover)] border-l-2 border-[var(--accent)]'
           : 'hover:bg-[var(--surface-hover)] border-l-2 border-transparent'
@@ -167,6 +170,6 @@ export function ConversationItem({
           </button>
         </div>
       </div>
-    </button>
+    </div>
   );
 }

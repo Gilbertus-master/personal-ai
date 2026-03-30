@@ -80,7 +80,6 @@ def import_transcript(
     chunks = chunk_text(full_text)
 
     document_id = insert_document(
-        conn=None,
         source_id=source_id,
         title=parsed.title,
         created_at=parsed.recorded_at,
@@ -91,7 +90,6 @@ def import_transcript(
 
     for chunk_index, chunk in enumerate(chunks):
         insert_chunk(
-            conn=None,
             document_id=document_id,
             chunk_index=chunk_index,
             text=chunk,
@@ -112,7 +110,7 @@ def import_transcripts(
     source_type = "audio_transcript"
 
     log.info(f"Creating source: type={source_type}, name={source_name}")
-    source_id = insert_source(conn=None, source_type=source_type, source_name=source_name)
+    source_id = insert_source(source_type=source_type, source_name=source_name)
 
     if path.is_file():
         files = [path]

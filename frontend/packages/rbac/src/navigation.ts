@@ -11,6 +11,7 @@ export interface ModuleConfig {
 
 export const MODULES: ModuleConfig[] = [
   { id: 'dashboard', icon: 'LayoutDashboard', roles: ['*'], label: { pl: 'Pulpit', en: 'Dashboard' }, path: '/dashboard' },
+  { id: 'brief', icon: 'Sunrise', roles: ['ceo', 'board'], label: { pl: 'Poranny Brief', en: 'Morning Brief' }, path: '/brief' },
   { id: 'chat', icon: 'MessageSquare', roles: ['*'], label: { pl: 'Chat', en: 'Chat' }, path: '/chat' },
   { id: 'people', icon: 'Users', roles: ['ceo', 'board', 'director'], label: { pl: 'Ludzie', en: 'People' }, path: '/people' },
   { id: 'intelligence', icon: 'Brain', roles: ['ceo', 'board'], label: { pl: 'Wywiad', en: 'Intelligence' }, path: '/intelligence' },

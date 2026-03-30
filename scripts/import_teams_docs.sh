@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 cd "$(dirname "$0")/.."
+
+LOCKFILE="/tmp/import_teams_docs.lock"
+exec 9>"$LOCKFILE"
+if ! flock -n 9; then
+  echo "Another import_teams_docs.sh is already running. Exiting." >&2
+  exit 1
+fi
+
 source .venv/bin/activate
 
 ROOT="data/raw/teams/export_20260310"

@@ -5,7 +5,6 @@ from pathlib import Path
 
 from app.ingestion.common.db import (
     document_exists_by_raw_path,
-    get_connection,
     insert_chunk,
     insert_document,
     insert_source,
@@ -103,16 +102,12 @@ def import_one_thread(file_path: str) -> bool:
         log.info(f"No messages extracted from thread: {file_path}")
         return False
 
-    conn = get_connection()
-
     source_id = insert_source(
-        conn=conn,
         source_type="teams",
         source_name="export_20260310",
     )
 
     document_id = insert_document(
-        conn=conn,
         source_id=source_id,
         title=parsed.title,
         created_at=parsed.created_at,
@@ -125,7 +120,6 @@ def import_one_thread(file_path: str) -> bool:
 
     for idx, group in enumerate(grouped_chunks):
         insert_chunk(
-            conn=conn,
             document_id=document_id,
             chunk_index=idx,
             text=build_chunk_text(group),
