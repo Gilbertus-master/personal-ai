@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { ArrowUpDown, Search as SearchIcon, Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { Opportunity } from '@gilbertus/api-client';
+import { ActionableItem } from '../shared/actionable-item';
 
 interface OpportunitiesTableProps {
   opportunities: Opportunity[];
@@ -158,7 +159,7 @@ export function OpportunitiesTable({
               {sorted.map((opp) => (
                 <tr
                   key={opp.id}
-                  className="border-b border-[var(--border)] last:border-b-0 hover:bg-[var(--surface-hover)] transition-colors"
+                  className="group/actionable relative border-b border-[var(--border)] last:border-b-0 hover:bg-[var(--surface-hover)] transition-colors"
                 >
                   <td className="px-4 py-3">
                     <span
@@ -204,14 +205,22 @@ export function OpportunitiesTable({
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={cn(
-                        'rounded-full px-2 py-0.5 text-xs font-medium',
-                        STATUS_BADGE[opp.status] ?? 'bg-[var(--surface-hover)] text-[var(--text-secondary)]',
-                      )}
+                    <ActionableItem
+                      itemId={`opp_${opp.id}`}
+                      itemType="opportunity"
+                      itemTitle={opp.description}
+                      itemContent={opp}
+                      context="intelligence"
                     >
-                      {opp.status}
-                    </span>
+                      <span
+                        className={cn(
+                          'rounded-full px-2 py-0.5 text-xs font-medium',
+                          STATUS_BADGE[opp.status] ?? 'bg-[var(--surface-hover)] text-[var(--text-secondary)]',
+                        )}
+                      >
+                        {opp.status}
+                      </span>
+                    </ActionableItem>
                   </td>
                 </tr>
               ))}

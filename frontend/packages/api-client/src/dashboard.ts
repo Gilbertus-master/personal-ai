@@ -7,6 +7,10 @@ import type {
   TimelineResponse,
   CommitmentsListResponse,
   BudgetResponse,
+  ResolveAlertRequest,
+  ResolveAlertResponse,
+  AlertSuppressionsResponse,
+  AlertFixTasksResponse,
 } from './dashboard-types';
 
 export async function fetchBrief(params?: {
@@ -75,4 +79,50 @@ export async function fetchCommitments(params?: {
 
 export async function fetchBudget(): Promise<BudgetResponse> {
   return customFetch<BudgetResponse>({ url: '/costs/budget', method: 'GET' });
+}
+
+export async function resolveAlert(
+  alertId: number,
+  data: ResolveAlertRequest,
+): Promise<ResolveAlertResponse> {
+  return customFetch<ResolveAlertResponse>({
+    url: `/alerts/${alertId}/resolve`,
+    method: 'POST',
+    data,
+  });
+}
+
+export async function fetchAlertSuppressions(): Promise<AlertSuppressionsResponse> {
+  return customFetch<AlertSuppressionsResponse>({
+    url: '/alerts/suppressions',
+    method: 'GET',
+  });
+}
+
+export async function deleteAlertSuppression(id: number): Promise<{ status: string }> {
+  return customFetch<{ status: string }>({
+    url: `/alerts/suppressions/${id}`,
+    method: 'DELETE',
+  });
+}
+
+export async function fetchAlertFixTasks(status?: string): Promise<AlertFixTasksResponse> {
+  const params: Record<string, string> = {};
+  if (status) params.status = status;
+  return customFetch<AlertFixTasksResponse>({
+    url: '/alerts/fix-tasks',
+    method: 'GET',
+    params: Object.keys(params).length ? params : undefined,
+  });
+}
+
+export async function completeAlertFixTask(
+  taskId: number,
+  result: string,
+): Promise<{ status: string }> {
+  return customFetch<{ status: string }>({
+    url: `/alerts/fix-tasks/${taskId}/complete`,
+    method: 'POST',
+    data: { result },
+  });
 }

@@ -3,6 +3,7 @@
 import { TrendingUp, TrendingDown, Minus, RefreshCw } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { OrgHealth } from '@gilbertus/api-client';
+import { ActionableItem } from '../shared/actionable-item';
 
 interface OrgHealthBannerProps {
   data?: OrgHealth;
@@ -90,58 +91,66 @@ export function OrgHealthBanner({ data, isLoading, onAssess, isAssessing }: OrgH
   const trend = TREND_CONFIG[data.trend] ?? TREND_FALLBACK;
 
   return (
-    <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] border-l-4 border-l-[var(--accent)] p-6">
-      <div className="flex flex-wrap items-center gap-6">
-        {/* Left: Score ring */}
-        <CircularProgress score={data.current_score} />
+    <ActionableItem
+      itemId="org_health"
+      itemType="org_health"
+      itemTitle={`Zdrowie organizacji: ${data.current_score ?? 0}/100`}
+      itemContent={data}
+      context="intelligence"
+    >
+      <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] border-l-4 border-l-[var(--accent)] p-6">
+        <div className="flex flex-wrap items-center gap-6">
+          {/* Left: Score ring */}
+          <CircularProgress score={data.current_score} />
 
-        {/* Center: Trend */}
-        <div className="space-y-1">
-          <p className="text-sm text-[var(--text-secondary)]">Zdrowie organizacji</p>
-          <span
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium',
-              trend.className,
-            )}
-          >
-            <trend.Icon className="h-4 w-4" />
-            {trend.label}
-          </span>
-        </div>
-
-        {/* Right: Best/worst + action */}
-        <div className="ml-auto flex items-center gap-6">
-          <div className="space-y-1 text-sm">
-            <p className="text-[var(--text-secondary)]">
-              Najlepszy tydz.:{' '}
-              <span className="text-emerald-400 font-medium">
-                {data.best_week?.score ?? '—'} ({data.best_week?.week ?? 'brak danych'})
-              </span>
-            </p>
-            <p className="text-[var(--text-secondary)]">
-              Najgorszy tydz.:{' '}
-              <span className="text-red-400 font-medium">
-                {data.worst_week?.score ?? '—'} ({data.worst_week?.week ?? 'brak danych'})
-              </span>
-            </p>
-          </div>
-
-          {onAssess && (
-            <button
-              onClick={onAssess}
-              disabled={isAssessing}
+          {/* Center: Trend */}
+          <div className="space-y-1">
+            <p className="text-sm text-[var(--text-secondary)]">Zdrowie organizacji</p>
+            <span
               className={cn(
-                'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors',
-                'bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)]',
-                'disabled:opacity-50 disabled:cursor-not-allowed',
+                'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium',
+                trend.className,
               )}
             >
-              <RefreshCw className={cn('h-4 w-4', isAssessing && 'animate-spin')} />
-              {isAssessing ? 'Oceniam...' : 'Oce\u0144 teraz'}
-            </button>
-          )}
+              <trend.Icon className="h-4 w-4" />
+              {trend.label}
+            </span>
+          </div>
+
+          {/* Right: Best/worst + action */}
+          <div className="ml-auto flex items-center gap-6">
+            <div className="space-y-1 text-sm">
+              <p className="text-[var(--text-secondary)]">
+                Najlepszy tydz.:{' '}
+                <span className="text-emerald-400 font-medium">
+                  {data.best_week?.score ?? '—'} ({data.best_week?.week ?? 'brak danych'})
+                </span>
+              </p>
+              <p className="text-[var(--text-secondary)]">
+                Najgorszy tydz.:{' '}
+                <span className="text-red-400 font-medium">
+                  {data.worst_week?.score ?? '—'} ({data.worst_week?.week ?? 'brak danych'})
+                </span>
+              </p>
+            </div>
+
+            {onAssess && (
+              <button
+                onClick={onAssess}
+                disabled={isAssessing}
+                className={cn(
+                  'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors',
+                  'bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)]',
+                  'disabled:opacity-50 disabled:cursor-not-allowed',
+                )}
+              >
+                <RefreshCw className={cn('h-4 w-4', isAssessing && 'animate-spin')} />
+                {isAssessing ? 'Oceniam...' : 'Oce\u0144 teraz'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </ActionableItem>
   );
 }

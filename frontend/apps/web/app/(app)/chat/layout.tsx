@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { useChat } from '@/lib/hooks/use-chat';
 import { useChatStore, selectActiveConversation } from '@/lib/stores/chat-store';
 import type { ChatMessage } from '@/lib/stores/chat-store';
@@ -14,6 +15,7 @@ import {
 import type { MessageBubbleMessage } from '@gilbertus/ui';
 
 export default function ChatLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const {
     conversations,
     activeConversationId,
@@ -43,6 +45,7 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
 
   const handleNewChat = () => {
     setActiveConversation(null);
+    router.push('/chat');
   };
 
   const handleSend = async (text: string) => {

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Bell, X } from 'lucide-react';
 import type { AlertItem } from '@gilbertus/api-client';
+import { ActionableItem } from '../shared/actionable-item';
 
 interface NotificationBellProps {
   alerts?: AlertItem[];
@@ -119,33 +120,39 @@ export function NotificationBell({
               displayAlerts.map((alert) => {
                 const severityDot = SEVERITY_COLOR[alert.severity] ?? 'bg-gray-400';
                 return (
-                  <div
+                  <ActionableItem
                     key={alert.alert_id}
-                    className="group flex items-start gap-3 px-4 py-2.5 transition-colors hover:bg-[var(--surface-hover)]"
+                    itemId={`alert_${alert.alert_id}`}
+                    itemType="alert"
+                    itemTitle={alert.title}
+                    itemContent={alert}
+                    context="alerts"
                   >
-                    <span
-                      className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${severityDot}`}
-                      aria-label={`Severity: ${alert.severity}`}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-[var(--text)]">
-                        {alert.title}
-                      </p>
-                      <span className="text-[10px] text-[var(--text-secondary)]">
-                        {formatRelativeTime(alert.created_at)}
-                      </span>
+                    <div className="group flex items-start gap-3 px-4 py-2.5 transition-colors hover:bg-[var(--surface-hover)]">
+                      <span
+                        className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${severityDot}`}
+                        aria-label={`Severity: ${alert.severity}`}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-[var(--text)]">
+                          {alert.title}
+                        </p>
+                        <span className="text-[10px] text-[var(--text-secondary)]">
+                          {formatRelativeTime(alert.created_at)}
+                        </span>
+                      </div>
+                      {onDismiss && (
+                        <button
+                          type="button"
+                          onClick={() => onDismiss(alert.alert_id)}
+                          className="shrink-0 rounded p-0.5 text-[var(--text-secondary)] opacity-0 transition-opacity hover:text-[var(--text)] group-hover:opacity-100"
+                          aria-label="Odrzuć"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
                     </div>
-                    {onDismiss && (
-                      <button
-                        type="button"
-                        onClick={() => onDismiss(alert.alert_id)}
-                        className="shrink-0 rounded p-0.5 text-[var(--text-secondary)] opacity-0 transition-opacity hover:text-[var(--text)] group-hover:opacity-100"
-                        aria-label="Odrzuć"
-                      >
-                        <X size={14} />
-                      </button>
-                    )}
-                  </div>
+                  </ActionableItem>
                 );
               })
             )}

@@ -27,6 +27,7 @@ class AskRequest(BaseModel):
     debug: bool = False
     channel: str | None = None  # "whatsapp", "api", etc. — affects defaults
     session_id: str | None = None  # conversation session key, e.g. "+48505441635"
+    model_preference: str | None = None  # 'cheap' | 'balanced' | 'best' — auto-routes to cheapest suitable model
 
     @field_validator("source_types")
     @classmethod

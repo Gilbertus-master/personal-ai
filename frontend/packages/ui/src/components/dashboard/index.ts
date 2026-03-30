@@ -1,4 +1,5 @@
 export { ActivityTimeline } from './activity-timeline';
+export { AlertDetailDrawer } from './alert-detail-drawer';
 export { AlertItem } from './alert-item';
 export { AlertsFeed } from './alerts-feed';
 export { KpiCard } from './kpi-card';

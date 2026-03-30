@@ -44,3 +44,5 @@ export * from './voice-types';
 export * from './voice';
 export * from './plugin-dev-types';
 export * from './plugin-dev';
+export * from './activity-types';
+export * from './activity';

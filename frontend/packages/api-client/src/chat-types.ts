@@ -13,6 +13,7 @@ export interface AskRequest {
   debug?: boolean;
   channel?: string;
   session_id?: string;
+  model_preference?: 'cheap' | 'balanced' | 'best';
 }
 
 export interface AskResponse {

@@ -63,6 +63,39 @@ function formatQuickActionResponse(res: unknown): string {
   return String(res);
 }
 
+
+// ── Model routing — wybierz najtańszy model który poradzi z pytaniem ──────
+function classifyQuery(text: string): 'cheap' | 'balanced' | 'best' {
+  const t = text.toLowerCase().trim();
+
+  // Proste wyszukiwanie / lookup → najtańszy model
+  const simplePatterns = [
+    /^(kto|co|kiedy|gdzie|ile|czy|jaki|jaka|jakie)\s/,
+    /^(who|what|when|where|how many|is there)/,
+    /\?$/, // pytanie kończące się znakiem zapytania (krótkie)
+    /^(pokaż|pokaż mi|lista|wymień|ile mam|czy mam)/,
+  ];
+  const isSimple = t.length < 80 && simplePatterns.some((p) => p.test(t));
+  if (isSimple) return 'cheap';
+
+  // Złożona analiza / raport / strategia → najlepszy model
+  const complexPatterns = [
+    /analiz|strategia|plan|rekomendacja|ocen|zrób raport|porównaj|zbadaj/,
+    /analyze|strategy|recommend|compare|evaluate|deep.?dive/,
+    /co powinienem|jak powinienem|jakie są opcje|jakie mam możliwości/,
+  ];
+  const isComplex = t.length > 200 || complexPatterns.some((p) => p.test(t));
+  if (isComplex) return 'best';
+
+  return 'balanced';
+}
+
+const MODEL_LABELS: Record<string, string> = {
+  cheap: '⚡ Haiku (szybki)',
+  balanced: '🎯 Sonnet (zbalansowany)',
+  best: '🧠 Opus (najlepszy)',
+};
+
 export function useChat() {
   const store = useChatStore();
   const { roleLevel } = useRole();
@@ -90,6 +123,7 @@ export function useChat() {
 
       // 5. Call /ask
       try {
+        const modelPref = classifyQuery(text);
         const response = await askGilbertus(
           {
             query: text,
@@ -99,6 +133,7 @@ export function useChat() {
             session_id: convId,
             debug: true,
             include_sources: true,
+            model_preference: modelPref,
           },
           abortRef.current.signal,
         );
@@ -123,7 +158,8 @@ export function useChat() {
   );
 
   const handleQuickAction = useCallback(
-    async (actionId: string, conversationId?: string) => {
+    async (rawActionId: string, conversationId?: string) => {
+      const actionId = rawActionId.replace(/^\//, ''); // strip leading slash
       const convId =
         conversationId ?? store.activeConversationId ?? store.createConversation();
       store.setActiveConversation(convId);

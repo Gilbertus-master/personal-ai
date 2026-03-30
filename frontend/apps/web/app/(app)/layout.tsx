@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Sidebar, Topbar, CommandPalette, UserMenu, OfflineBanner, VoiceFab, VoiceQuickPanel } from '@gilbertus/ui';
+import { Sidebar, Topbar, CommandPalette, UserMenu, OfflineBanner, VoiceFab, VoiceQuickPanel, ToastContainer } from '@gilbertus/ui';
 import { useRole } from '@gilbertus/rbac';
 import { OfflineProvider } from '@/lib/providers/offline-provider';
 import { useSidebarStore } from '@/lib/stores/sidebar-store';
@@ -88,6 +88,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         )}
 
       </div>
+      <ToastContainer />
     </OfflineProvider>
   );
 }

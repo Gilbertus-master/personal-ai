@@ -105,6 +105,47 @@ export interface BudgetResponse {
   }>;
 }
 
+// POST /alerts/{id}/resolve
+export interface ResolveAlertRequest {
+  action: 'fix' | 'suppress';
+  comment: string;
+  fix_instruction?: string;
+}
+export interface ResolveAlertResponse {
+  status: string;
+  action: string;
+  task_id: number | null;
+}
+
+// GET /alerts/suppressions
+export interface AlertSuppression {
+  id: number;
+  alert_type: string;
+  source_type: string | null;
+  reason: string | null;
+  created_by: string | null;
+  created_at: string | null;
+}
+export interface AlertSuppressionsResponse {
+  suppressions: AlertSuppression[];
+}
+
+// GET /alerts/fix-tasks
+export interface AlertFixTask {
+  id: number;
+  alert_id: number | null;
+  title: string;
+  instruction: string;
+  comment: string | null;
+  status: string;
+  result: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+export interface AlertFixTasksResponse {
+  tasks: AlertFixTask[];
+}
+
 // Derived types for UI
 export interface KpiCardData {
   label: string;
