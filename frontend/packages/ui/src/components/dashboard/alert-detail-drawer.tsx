@@ -1,8 +1,24 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Wrench, Ban, ChevronRight, AlertTriangle, Info, AlertCircle } from 'lucide-react';
+import {
+  X,
+  Wrench,
+  Ban,
+  AlertTriangle,
+  Info,
+  AlertCircle,
+  Search,
+  Forward,
+  ClipboardList,
+  MessageSquare,
+  Send,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+} from 'lucide-react';
 import type { AlertItem } from '@gilbertus/api-client';
+import { logActivity, researchItem, annotateItem, askGilbertus } from '@gilbertus/api-client';
 import { cn } from '../../lib/utils';
 
 interface AlertDetailDrawerProps {
@@ -34,6 +50,8 @@ const ALERT_TYPE_LABEL: Record<string, string> = {
   extraction_watchdog: 'Extraction',
 };
 
+type ActionMode = 'view' | 'fix' | 'suppress' | 'forward' | 'task' | 'comment';
+
 function formatEvidence(evidence: string | null): string | null {
   if (!evidence) return null;
   try {
@@ -50,9 +68,18 @@ export function AlertDetailDrawer({
   onResolve,
   isResolving,
 }: AlertDetailDrawerProps) {
-  const [mode, setMode] = useState<'view' | 'fix' | 'suppress'>('view');
+  const [mode, setMode] = useState<ActionMode>('view');
   const [comment, setComment] = useState('');
   const [fixInstruction, setFixInstruction] = useState('');
+  const [freePrompt, setFreePrompt] = useState('');
+  const [forwardTo, setForwardTo] = useState('');
+  const [taskText, setTaskText] = useState('');
+  const [commentText, setCommentText] = useState('');
+  const [researchResult, setResearchResult] = useState<string | null>(null);
+  const [researchExpanded, setResearchExpanded] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const [isResearching, setIsResearching] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
 
   // Reset state when alert changes
@@ -61,6 +88,14 @@ export function AlertDetailDrawer({
       setMode('view');
       setComment('');
       setFixInstruction(alert.description || '');
+      setFreePrompt('');
+      setForwardTo('');
+      setTaskText('');
+      setCommentText('');
+      setResearchResult(null);
+      setIsSending(false);
+      setIsResearching(false);
+      setToast(null);
     }
   }, [alert]);
 
@@ -74,12 +109,20 @@ export function AlertDetailDrawer({
     return () => document.removeEventListener('keydown', handleKey);
   }, [alert, onClose]);
 
+  // Auto-hide toast
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
   if (!alert) return null;
 
   const severity = SEVERITY_CONFIG[alert.severity] ?? SEVERITY_CONFIG.low;
   const SeverityIcon = severity.icon;
   const typeLabel = ALERT_TYPE_LABEL[alert.alert_type] ?? alert.alert_type;
   const evidence = formatEvidence(alert.evidence);
+  const alertIdStr = String(alert.alert_id);
 
   function handleSubmitFix() {
     onResolve(alert!.alert_id, 'fix', comment, fixInstruction || undefined);
@@ -88,6 +131,123 @@ export function AlertDetailDrawer({
   function handleSubmitSuppress() {
     onResolve(alert!.alert_id, 'suppress', comment);
   }
+
+  async function handleFreePrompt() {
+    if (!freePrompt.trim()) return;
+    setIsSending(true);
+    try {
+      await logActivity({
+        action_type: 'prompt',
+        item_id: alertIdStr,
+        item_type: 'alert',
+        item_title: alert!.title,
+        payload: { instruction: freePrompt },
+      });
+      const resp = await askGilbertus({
+        query: `Alert: ${alert!.title}. ${alert!.description || ''}. Instrukcja: ${freePrompt}`,
+        answer_length: 'medium',
+      });
+      setResearchResult(resp.answer);
+      setResearchExpanded(true);
+      setFreePrompt('');
+      setToast('Zlecono ✓');
+    } catch {
+      setToast('Błąd wysyłania');
+    } finally {
+      setIsSending(false);
+    }
+  }
+
+  async function handleResearch() {
+    setIsResearching(true);
+    try {
+      const resp = await researchItem({
+        item_id: alertIdStr,
+        item_type: 'alert',
+        item_title: alert!.title,
+        item_content: alert!.description || undefined,
+        context: evidence || undefined,
+      });
+      setResearchResult(resp.research_result);
+      setResearchExpanded(true);
+      setToast('Zbadano ✓');
+    } catch {
+      setToast('Błąd badania');
+    } finally {
+      setIsResearching(false);
+    }
+  }
+
+  async function handleForward() {
+    if (!forwardTo.trim()) return;
+    setIsSending(true);
+    try {
+      await logActivity({
+        action_type: 'forward',
+        item_id: alertIdStr,
+        item_type: 'alert',
+        item_title: alert!.title,
+        payload: { forward_to: forwardTo },
+      });
+      setToast('Przekazano ✓');
+      setMode('view');
+      setForwardTo('');
+    } catch {
+      setToast('Błąd przekazania');
+    } finally {
+      setIsSending(false);
+    }
+  }
+
+  async function handleTask() {
+    if (!taskText.trim()) return;
+    setIsSending(true);
+    try {
+      await logActivity({
+        action_type: 'task',
+        item_id: alertIdStr,
+        item_type: 'alert',
+        item_title: alert!.title,
+        payload: { task_description: taskText },
+      });
+      setToast('Zadanie utworzone ✓');
+      setMode('view');
+      setTaskText('');
+    } catch {
+      setToast('Błąd tworzenia zadania');
+    } finally {
+      setIsSending(false);
+    }
+  }
+
+  async function handleComment() {
+    if (!commentText.trim()) return;
+    setIsSending(true);
+    try {
+      await annotateItem({
+        item_id: alertIdStr,
+        item_type: 'alert',
+        annotation_type: 'comment',
+        content: commentText,
+      });
+      setToast('Komentarz dodany ✓');
+      setMode('view');
+      setCommentText('');
+    } catch {
+      setToast('Błąd komentarza');
+    } finally {
+      setIsSending(false);
+    }
+  }
+
+  const quickActions = [
+    { icon: Search, label: 'Zbadaj głębiej', onClick: handleResearch, loading: isResearching },
+    { icon: Ban, label: 'False positive', onClick: () => setMode('suppress') },
+    { icon: Wrench, label: 'Napraw', onClick: () => setMode('fix') },
+    { icon: Forward, label: 'Przekaż dalej', onClick: () => setMode('forward') },
+    { icon: ClipboardList, label: 'Nowe zadanie', onClick: () => setMode('task') },
+    { icon: MessageSquare, label: 'Komentarz', onClick: () => setMode('comment') },
+  ];
 
   return (
     <>
@@ -132,7 +292,7 @@ export function AlertDetailDrawer({
         </div>
 
         {/* Body — scrollable */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
           {/* Description */}
           <div>
             <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
@@ -155,12 +315,59 @@ export function AlertDetailDrawer({
             </div>
           )}
 
-          {/* Action mode: Fix */}
+          {/* FREE-FORM PROMPT */}
+          <div className="space-y-2">
+            <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
+              Co chcesz zrobić?
+            </h3>
+            <textarea
+              value={freePrompt}
+              onChange={(e) => setFreePrompt(e.target.value)}
+              rows={3}
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--text)] placeholder:text-[var(--text-secondary)]/60 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] resize-none"
+              placeholder='Napisz co Gilbertus ma zrobić z tym alertem... (np. "Zbadaj dlaczego calendar jest DEAD", "Przekaż Rochowi że to nie jest problem", "Stwórz zadanie auto-naprawy")'
+            />
+            <button
+              onClick={handleFreePrompt}
+              disabled={isSending || !freePrompt.trim()}
+              className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+            >
+              {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Wyślij do Gilbertusa
+            </button>
+          </div>
+
+          {/* Quick actions grid */}
+          <div>
+            <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
+              Szybkie akcje
+            </h3>
+            <div className="grid grid-cols-3 gap-2">
+              {quickActions.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <button
+                    key={action.label}
+                    onClick={action.onClick}
+                    disabled={action.loading}
+                    className="flex flex-col items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] hover:border-[var(--accent)]/40 transition-all disabled:opacity-50"
+                  >
+                    {action.loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Icon className="h-4 w-4" />
+                    )}
+                    <span className="font-medium">{action.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Expandable action panels */}
           {mode === 'fix' && (
             <div className="space-y-3 rounded-lg border border-blue-500/20 bg-blue-500/5 p-4">
-              <h3 className="text-sm font-medium text-blue-400">
-                Instrukcja naprawy
-              </h3>
+              <h3 className="text-sm font-medium text-blue-400">Instrukcja naprawy</h3>
               <textarea
                 value={fixInstruction}
                 onChange={(e) => setFixInstruction(e.target.value)}
@@ -182,7 +389,7 @@ export function AlertDetailDrawer({
                   className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Wrench className="h-4 w-4" />
-                  {isResolving ? 'Wysylanie...' : 'Zatwierdz naprawe'}
+                  {isResolving ? 'Wysyłanie...' : 'Zatwierdź naprawę'}
                 </button>
                 <button
                   onClick={() => setMode('view')}
@@ -194,21 +401,18 @@ export function AlertDetailDrawer({
             </div>
           )}
 
-          {/* Action mode: Suppress */}
           {mode === 'suppress' && (
             <div className="space-y-3 rounded-lg border border-red-500/20 bg-red-500/5 p-4">
-              <h3 className="text-sm font-medium text-red-400">
-                Suppresja alertu
-              </h3>
+              <h3 className="text-sm font-medium text-red-400">False positive / Suppresja</h3>
               <p className="text-xs text-[var(--text-secondary)]">
-                Wszystkie przyszle alerty typu <strong>{typeLabel}</strong> zostana zignorowane.
+                Wszystkie przyszłe alerty typu <strong>{typeLabel}</strong> zostaną zignorowane.
               </p>
               <textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 rows={2}
                 className="w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:ring-1 focus:ring-red-500"
-                placeholder="Powod suppresji..."
+                placeholder="Powód suppresji..."
               />
               <div className="flex gap-2">
                 <button
@@ -217,7 +421,7 @@ export function AlertDetailDrawer({
                   className="flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Ban className="h-4 w-4" />
-                  {isResolving ? 'Wysylanie...' : 'Potwierdz suppresje'}
+                  {isResolving ? 'Wysyłanie...' : 'Potwierdź suppresję'}
                 </button>
                 <button
                   onClick={() => setMode('view')}
@@ -228,27 +432,118 @@ export function AlertDetailDrawer({
               </div>
             </div>
           )}
+
+          {mode === 'forward' && (
+            <div className="space-y-3 rounded-lg border border-[var(--accent)]/20 bg-[var(--accent)]/5 p-4">
+              <h3 className="text-sm font-medium text-[var(--accent)]">Przekaż dalej</h3>
+              <input
+                value={forwardTo}
+                onChange={(e) => setForwardTo(e.target.value)}
+                className="w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                placeholder="Komu przekazać? (np. Roch, Krystian...)"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleForward}
+                  disabled={isSending || !forwardTo.trim()}
+                  className="flex items-center gap-2 rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Forward className="h-4 w-4" />
+                  {isSending ? 'Wysyłanie...' : 'Przekaż'}
+                </button>
+                <button
+                  onClick={() => setMode('view')}
+                  className="rounded-md px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                >
+                  Anuluj
+                </button>
+              </div>
+            </div>
+          )}
+
+          {mode === 'task' && (
+            <div className="space-y-3 rounded-lg border border-green-500/20 bg-green-500/5 p-4">
+              <h3 className="text-sm font-medium text-green-400">Nowe zadanie</h3>
+              <textarea
+                value={taskText}
+                onChange={(e) => setTaskText(e.target.value)}
+                rows={3}
+                className="w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:ring-1 focus:ring-green-500"
+                placeholder="Opis zadania..."
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleTask}
+                  disabled={isSending || !taskText.trim()}
+                  className="flex items-center gap-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ClipboardList className="h-4 w-4" />
+                  {isSending ? 'Tworzenie...' : 'Utwórz zadanie'}
+                </button>
+                <button
+                  onClick={() => setMode('view')}
+                  className="rounded-md px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                >
+                  Anuluj
+                </button>
+              </div>
+            </div>
+          )}
+
+          {mode === 'comment' && (
+            <div className="space-y-3 rounded-lg border border-purple-500/20 bg-purple-500/5 p-4">
+              <h3 className="text-sm font-medium text-purple-400">Komentarz</h3>
+              <textarea
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                rows={3}
+                className="w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:ring-1 focus:ring-purple-500"
+                placeholder="Twój komentarz..."
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleComment}
+                  disabled={isSending || !commentText.trim()}
+                  className="flex items-center gap-2 rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  {isSending ? 'Wysyłanie...' : 'Dodaj komentarz'}
+                </button>
+                <button
+                  onClick={() => setMode('view')}
+                  className="rounded-md px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                >
+                  Anuluj
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Research result */}
+          {researchResult && (
+            <div className="rounded-lg border border-[var(--accent)]/30 bg-[var(--accent)]/5 p-4">
+              <button
+                onClick={() => setResearchExpanded((p) => !p)}
+                className="flex w-full items-center justify-between"
+              >
+                <p className="text-xs font-medium text-[var(--accent)]">Odpowiedź Gilbertusa</p>
+                {researchExpanded ? (
+                  <ChevronUp className="h-4 w-4 text-[var(--accent)]" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-[var(--accent)]" />
+                )}
+              </button>
+              {researchExpanded && (
+                <p className="mt-2 text-sm text-[var(--text)] whitespace-pre-wrap">{researchResult}</p>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Footer actions — visible in view mode */}
-        {mode === 'view' && (
-          <div className="border-t border-[var(--border)] px-6 py-4 flex gap-3">
-            <button
-              onClick={() => setMode('fix')}
-              className="flex flex-1 items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
-            >
-              <Wrench className="h-4 w-4" />
-              Napraw
-              <ChevronRight className="h-4 w-4 ml-auto" />
-            </button>
-            <button
-              onClick={() => setMode('suppress')}
-              className="flex flex-1 items-center justify-center gap-2 rounded-md border border-red-500/30 px-4 py-2.5 text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors"
-            >
-              <Ban className="h-4 w-4" />
-              Nie valid
-              <ChevronRight className="h-4 w-4 ml-auto" />
-            </button>
+        {/* Toast */}
+        {toast && (
+          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 rounded-lg bg-[var(--surface)] border border-[var(--border)] px-4 py-2 text-sm text-[var(--text)] shadow-lg">
+            {toast}
           </div>
         )}
       </div>
