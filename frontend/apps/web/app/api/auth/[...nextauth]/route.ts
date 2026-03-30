@@ -1,10 +1,11 @@
-// NextAuth route — conditionally stubbed for Tauri static export.
-// Turbopack (Next.js 16) can't handle dynamic imports in force-static routes,
-// so the real handlers are only loaded via top-level import in web mode.
+// Tauri static export: NextAuth not needed in desktop app.
+// generateStaticParams required for dynamic API routes in output: 'export'.
 export const dynamic = 'force-static';
 
-// NOTE: real auth is handled by next.config.ts webpack alias in web mode.
-// In Tauri build (TAURI_BUILD=1), this stub is used directly.
+export function generateStaticParams() {
+  return [{ nextauth: ['session'] }, { nextauth: ['csrf'] }];
+}
+
 export async function GET(_req: Request): Promise<Response> {
   return new Response(null, { status: 404 });
 }

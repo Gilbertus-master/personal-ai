@@ -3,7 +3,12 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from typing import Any
+
+import structlog
+
 from app.retrieval.relevance import rerank_matches_by_relevance
+
+log = structlog.get_logger(__name__)
 
 
 POLISH_STOPWORDS = {
@@ -131,8 +136,10 @@ def cleanup_matches(
                 if float(score) < float(min_score):
                     stats["score_filtered_out"] += 1
                     continue
-            except Exception:
-                pass
+            except Exception as exc:
+                log.warning("postprocess.score_cast_failed", score=score, min_score=min_score, error=str(exc))
+                stats["score_filtered_out"] += 1
+                continue
         filtered.append(match)
 
     # 2) relevance reranking
