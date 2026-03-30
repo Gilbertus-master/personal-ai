@@ -6,6 +6,7 @@ import { cn } from '../../lib/utils';
 
 export interface BusinessLineCardProps {
   line: BusinessLine;
+  onClick?: () => void;
 }
 
 const IMPORTANCE_CONFIG: Record<BusinessLine['importance'], { label: string; color: string }> = {
@@ -25,12 +26,18 @@ function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export function BusinessLineCard({ line }: BusinessLineCardProps) {
+export function BusinessLineCard({ line, onClick }: BusinessLineCardProps) {
   const importance = IMPORTANCE_CONFIG[line.importance];
   const status = STATUS_CONFIG[line.status];
 
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 transition-colors hover:bg-[var(--surface-hover)]">
+    <div
+      onClick={onClick}
+      className={cn(
+        'rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 transition-colors hover:bg-[var(--surface-hover)]',
+        onClick && 'cursor-pointer hover:ring-1 hover:ring-[var(--accent)]',
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-bold text-[var(--text)]">{line.name}</h3>

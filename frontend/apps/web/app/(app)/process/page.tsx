@@ -1,6 +1,7 @@
 'use client';
 
-import { RbacGate, BusinessLineCard, ProcessCard } from '@gilbertus/ui';
+import { useState } from 'react';
+import { RbacGate, BusinessLineCard, ProcessCard, BusinessLineDetailDrawer, ProcessDetailDrawer } from '@gilbertus/ui';
 import {
   useProcessDashboard,
   useBusinessLines,
@@ -19,7 +20,7 @@ import {
   Search,
   Lightbulb,
 } from 'lucide-react';
-import type { DiscoveredProcess } from '@gilbertus/api-client';
+import type { DiscoveredProcess, BusinessLine } from '@gilbertus/api-client';
 
 const PROCESS_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: 'decision', label: 'Decyzja' },
@@ -89,6 +90,9 @@ export default function ProcessPage() {
   const discoverMut = useDiscoverBusinessLines();
   const mineMut = useMineProcesses();
   const optimizeMut = useGenerateOptimizations();
+
+  const [selectedLine, setSelectedLine] = useState<BusinessLine | null>(null);
+  const [selectedProcess, setSelectedProcess] = useState<DiscoveredProcess | null>(null);
 
   const filteredProcesses: DiscoveredProcess[] = processes ?? [];
   const lines = businessLines?.business_lines ?? dashboard?.business_lines?.business_lines ?? [];
@@ -217,7 +221,7 @@ export default function ProcessPage() {
               ) : (
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
                   {lines.map((line) => (
-                    <BusinessLineCard key={line.id} line={line} />
+                    <BusinessLineCard key={line.id} line={line} onClick={() => setSelectedLine(line)} />
                   ))}
                 </div>
               )}
@@ -250,7 +254,7 @@ export default function ProcessPage() {
               ) : (
                 <div className="space-y-3">
                   {filteredProcesses.map((proc) => (
-                    <ProcessCard key={proc.id} process={proc} />
+                    <ProcessCard key={proc.id} process={proc} onClick={() => setSelectedProcess(proc)} />
                   ))}
                 </div>
               )}
@@ -293,6 +297,13 @@ export default function ProcessPage() {
               </div>
             )}
           </>
+        )}
+
+        {selectedLine && (
+          <BusinessLineDetailDrawer line={selectedLine} onClose={() => setSelectedLine(null)} />
+        )}
+        {selectedProcess && (
+          <ProcessDetailDrawer process={selectedProcess} onClose={() => setSelectedProcess(null)} />
         )}
       </div>
     </RbacGate>

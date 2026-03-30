@@ -1,8 +1,14 @@
 export { BusinessLineCard } from './business-line-card';
 export type { BusinessLineCardProps } from './business-line-card';
 
+export { BusinessLineDetailDrawer } from './business-line-detail-drawer';
+export type { BusinessLineDetailDrawerProps } from './business-line-detail-drawer';
+
 export { ProcessCard } from './process-card';
 export type { ProcessCardProps } from './process-card';
+
+export { ProcessDetailDrawer } from './process-detail-drawer';
+export type { ProcessDetailDrawerProps } from './process-detail-drawer';
 
 export { AppTable } from './app-table';
 export type { AppTableProps } from './app-table';

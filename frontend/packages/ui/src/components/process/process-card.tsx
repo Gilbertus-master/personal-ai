@@ -5,6 +5,7 @@ import { cn } from '../../lib/utils';
 
 export interface ProcessCardProps {
   process: DiscoveredProcess;
+  onClick?: () => void;
 }
 
 const TYPE_CONFIG: Record<DiscoveredProcess['process_type'], { label: string; color: string }> = {
@@ -38,13 +39,19 @@ function automationColor(pct: number): string {
   return 'bg-red-500';
 }
 
-export function ProcessCard({ process }: ProcessCardProps) {
+export function ProcessCard({ process, onClick }: ProcessCardProps) {
   const typeConfig = TYPE_CONFIG[process.process_type];
   const status = STATUS_CONFIG[process.status];
   const pct = Math.round(process.automation_potential);
 
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 transition-colors hover:bg-[var(--surface-hover)]">
+    <div
+      onClick={onClick}
+      className={cn(
+        'rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 transition-colors hover:bg-[var(--surface-hover)]',
+        onClick && 'cursor-pointer hover:ring-1 hover:ring-[var(--accent)]',
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-medium text-[var(--text)]">{process.name}</h3>
