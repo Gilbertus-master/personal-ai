@@ -116,6 +116,8 @@ from app.api.alerts import router as alerts_resolution_router
 app.include_router(alerts_resolution_router)
 from app.api.alerts_guardian import router as alerts_guardian_router
 app.include_router(alerts_guardian_router)
+from app.api.errors import router as errors_router
+app.include_router(errors_router)
 
 
 # =========================

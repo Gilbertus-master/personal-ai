@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
+import { ErrorReporter } from '@/components/error-reporter';
 
 const inter = Inter({
   subsets: ['latin', 'latin-ext'],
@@ -24,7 +25,10 @@ export default function RootLayout({
         className={`${inter.variable} font-sans bg-[var(--bg)] text-[var(--text)]`}
         suppressHydrationWarning
       >
-        <Providers>{children}</Providers>
+        <Providers>
+          <ErrorReporter userId="sebastian" />
+          {children}
+        </Providers>
       </body>
     </html>
   );

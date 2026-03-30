@@ -169,11 +169,38 @@ check_server() {
   return 0
 }
 
+# ── 5. Sprawdź błędy raportowane przez użytkowników ────────────────────────
+check_user_reported_errors() {
+  local errors
+  errors=$(curl -s --max-time 5 "http://127.0.0.1:8000/errors/unresolved?limit=10" 2>/dev/null)
+  if [[ -z "$errors" || "$errors" == "null" ]]; then return; fi
+
+  local count
+  count=$(echo "$errors" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('count', 0))" 2>/dev/null)
+  if [[ "$count" == "0" || -z "$count" ]]; then return; fi
+
+  log "📊 $count nierozwiązanych błędów od użytkowników"
+
+  echo "$errors" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+for e in d.get('errors', [])[:3]:
+    print(f\"{e['id']}|{e.get('route','')}|{e['error_type']}|{e['error_message'][:100]}|{e.get('component','')}\")
+" 2>/dev/null | while IFS="|" read -r err_id route err_type err_msg component; do
+    if [[ -n "$err_id" ]]; then
+      log "🔧 Fix błędu #$err_id: $err_type na $route ($component)"
+      fix_error "user_report_${err_type}" "$err_msg (route: $route, component: $component)" "${component:-$route}"
+      curl -s -X POST "http://127.0.0.1:8000/errors/${err_id}/resolve" > /dev/null 2>&1 || true
+    fi
+  done
+}
+
 # ── MAIN ────────────────────────────────────────────────────────────────────
 log "=== Webapp AutoFix Monitor — start ==="
 
 check_server || { log "Server restarting, skip this cycle"; exit 0; }
 check_turbopack_errors
 check_routes
+check_user_reported_errors
 
 log "=== Cykl zakończony ==="
