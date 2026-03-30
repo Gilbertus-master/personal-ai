@@ -87,7 +87,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, mobileOpen }: Side
     if (!chatQ.trim()) return;
     const q = encodeURIComponent(chatQ.trim());
     setChatQ('');
-    router.push(\`/chat?q=\${q}\`);
+    router.push('/chat?q=' + q);
   }, [chatQ, router]);
 
   const nav = (
