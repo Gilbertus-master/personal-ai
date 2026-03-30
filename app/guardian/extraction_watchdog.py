@@ -90,7 +90,7 @@ def get_backlogs() -> dict[str, int]:
                 LEFT JOIN chunks_entity_checked cec ON cec.chunk_id = c.id
                 WHERE ce.id IS NULL AND cec.chunk_id IS NULL
             """)
-            entity_backlog = cur.fetchone()[0]
+            entity_backlog = cur.fetchall()[0][0]
 
             # Event backlog
             cur.execute("""
@@ -99,7 +99,7 @@ def get_backlogs() -> dict[str, int]:
                 LEFT JOIN chunks_event_checked cec ON cec.chunk_id = c.id
                 WHERE e.id IS NULL AND cec.chunk_id IS NULL
             """)
-            event_backlog = cur.fetchone()[0]
+            event_backlog = cur.fetchall()[0][0]
 
             # Embedding backlog
             cur.execute("""
@@ -107,7 +107,7 @@ def get_backlogs() -> dict[str, int]:
                 WHERE (embedding_id IS NULL OR embedding_id = '')
                 AND COALESCE(embedding_status, 'pending') = 'pending'
             """)
-            embedding_backlog = cur.fetchone()[0]
+            embedding_backlog = cur.fetchall()[0][0]
 
     return {
         "entity_backlog": entity_backlog,

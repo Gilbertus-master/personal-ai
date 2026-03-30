@@ -29,7 +29,7 @@ def check_extraction_coverage() -> dict:
         with conn.cursor() as cur:
             # Total chunks
             cur.execute("SELECT COUNT(*) FROM chunks")
-            total_chunks = cur.fetchone()[0]
+            total_chunks = cur.fetchall()[0][0]
 
             if total_chunks == 0:
                 return {
@@ -44,7 +44,7 @@ def check_extraction_coverage() -> dict:
                 LEFT JOIN chunks_event_checked cec ON cec.chunk_id = c.id
                 WHERE e.id IS NULL AND cec.chunk_id IS NULL
             """)
-            uncovered_chunks = cur.fetchone()[0]
+            uncovered_chunks = cur.fetchall()[0][0]
 
             covered_chunks = total_chunks - uncovered_chunks
             coverage_pct = round((covered_chunks / total_chunks) * 100, 2) if total_chunks > 0 else 100.0

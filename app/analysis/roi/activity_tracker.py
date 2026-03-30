@@ -157,7 +157,7 @@ def _scan_code_review_findings(owner: dict, since: datetime) -> int:
                 "SELECT EXISTS (SELECT 1 FROM information_schema.tables "
                 "WHERE table_schema='public' AND table_name='code_review_findings')"
             )
-            if not cur.fetchone()[0]:
+            if not cur.fetchall()[0][0]:
                 return 0
 
             cur.execute(
@@ -226,7 +226,7 @@ def _scan_communications(owner: dict, since: datetime) -> int:
                 "SELECT EXISTS (SELECT 1 FROM information_schema.tables "
                 "WHERE table_schema='public' AND table_name='sent_communications')"
             )
-            if not cur.fetchone()[0]:
+            if not cur.fetchall()[0][0]:
                 return 0
 
             cur.execute(

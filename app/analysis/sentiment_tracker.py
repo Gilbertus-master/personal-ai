@@ -214,7 +214,7 @@ def analyze_person_sentiment(person_name: str, week_start: str) -> dict[str, Any
                 analysis, data["event_count"], data["chunk_count"],
                 red_flags if red_flags else None,
             ))
-            record_id = cur.fetchone()[0]
+            record_id = cur.fetchall()[0][0]
             conn.commit()
 
     log.info("sentiment_tracker.scored",

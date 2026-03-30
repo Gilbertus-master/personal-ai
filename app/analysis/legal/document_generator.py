@@ -228,7 +228,7 @@ def generate_document(
                 FROM compliance_documents
                 WHERE title = %s AND area_id = %s
             """, (title, matter["area_id"]))
-            max_ver = cur.fetchone()[0]
+            max_ver = cur.fetchall()[0][0]
             version = max_ver + 1
 
             # 6. Insert
@@ -248,7 +248,7 @@ def generate_document(
                 "pending" if requires_sig else "not_required",
                 json.dumps(signer_records),
             ))
-            doc_id = cur.fetchone()[0]
+            doc_id = cur.fetchall()[0][0]
         conn.commit()
 
     log.info("document_generated", document_id=doc_id, title=title, version=version)

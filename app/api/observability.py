@@ -175,7 +175,7 @@ def run_alert_check():
                 SELECT COUNT(*) FROM ask_runs
                 WHERE created_at > NOW() - INTERVAL '1 hour' AND error_flag = TRUE
             """)
-            err_count = cur.fetchone()[0] or 0
+            err_count = cur.fetchall()[0][0] or 0
             if err_count >= 2:
                 alerts.append(f"🔴 {err_count} błędów w ostatniej godzinie")
 

@@ -85,14 +85,14 @@ def measure_engagement(days: int = 7) -> dict[str, Any]:
                 WHERE s.source_type = 'whatsapp_live'
                 AND d.created_at > NOW() - INTERVAL '%s days'
             """, (days,))
-            metrics["whatsapp_messages"] = cur.fetchone()[0]
+            metrics["whatsapp_messages"] = cur.fetchall()[0][0]
 
             # Decision logging rate
             cur.execute("""
                 SELECT COUNT(*) FROM decisions
                 WHERE created_at > NOW() - INTERVAL '%s days'
             """, (days,))
-            metrics["decisions_logged"] = cur.fetchone()[0]
+            metrics["decisions_logged"] = cur.fetchall()[0][0]
 
     # Store daily metric
     today = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")

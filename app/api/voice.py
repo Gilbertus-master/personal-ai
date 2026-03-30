@@ -236,9 +236,9 @@ def _execute_query_command(command: str) -> str:
             with get_pg_connection() as conn:
                 with conn.cursor() as cur:
                     cur.execute("SELECT COUNT(*) FROM chunks")
-                    chunks = cur.fetchone()[0]
+                    chunks = cur.fetchall()[0][0]
                     cur.execute("SELECT COUNT(*) FROM events")
-                    events = cur.fetchone()[0]
+                    events = cur.fetchall()[0][0]
             return f"Gilbertus online. {chunks} chunków, {events} eventów w bazie. Wszystkie systemy sprawne."
 
         elif command == "scenarios":

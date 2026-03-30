@@ -503,7 +503,7 @@ def save_radar_snapshot(
                     json.dumps(recs, ensure_ascii=False, default=str),
                 ),
             )
-            snapshot_id = cur.fetchone()[0]
+            snapshot_id = cur.fetchall()[0][0]
         conn.commit()
 
     log.info("strategic_radar.snapshot_saved", snapshot_id=snapshot_id)

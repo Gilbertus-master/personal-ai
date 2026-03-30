@@ -102,7 +102,7 @@ def gather_wellbeing_indicators(week_start: str) -> dict[str, Any]:
                   AND e.event_type IN ('email_sent', 'email_received', 'teams_message',
                                        'meeting', 'decision', 'commitment')
             """, (week_start, week_start))
-            indicators["late_night_count"] = cur.fetchone()[0]
+            indicators["late_night_count"] = cur.fetchall()[0][0]
 
             # Conflict events
             cur.execute("""
@@ -112,7 +112,7 @@ def gather_wellbeing_indicators(week_start: str) -> dict[str, Any]:
                   AND e.event_time < %s::date + INTERVAL '7 days'
                   AND e.event_type IN ('conflict', 'escalation', 'blocker')
             """, (week_start, week_start))
-            indicators["conflict_count"] = cur.fetchone()[0]
+            indicators["conflict_count"] = cur.fetchall()[0][0]
 
             # Family events (positive)
             cur.execute("""
@@ -125,7 +125,7 @@ def gather_wellbeing_indicators(week_start: str) -> dict[str, Any]:
                        AND e.summary NOT ILIKE '%%conflict%%'
                        AND e.summary NOT ILIKE '%%argument%%')
             """, (week_start, week_start))
-            indicators["family_positive_count"] = cur.fetchone()[0]
+            indicators["family_positive_count"] = cur.fetchall()[0][0]
 
             # Family events (negative)
             cur.execute("""
@@ -138,7 +138,7 @@ def gather_wellbeing_indicators(week_start: str) -> dict[str, Any]:
                        OR e.summary ILIKE '%%conflict%%'
                        OR e.summary ILIKE '%%argument%%')
             """, (week_start, week_start))
-            indicators["family_negative_count"] = cur.fetchone()[0]
+            indicators["family_negative_count"] = cur.fetchall()[0][0]
 
             # Health events
             cur.execute("""
@@ -148,7 +148,7 @@ def gather_wellbeing_indicators(week_start: str) -> dict[str, Any]:
                   AND e.event_time < %s::date + INTERVAL '7 days'
                   AND e.event_type = 'health'
             """, (week_start, week_start))
-            indicators["health_event_count"] = cur.fetchone()[0]
+            indicators["health_event_count"] = cur.fetchall()[0][0]
 
             # Meeting density
             cur.execute("""
@@ -158,7 +158,7 @@ def gather_wellbeing_indicators(week_start: str) -> dict[str, Any]:
                   AND e.event_time < %s::date + INTERVAL '7 days'
                   AND e.event_type IN ('meeting', 'call')
             """, (week_start, week_start))
-            indicators["meeting_count"] = cur.fetchone()[0]
+            indicators["meeting_count"] = cur.fetchall()[0][0]
 
             # Weekend activity
             cur.execute("""
@@ -168,7 +168,7 @@ def gather_wellbeing_indicators(week_start: str) -> dict[str, Any]:
                   AND e.event_time < %s::date + INTERVAL '7 days'
                   AND EXTRACT(DOW FROM e.event_time) IN (0, 6)
             """, (week_start, week_start))
-            indicators["weekend_event_count"] = cur.fetchone()[0]
+            indicators["weekend_event_count"] = cur.fetchall()[0][0]
 
             # Total events
             cur.execute("""
@@ -177,7 +177,7 @@ def gather_wellbeing_indicators(week_start: str) -> dict[str, Any]:
                 WHERE e.event_time >= %s::date
                   AND e.event_time < %s::date + INTERVAL '7 days'
             """, (week_start, week_start))
-            indicators["total_event_count"] = cur.fetchone()[0]
+            indicators["total_event_count"] = cur.fetchall()[0][0]
 
             # Recent communication summaries for context
             cur.execute("""
@@ -295,7 +295,7 @@ def run_wellbeing_check() -> dict[str, Any]:
                 json.dumps(stored_indicators), text_analysis,
                 suggestions if suggestions else None,
             ))
-            record_id = cur.fetchone()[0]
+            record_id = cur.fetchall()[0][0]
             conn.commit()
 
     log.info("wellbeing_monitor.check_complete",

@@ -38,7 +38,7 @@ def generate_daily_update() -> str | None:
                 WHERE status = 'overdue'
                    OR (deadline_date < CURRENT_DATE AND status = 'pending')
             """)
-            overdue_count = cur.fetchone()[0]
+            overdue_count = cur.fetchall()[0][0]
 
             # Upcoming deadlines (7 days)
             cur.execute("""
@@ -46,7 +46,7 @@ def generate_daily_update() -> str | None:
                 WHERE deadline_date BETWEEN CURRENT_DATE AND CURRENT_DATE + 7
                   AND status IN ('pending', 'in_progress')
             """)
-            upcoming_count = cur.fetchone()[0]
+            upcoming_count = cur.fetchall()[0][0]
 
             # Open matters by priority
             cur.execute("""
@@ -64,14 +64,14 @@ def generate_daily_update() -> str | None:
                 SELECT COUNT(*) FROM compliance_documents
                 WHERE status = 'active' AND review_due <= CURRENT_DATE
             """)
-            stale_docs = cur.fetchone()[0]
+            stale_docs = cur.fetchall()[0][0]
 
             # Pending trainings
             cur.execute("""
                 SELECT COUNT(*) FROM compliance_trainings
                 WHERE status IN ('active', 'overdue')
             """)
-            pending_trainings = cur.fetchone()[0]
+            pending_trainings = cur.fetchall()[0][0]
 
             # Pending signatures
             cur.execute("""
@@ -79,7 +79,7 @@ def generate_daily_update() -> str | None:
                 WHERE signature_status = 'pending'
                   AND status IN ('approved', 'active')
             """)
-            pending_signatures = cur.fetchone()[0]
+            pending_signatures = cur.fetchall()[0][0]
 
     # Nothing to report?
     if (overdue_count == 0 and upcoming_count == 0 and open_matters == 0

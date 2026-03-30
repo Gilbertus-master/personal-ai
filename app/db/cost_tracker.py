@@ -95,14 +95,14 @@ def check_budget(module: str) -> dict:
             with conn.cursor() as cur:
                 # Today's total spend
                 cur.execute("SELECT COALESCE(SUM(cost_usd), 0) FROM api_costs WHERE created_at >= CURRENT_DATE")
-                daily_total = float(cur.fetchone()[0])
+                daily_total = float(cur.fetchall()[0][0])
 
                 # Module spend today
                 cur.execute(
                     "SELECT COALESCE(SUM(cost_usd), 0) FROM api_costs WHERE created_at >= CURRENT_DATE AND module LIKE %s",
                     (f"{module}%",)
                 )
-                module_total = float(cur.fetchone()[0])
+                module_total = float(cur.fetchall()[0][0])
 
                 # Load budget limits
                 cur.execute("SELECT scope, limit_usd, alert_threshold_pct, hard_limit FROM cost_budgets")
@@ -165,7 +165,7 @@ def get_budget_status() -> dict:
         with get_pg_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT COALESCE(SUM(cost_usd), 0) FROM api_costs WHERE created_at >= CURRENT_DATE")
-                daily_total = float(cur.fetchone()[0])
+                daily_total = float(cur.fetchall()[0][0])
 
                 cur.execute("""
                     SELECT module, COALESCE(SUM(cost_usd), 0)

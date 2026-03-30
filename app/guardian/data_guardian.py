@@ -648,7 +648,7 @@ def check_processing_backlog() -> list[dict[str, Any]]:
                   AND c.embedding_status != 'error'
                   AND d.created_at < NOW() - INTERVAL '2 hours'
             """)
-            pending_embeddings = cur.fetchone()[0]
+            pending_embeddings = cur.fetchall()[0][0]
             if pending_embeddings > 100:
                 issues.append({
                     "type": "embedding_backlog",
@@ -665,7 +665,7 @@ def check_processing_backlog() -> list[dict[str, Any]]:
                 WHERE cec.chunk_id IS NULL
                   AND d.created_at < NOW() - INTERVAL '4 hours'
             """)
-            pending_entities = cur.fetchone()[0]
+            pending_entities = cur.fetchall()[0][0]
             if pending_entities > 500:
                 issues.append({
                     "type": "entity_backlog",
@@ -682,7 +682,7 @@ def check_processing_backlog() -> list[dict[str, Any]]:
                 WHERE e.id IS NULL
                   AND d.created_at < NOW() - INTERVAL '4 hours'
             """)
-            pending_events = cur.fetchone()[0]
+            pending_events = cur.fetchall()[0][0]
             if pending_events > 500:
                 issues.append({
                     "type": "event_backlog",

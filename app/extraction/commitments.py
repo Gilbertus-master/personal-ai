@@ -272,7 +272,7 @@ def insert_commitment(
                 """,
                 (person_name, person_id, commitment_text, context, deadline, source_chunk_id),
             )
-            commitment_id = cur.fetchone()[0]
+            commitment_id = cur.fetchall()[0][0]
         conn.commit()
     return commitment_id
 
@@ -297,7 +297,7 @@ def _create_extraction_run(model: str, worker_id: int, worker_total: int, batch_
                        VALUES (%s, %s, %s, %s, %s) RETURNING id""",
                     ("commitments", model, worker_id, worker_total, batch_size),
                 )
-                run_id = cur.fetchone()[0]
+                run_id = cur.fetchall()[0][0]
             conn.commit()
         return run_id
     except Exception as e:

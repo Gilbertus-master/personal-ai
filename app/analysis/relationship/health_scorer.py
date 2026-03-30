@@ -52,7 +52,7 @@ def compute_health_score(partner_id: int = 1, days: int = 7) -> dict:
                          AND event_type = 'conflict'""",
                 (partner_id, since),
             )
-            conflict_count = cur.fetchone()[0]
+            conflict_count = cur.fetchall()[0][0]
 
             # 3. Active alerts (pattern threshold exceeded)
             cur.execute(
@@ -61,7 +61,7 @@ def compute_health_score(partner_id: int = 1, days: int = 7) -> dict:
                          AND occurrences >= alert_threshold""",
                 (partner_id,),
             )
-            alert_count = cur.fetchone()[0]
+            alert_count = cur.fetchall()[0][0]
 
             # 4. Latest metrics
             cur.execute(

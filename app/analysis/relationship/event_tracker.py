@@ -32,7 +32,7 @@ def log_event(
                    VALUES (%s, %s, %s, %s, %s) RETURNING id""",
                 (partner_id, event_type, title, description, sentiment),
             )
-            event_id = cur.fetchone()[0]
+            event_id = cur.fetchall()[0][0]
             conn.commit()
             # Log only type + sentiment, never content
             log.info("rel.event.logged", event_type=event_type, sentiment=sentiment)

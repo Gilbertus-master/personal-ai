@@ -123,7 +123,7 @@ def _dedup_matter_exists(title: str) -> bool:
                 WHERE (title ILIKE %s OR title ILIKE %s)
                   AND created_at > NOW() - INTERVAL '90 days'
             """, (title, f"%{title[:50]}%"))
-            return cur.fetchone()[0] > 0
+            return cur.fetchall()[0][0] > 0
 
 
 def scan_for_regulatory_changes(hours: int = 24) -> dict[str, Any]:

@@ -78,14 +78,14 @@ def check_db_counts() -> dict[str, Any]:
                 ("entities", BASELINE["min_entities"]),
             ]:
                 cur.execute(f"SELECT COUNT(*) FROM {table}")  # safe: table from hardcoded list above
-                count = cur.fetchone()[0]
+                count = cur.fetchall()[0][0]
                 counts[table] = count
                 if count < min_count:
                     issues.append(f"{table}: {count} < baseline {min_count}")
 
             # Table count
             cur.execute("SELECT COUNT(*) FROM pg_tables WHERE schemaname = 'public'")
-            table_count = cur.fetchone()[0]
+            table_count = cur.fetchall()[0][0]
             counts["tables"] = table_count
             if table_count < BASELINE["min_tables"]:
                 issues.append(f"tables: {table_count} < baseline {BASELINE['min_tables']}")
@@ -98,7 +98,7 @@ def check_extraction_coverage() -> dict[str, Any]:
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT COUNT(*) FROM chunks")
-            total = cur.fetchone()[0]
+            total = cur.fetchall()[0][0]
 
             cur.execute("""
                 SELECT COUNT(*) FROM chunks c
@@ -106,7 +106,7 @@ def check_extraction_coverage() -> dict[str, Any]:
                 LEFT JOIN chunks_event_checked cec ON cec.chunk_id = c.id
                 WHERE e.id IS NULL AND cec.chunk_id IS NULL
             """)
-            remaining = cur.fetchone()[0]
+            remaining = cur.fetchall()[0][0]
 
     coverage = round(100.0 * (1 - remaining / max(total, 1)), 1) if total > 0 else 0
     ok = coverage >= BASELINE["min_extraction_coverage_pct"]
@@ -126,7 +126,7 @@ def check_api_costs() -> dict[str, Any]:
                 SELECT COALESCE(SUM(cost_usd), 0)
                 FROM api_costs WHERE created_at >= CURRENT_DATE
             """)
-            today_cost = float(cur.fetchone()[0])
+            today_cost = float(cur.fetchall()[0][0])
 
     ok = today_cost <= BASELINE["max_api_cost_daily_usd"]
     return {
@@ -150,7 +150,7 @@ def check_cron_health() -> dict[str, Any]:
             for name, (query, max_minutes) in freshness_checks.items():
                 try:
                     cur.execute(query)
-                    last = cur.fetchone()[0]
+                    last = cur.fetchall()[0][0]
                     if last:
                         age_min = (datetime.now(tz=timezone.utc) - last).total_seconds() / 60
                         if age_min > max_minutes:
@@ -160,7 +160,7 @@ def check_cron_health() -> dict[str, Any]:
 
             # Count registered jobs
             cur.execute("SELECT COUNT(*) FROM cron_registry")
-            job_count = cur.fetchone()[0]
+            job_count = cur.fetchall()[0][0]
             if job_count < BASELINE["min_cron_jobs"]:
                 issues.append(f"cron_jobs: {job_count} < baseline {BASELINE['min_cron_jobs']}")
 

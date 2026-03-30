@@ -97,7 +97,7 @@ def create_pattern(
                    VALUES (%s, %s, %s, %s, %s, %s) RETURNING id""",
                 (partner_id, pattern_name, pattern_type, description, detection_hint, alert_threshold),
             )
-            pid = cur.fetchone()[0]
+            pid = cur.fetchall()[0][0]
             conn.commit()
             log.info("rel.pattern.created", pattern_id=pid)
             return pid

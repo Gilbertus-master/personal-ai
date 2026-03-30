@@ -112,7 +112,7 @@ def create_scenario(
                    VALUES (%s, %s, %s, %s, %s) RETURNING id""",
                 (title, description, scenario_type, trigger_event, created_by),
             )
-            sid = cur.fetchone()[0]
+            sid = cur.fetchall()[0][0]
             conn.commit()
     log.info("scenario_created", id=sid, title=title)
     return {"id": sid, "title": title, "status": "draft"}

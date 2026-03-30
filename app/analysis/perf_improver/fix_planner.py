@@ -100,7 +100,7 @@ def _was_recently_applied(param: str, new_value: str) -> bool:
                 """,
                 (param, new_value),
             )
-            return cur.fetchone()[0] > 0
+            return cur.fetchall()[0][0] > 0
 
 
 def plan_fix(bottleneck: Bottleneck) -> Optional[FixPlan]:

@@ -17,7 +17,7 @@ def _ensure_tables() -> None:
                     WHERE table_schema = 'public' AND table_name = 'roi_hierarchy'
                 )
             """)
-            if not cur.fetchone()[0]:
+            if not cur.fetchall()[0][0]:
                 log.warning("roi_hierarchy table missing — run migrations/019_roi.sql")
 
 

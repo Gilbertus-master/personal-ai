@@ -305,7 +305,7 @@ def check_orphan_chunks(conn) -> list[dict]:
             LEFT JOIN documents d ON d.id = c.document_id
             WHERE d.id IS NULL
         """)
-        cnt = cur.fetchone()[0]
+        cnt = cur.fetchall()[0][0]
         if cnt > 0:
             issues.append({
                 "check": "orphan_chunks",
@@ -325,7 +325,7 @@ def check_orphan_entities(conn) -> list[dict]:
             LEFT JOIN chunk_entities ce ON ce.entity_id = e.id
             WHERE ce.id IS NULL
         """)
-        cnt = cur.fetchone()[0]
+        cnt = cur.fetchall()[0][0]
         if cnt > 0:
             issues.append({
                 "check": "orphan_entities",
@@ -553,7 +553,7 @@ def compute_quality_score(conn, issues: list[dict]) -> dict:
                 SELECT COUNT(*) FROM ingestion_dlq
                 WHERE status IN ('pending', 'retrying')
             """)
-            dlq_count = cur.fetchone()[0]
+            dlq_count = cur.fetchall()[0][0]
         except Exception:
             conn.rollback()
             dlq_count = 0

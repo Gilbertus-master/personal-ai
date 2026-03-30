@@ -46,7 +46,7 @@ def list_dlq(
             rows = [dict(zip(cols, row)) for row in cur.fetchall()]
 
             cur.execute(f"SELECT COUNT(*) FROM ingestion_dlq {where}", params)
-            total = cur.fetchone()[0]
+            total = cur.fetchall()[0][0]
 
     return {"items": rows, "total": total, "limit": limit, "offset": offset}
 

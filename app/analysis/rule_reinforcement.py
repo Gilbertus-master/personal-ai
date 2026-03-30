@@ -125,7 +125,7 @@ def log_rule_application(rule_id: int, context: str, applied_in: str) -> int:
                 VALUES (%s, %s, %s)
                 RETURNING id
             """, (rule_id, context, applied_in))
-            app_id = cur.fetchone()[0]
+            app_id = cur.fetchall()[0][0]
 
             cur.execute("""
                 UPDATE self_rules

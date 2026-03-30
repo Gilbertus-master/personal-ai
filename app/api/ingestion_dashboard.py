@@ -72,7 +72,7 @@ def _get_source_health() -> list[dict]:
                 )
             """)
             breaker_states = {}
-            if cur.fetchone()[0]:
+            if cur.fetchall()[0][0]:
                 cur.execute("""
                     SELECT source_type, state
                     FROM circuit_breakers

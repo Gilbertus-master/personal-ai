@@ -534,31 +534,31 @@ def system_status(request: Request) -> dict[str, Any]:
         with get_pg_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT count(*) FROM documents")
-                document_count = cur.fetchone()[0]
+                document_count = cur.fetchall()[0][0]
 
                 cur.execute("SELECT count(*) FROM chunks")
-                chunk_count = cur.fetchone()[0]
+                chunk_count = cur.fetchall()[0][0]
 
                 cur.execute("SELECT count(*) FROM entities")
-                entity_count = cur.fetchone()[0]
+                entity_count = cur.fetchall()[0][0]
 
                 cur.execute("SELECT count(*) FROM events")
-                event_count = cur.fetchone()[0]
+                event_count = cur.fetchall()[0][0]
 
                 cur.execute("SELECT count(*) FROM summaries")
-                summary_count = cur.fetchone()[0]
+                summary_count = cur.fetchall()[0][0]
 
                 # insights table may not exist yet
                 try:
                     cur.execute("SELECT count(*) FROM insights")
-                    insight_count = cur.fetchone()[0]
+                    insight_count = cur.fetchall()[0][0]
                 except Exception:
                     conn.rollback()
                     insight_count = None
 
                 try:
                     cur.execute("SELECT count(*) FROM alerts")
-                    alert_count = cur.fetchone()[0]
+                    alert_count = cur.fetchall()[0][0]
                 except Exception:
                     conn.rollback()
                     alert_count = None
@@ -581,12 +581,12 @@ def system_status(request: Request) -> dict[str, Any]:
         with get_pg_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT count(*) FROM chunks")
-                total = cur.fetchone()[0]
+                total = cur.fetchall()[0][0]
 
                 cur.execute(
                     "SELECT count(*) FROM chunks WHERE embedding_id IS NOT NULL"
                 )
-                done = cur.fetchone()[0]
+                done = cur.fetchall()[0][0]
 
         result["embeddings"] = {
             "total": total,

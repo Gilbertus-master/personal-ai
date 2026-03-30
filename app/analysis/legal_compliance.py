@@ -589,7 +589,7 @@ def get_compliance_dashboard() -> dict[str, Any]:
                 SELECT COUNT(*) FROM compliance_deadlines
                 WHERE deadline_date < CURRENT_DATE AND status IN ('pending','in_progress')
             """)
-            dashboard["overdue_deadlines_count"] = cur.fetchone()[0]
+            dashboard["overdue_deadlines_count"] = cur.fetchall()[0][0]
 
             # Document freshness
             cur.execute("""
@@ -603,7 +603,7 @@ def get_compliance_dashboard() -> dict[str, Any]:
                 SELECT COUNT(*) FROM compliance_documents
                 WHERE review_due <= CURRENT_DATE AND status = 'active'
             """)
-            dashboard["documents_overdue_review"] = cur.fetchone()[0]
+            dashboard["documents_overdue_review"] = cur.fetchall()[0][0]
 
             # Risk heatmap
             cur.execute("""
@@ -1348,14 +1348,14 @@ def advance_matter_phase(matter_id: int, force_phase: str | None = None) -> dict
                       AND signature_status != 'signed'
                       AND status NOT IN ('superseded','archived')
                 """, (matter_id,))
-                unsigned = cur.fetchone()[0]
+                unsigned = cur.fetchall()[0][0]
 
                 # Check incomplete trainings
                 cur.execute("""
                     SELECT COUNT(*) FROM compliance_trainings
                     WHERE matter_id = %s AND status NOT IN ('completed','cancelled')
                 """, (matter_id,))
-                incomplete_training = cur.fetchone()[0]
+                incomplete_training = cur.fetchall()[0][0]
 
         blockers = []
         if obl and obl[0] > 0:
@@ -1378,7 +1378,7 @@ def advance_matter_phase(matter_id: int, force_phase: str | None = None) -> dict
                 cur.execute("""
                     SELECT COUNT(*) FROM compliance_audit_evidence WHERE matter_id = %s
                 """, (matter_id,))
-                evidence_count = cur.fetchone()[0]
+                evidence_count = cur.fetchall()[0][0]
 
                 cur.execute("""
                     UPDATE compliance_matters
@@ -1806,7 +1806,7 @@ def run_monthly_verification() -> dict[str, Any]:
                     WHERE area_id = %s AND status = 'active'
                       AND review_due IS NOT NULL AND review_due < CURRENT_DATE
                 """, (area_id,))
-                stale_docs = cur.fetchone()[0]
+                stale_docs = cur.fetchall()[0][0]
                 area_issues += stale_docs
 
                 # 3. Check overdue trainings
@@ -1816,7 +1816,7 @@ def run_monthly_verification() -> dict[str, Any]:
                       AND deadline < CURRENT_DATE
                       AND status NOT IN ('completed', 'cancelled')
                 """, (area_id,))
-                overdue_trainings = cur.fetchone()[0]
+                overdue_trainings = cur.fetchall()[0][0]
                 area_issues += overdue_trainings
 
                 # 4. Check if area needs review

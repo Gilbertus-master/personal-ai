@@ -74,7 +74,7 @@ def create_partner(name: str, **fields) -> int:
                 f"INSERT INTO rel_partners ({cols}) VALUES ({placeholders}) RETURNING id",
                 list(data.values()),
             )
-            partner_id = cur.fetchone()[0]
+            partner_id = cur.fetchall()[0][0]
             conn.commit()
             log.info("rel.partner.created", partner_id=partner_id)
             return partner_id

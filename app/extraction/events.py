@@ -316,7 +316,7 @@ def _create_extraction_run(module: str, model: str, worker_id: int, worker_total
                        VALUES (%s, %s, %s, %s, %s) RETURNING id""",
                     (module, model, worker_id, worker_total, batch_size),
                 )
-                run_id = cur.fetchone()[0]
+                run_id = cur.fetchall()[0][0]
             conn.commit()
         return run_id
     except Exception:

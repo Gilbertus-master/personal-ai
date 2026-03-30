@@ -269,7 +269,7 @@ def _check_extraction_coverage() -> list[dict]:
                 WHERE e.id IS NULL AND cec.chunk_id IS NULL
                 AND LENGTH(c.text) >= 50
             """)
-            unchecked = cur.fetchone()[0]
+            unchecked = cur.fetchall()[0][0]
 
             if unchecked > 500:
                 issues.append({
@@ -293,7 +293,7 @@ def _check_extraction_coverage() -> list[dict]:
                 WHERE ce.id IS NULL AND cec.chunk_id IS NULL
                 AND LENGTH(c.text) >= 50
             """)
-            entity_unchecked = cur.fetchone()[0]
+            entity_unchecked = cur.fetchall()[0][0]
 
             if entity_unchecked > 500:
                 issues.append({
@@ -339,29 +339,29 @@ def _get_quality_stats() -> dict:
             stats = {}
 
             cur.execute("SELECT COUNT(*) FROM chunks")
-            stats["total_chunks"] = cur.fetchone()[0]
+            stats["total_chunks"] = cur.fetchall()[0][0]
 
             cur.execute("SELECT COUNT(*) FROM chunks WHERE timestamp_start IS NULL")
-            stats["chunks_no_timestamp"] = cur.fetchone()[0]
+            stats["chunks_no_timestamp"] = cur.fetchall()[0][0]
 
             cur.execute("SELECT COUNT(*) FROM events")
-            stats["total_events"] = cur.fetchone()[0]
+            stats["total_events"] = cur.fetchall()[0][0]
 
             cur.execute("SELECT COUNT(*) FROM events WHERE event_time IS NULL")
-            stats["events_no_timestamp"] = cur.fetchone()[0]
+            stats["events_no_timestamp"] = cur.fetchall()[0][0]
 
             cur.execute("SELECT COUNT(*) FROM entities")
-            stats["total_entities"] = cur.fetchone()[0]
+            stats["total_entities"] = cur.fetchall()[0][0]
 
             cur.execute("SELECT COUNT(*) FROM documents")
-            stats["total_documents"] = cur.fetchone()[0]
+            stats["total_documents"] = cur.fetchall()[0][0]
 
             cur.execute("""
                 SELECT COUNT(*) FROM documents d
                 LEFT JOIN chunks c ON c.document_id = d.id
                 WHERE c.id IS NULL
             """)
-            stats["orphan_documents"] = cur.fetchone()[0]
+            stats["orphan_documents"] = cur.fetchall()[0][0]
 
             # Extraction coverage
             cur.execute("""
@@ -370,7 +370,7 @@ def _get_quality_stats() -> dict:
                 LEFT JOIN chunks_event_checked cec ON cec.chunk_id = c.id
                 WHERE e.id IS NULL AND cec.chunk_id IS NULL
             """)
-            stats["unchecked_event_chunks"] = cur.fetchone()[0]
+            stats["unchecked_event_chunks"] = cur.fetchall()[0][0]
 
             # Coverage percentage
             if stats["total_chunks"] > 0:

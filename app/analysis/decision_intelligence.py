@@ -157,7 +157,7 @@ def auto_capture_decisions(hours: int = 24) -> list[dict]:
                     event_id,
                     next_review,
                 ))
-                decision_id = cur.fetchone()[0]
+                decision_id = cur.fetchall()[0][0]
             conn.commit()
 
         # Cascade confidence warning: check if area has bias
@@ -613,7 +613,7 @@ def _record_outcome(decision_id: int, description: str, rating: int) -> dict:
                     VALUES (%s, %s, %s)
                     RETURNING id
                 """, (decision_id, description, rating))
-                outcome_id = cur.fetchone()[0]
+                outcome_id = cur.fetchall()[0][0]
 
                 cur.execute("""
                     UPDATE decisions

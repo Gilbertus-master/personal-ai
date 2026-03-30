@@ -87,7 +87,7 @@ def _create_deadline_from_obligation(
                 (obligation_title, deadline_date, area_id, obligation_id,
                  responsible_person_id),
             )
-            deadline_id = cur.fetchone()[0]
+            deadline_id = cur.fetchall()[0][0]
         conn.commit()
     log.info("compliance_deadline_created",
              deadline_id=deadline_id, obligation_id=obligation_id,
@@ -163,7 +163,7 @@ def create_obligation(
                  penalty_description, penalty_max_pln,
                  applies_to or [], responsible_role, required_documents or []),
             )
-            obligation_id = cur.fetchone()[0]
+            obligation_id = cur.fetchall()[0][0]
         conn.commit()
 
     log.info("compliance_obligation_created",
@@ -329,7 +329,7 @@ def fulfill_obligation(
                     VALUES (%s, 'document', %s, %s, %s)
                     RETURNING id
                 """, (ob_id, f"Fulfillment: {ob_title}", evidence_description, now))
-                evidence_id = cur.fetchone()[0]
+                evidence_id = cur.fetchall()[0][0]
 
         conn.commit()
 

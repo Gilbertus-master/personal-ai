@@ -111,7 +111,7 @@ def run_migration() -> None:
 
             # Check if already seeded
             cur.execute("SELECT count(*) FROM people")
-            count = cur.fetchone()[0]
+            count = cur.fetchall()[0][0]
             if count > 0:
                 logger.info("Seed data already present (%d people), skipping.", count)
                 conn.commit()
@@ -128,7 +128,7 @@ def run_migration() -> None:
                     """,
                     (slug, first_name, last_name),
                 )
-                person_id = cur.fetchone()[0]
+                person_id = cur.fetchall()[0][0]
 
                 cur.execute(
                     """

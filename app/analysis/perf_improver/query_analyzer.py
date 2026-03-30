@@ -95,7 +95,7 @@ def fetch_24h_stats(hours: int = 24) -> AskRunsStats:
                 """,
                 (cutoff,),
             )
-            stats.high_depth_pct = float(cur.fetchone()[0] or 0)
+            stats.high_depth_pct = float(cur.fetchall()[0][0] or 0)
 
             # Slowest 5 queries
             cur.execute(

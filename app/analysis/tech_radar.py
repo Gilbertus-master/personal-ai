@@ -321,7 +321,7 @@ def discover_solutions(force: bool = False) -> dict[str, Any]:
                     SELECT COUNT(*) FROM tech_solutions
                     WHERE created_at > NOW() - INTERVAL '7 days'
                 """)
-                if cur.fetchone()[0] > 0:
+                if cur.fetchall()[0][0] > 0:
                     return {"message": "Recent solutions exist. Use force=True to re-discover.", "skipped": True}
 
     context = _gather_technology_inputs()

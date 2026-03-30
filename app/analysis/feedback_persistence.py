@@ -67,7 +67,7 @@ def save_answer_evaluation(
                     VALUES (%s, %s, %s, %s, %s, %s)
                     RETURNING id
                 """, (ask_run_id, relevance, grounding, depth, overall, feedback))
-                eval_id = cur.fetchone()[0]
+                eval_id = cur.fetchall()[0][0]
             conn.commit()
         log.info("answer_evaluation_saved",
                  eval_id=eval_id, ask_run_id=ask_run_id, overall=overall)

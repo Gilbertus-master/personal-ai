@@ -64,7 +64,7 @@ def create_training(
                 title, area_id, matter_id, training_type, content_summary,
                 target_audience, deadline,
             ))
-            training_id = cur.fetchone()[0]
+            training_id = cur.fetchall()[0][0]
         conn.commit()
 
     log.info("training_created", training_id=training_id, title=title, area_code=area_code)

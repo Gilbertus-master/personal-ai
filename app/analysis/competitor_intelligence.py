@@ -136,7 +136,7 @@ def _seed_default_competitors() -> int:
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT COUNT(*) FROM competitors")
-            if cur.fetchone()[0] > 0:
+            if cur.fetchall()[0][0] > 0:
                 return 0
             for comp in DEFAULT_COMPETITORS:
                 cur.execute(
@@ -259,7 +259,7 @@ def collect_competitor_signals() -> dict[str, Any]:
                         WHERE competitor_id = %s AND title = %s
                         AND created_at > NOW() - INTERVAL '7 days')
                     """, (comp_id, s["title"][:200]))
-                    if cur.fetchone()[0]:
+                    if cur.fetchall()[0][0]:
                         continue
 
                     cur.execute(
@@ -461,7 +461,7 @@ def add_competitor(
                    RETURNING id""",
                 (name, krs_number, industry, watch_level, notes),
             )
-            cid = cur.fetchone()[0]
+            cid = cur.fetchall()[0][0]
             conn.commit()
     return {"id": cid, "name": name, "watch_level": watch_level}
 

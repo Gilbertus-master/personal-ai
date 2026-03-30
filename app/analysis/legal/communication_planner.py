@@ -65,7 +65,7 @@ def set_raci(
                 DO UPDATE SET notes = EXCLUDED.notes
                 RETURNING id
             """, (area_id, matter_id, person_id, role, notes))
-            raci_id = cur.fetchone()[0]
+            raci_id = cur.fetchall()[0][0]
         conn.commit()
 
     log.info("raci_set", raci_id=raci_id, person_id=person_id, role=role,
@@ -238,7 +238,7 @@ def generate_communication_plan(matter_id: int) -> dict[str, Any]:
                     comm.get("purpose", "inform"),
                     scheduled_date,
                 ))
-                cc_id = cur.fetchone()[0]
+                cc_id = cur.fetchall()[0][0]
                 inserted.append({
                     "id": cc_id, "recipient": recipient_name,
                     "channel": comm.get("channel"), "purpose": comm.get("purpose"),

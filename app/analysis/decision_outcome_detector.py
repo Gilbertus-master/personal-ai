@@ -168,7 +168,7 @@ def detect_outcomes_for_pending_decisions(
                     suggestion.get("evidence_summary", "")[:1000],
                     suggestion.get("confidence", 0.5),
                 ))
-                sugg_id = cur.fetchone()[0]
+                sugg_id = cur.fetchall()[0][0]
             conn.commit()
 
         record = {

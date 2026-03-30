@@ -167,7 +167,7 @@ def assess_risk_for_matter(matter_id: int) -> list[dict[str, Any]]:
                     risk.get("mitigation_plan", ""),
                     now, now,
                 ))
-                risk_id = cur.fetchone()[0]
+                risk_id = cur.fetchall()[0][0]
 
                 created.append({
                     "id": risk_id,

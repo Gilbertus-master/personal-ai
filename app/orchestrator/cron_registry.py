@@ -98,7 +98,7 @@ def register_job(
                     updated_at = NOW()
                 RETURNING id
             """, (job_name, schedule, command, description, category, log_file))
-            job_id = cur.fetchone()[0]
+            job_id = cur.fetchall()[0][0]
 
             # Assign to default users
             if default_users:
@@ -503,7 +503,7 @@ def get_registry_summary() -> dict[str, Any]:
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT COUNT(*) FROM cron_registry")
-            total = cur.fetchone()[0]
+            total = cur.fetchall()[0][0]
 
             cur.execute("""
                 SELECT cr.category, COUNT(*) as job_count,

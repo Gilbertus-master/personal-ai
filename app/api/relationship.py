@@ -132,7 +132,7 @@ def create_journal(data: JournalIn):
                    VALUES (%s, %s, %s, %s) RETURNING id""",
                 (data.partner_id, data.entry, data.mood, data.tags),
             )
-            jid = cur.fetchone()[0]
+            jid = cur.fetchall()[0][0]
             conn.commit()
     return {"id": jid, "status": "saved"}
 

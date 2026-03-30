@@ -629,11 +629,11 @@ def process_new_messages():
                     with _gc() as conn:
                         with conn.cursor() as cur:
                             cur.execute("SELECT COUNT(*) FROM chunks")
-                            chunks = cur.fetchone()[0]
+                            chunks = cur.fetchall()[0][0]
                             cur.execute("SELECT COUNT(*) FROM events")
-                            events = cur.fetchone()[0]
+                            events = cur.fetchall()[0][0]
                             cur.execute("SELECT COUNT(*) FROM entities")
-                            entities = cur.fetchone()[0]
+                            entities = cur.fetchall()[0][0]
                     send_whatsapp(
                         f"⚙️ *Gilbertus Status*\n\n"
                         f"Chunks: {chunks:,}\n"

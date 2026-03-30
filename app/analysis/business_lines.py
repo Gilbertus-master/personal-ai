@@ -164,7 +164,7 @@ def discover_business_lines(force: bool = False) -> dict[str, Any]:
         with get_pg_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT COUNT(*) FROM business_lines WHERE status = 'active' AND updated_at > NOW() - INTERVAL '7 days'")
-                if cur.fetchone()[0] > 0:
+                if cur.fetchall()[0][0] > 0:
                     return get_business_lines()
 
     data = _gather_discovery_data()

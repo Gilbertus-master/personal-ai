@@ -13,11 +13,15 @@ from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+import structlog
+
+from app.db.cost_tracker import log_anthropic_cost
 from app.db.postgres import get_pg_connection
 
 load_dotenv()
 
 router = APIRouter(tags=["decisions"])
+log = structlog.get_logger(__name__)
 
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
 
@@ -220,15 +224,13 @@ def list_decisions(
 @router.post("/decisions/scan")
 def scan_decisions(hours: int = Query(default=24, ge=1, le=168)):
     """Trigger auto-capture of decisions from recent events."""
-    import structlog
-    _log = structlog.get_logger("api.decisions")
     try:
         from app.analysis.decision_intelligence import auto_capture_decisions
         captured = auto_capture_decisions(hours=hours)
-        _log.info("decision_scan_complete", captured=len(captured), hours=hours)
+        log.info("decision_scan_complete", captured=len(captured), hours=hours)
         return {"captured": len(captured), "decisions": captured, "hours_scanned": hours}
     except Exception as e:
-        _log.error("decision_scan_failed", error=str(e))
+        log.error("decision_scan_failed", error=str(e))
         raise HTTPException(status_code=500, detail=f"Scan failed: {e}")
 
 
@@ -333,9 +335,6 @@ def analyze_patterns() -> PatternsResponse:
         "Odpowiedź sformatuj czytelnie z nagłówkami i konkretnymi wnioskami."
     )
 
-    import structlog
-    _log = structlog.get_logger("api.decisions")
-
     client = Anthropic()
     response = client.messages.create(
         model=ANTHROPIC_MODEL,
@@ -351,10 +350,9 @@ def analyze_patterns() -> PatternsResponse:
         ],
     )
 
-    from app.db.cost_tracker import log_anthropic_cost
     if hasattr(response, "usage"):
         log_anthropic_cost(ANTHROPIC_MODEL, "api.decisions", response.usage)
-        _log.info("cache_stats",
+        log.info("cache_stats",
                   cache_creation=getattr(response.usage, "cache_creation_input_tokens", 0),
                   cache_read=getattr(response.usage, "cache_read_input_tokens", 0))
 

@@ -231,7 +231,7 @@ def record_feedback(
                     outcome,
                 ),
             )
-            log_id = cur.fetchone()[0]
+            log_id = cur.fetchall()[0][0]
         conn.commit()
 
     log.info("action_confidence.feedback_recorded",

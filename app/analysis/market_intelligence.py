@@ -167,7 +167,7 @@ def _seed_default_sources() -> int:
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT COUNT(*) FROM market_sources")
-            if cur.fetchone()[0] > 0:
+            if cur.fetchall()[0][0] > 0:
                 return 0
             for src in DEFAULT_SOURCES:
                 cur.execute(
@@ -244,7 +244,7 @@ def fetch_market_data() -> dict[str, Any]:
                     uh = _url_hash(item.get("url", "") or item["title"])
                     # Dedup by url_hash
                     cur.execute("SELECT EXISTS(SELECT 1 FROM market_items WHERE url_hash = %s)", (uh,))
-                    if cur.fetchone()[0]:
+                    if cur.fetchall()[0][0]:
                         continue
 
                     cur.execute(
@@ -339,7 +339,7 @@ def analyze_market_items(batch_size: int = 20) -> dict[str, Any]:
                         json.dumps(ins.get("companies_affected", [])),
                     ),
                 )
-                insight_id = cur.fetchone()[0]
+                insight_id = cur.fetchall()[0][0]
                 insights_created += 1
 
                 # Create alert for high-relevance insights
@@ -490,7 +490,7 @@ def add_market_source(name: str, url: str, source_type: str = "rss") -> dict[str
                    RETURNING id""",
                 (name, source_type, url),
             )
-            sid = cur.fetchone()[0]
+            sid = cur.fetchall()[0][0]
             conn.commit()
     return {"id": sid, "name": name, "url": url, "source_type": source_type}
 

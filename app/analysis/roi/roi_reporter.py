@@ -87,7 +87,7 @@ def generate_roi_summary(
                  round(total_value, 2), round(synergy_bonus, 2),
                  _to_json(breakdown)),
             )
-            summary_id = cur.fetchone()[0]
+            summary_id = cur.fetchall()[0][0]
             conn.commit()
 
     result = {
