@@ -118,7 +118,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, mobileOpen }: Side
       </div>
 
       {/* Navigation — drag-and-drop */}
-      <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
+      <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5" suppressHydrationWarning>
         {modules.map((mod) => {
           const Icon = ICON_MAP[mod.icon] ?? LayoutDashboard;
           const isActive = pathname === mod.path || pathname?.startsWith(mod.path + '/');

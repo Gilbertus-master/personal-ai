@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Sidebar, Topbar, CommandPalette, UserMenu, OfflineBanner, VoiceFab, VoiceQuickPanel } from '@gilbertus/ui';
 import { useRole } from '@gilbertus/rbac';
@@ -17,6 +17,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { open: commandOpen, setOpen: setCommandOpen } = useCommandPaletteStore();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [voicePanelOpen, setVoicePanelOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const router = useRouter();
   const pathname = usePathname();
   const { roleLevel } = useRole();
@@ -63,7 +65,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <CommandPalette open={commandOpen} onOpenChange={setCommandOpen} />
 
         {/* Voice FAB — only for board+ roles, not on /voice page */}
-        {roleLevel >= 50 && pathname !== '/voice' && (
+        {mounted && roleLevel >= 50 && pathname !== '/voice' && (
           <>
             <VoiceFab
               roleLevel={roleLevel}
