@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import requests
+from requests.exceptions import SSLError as RequestsSSLError
 import structlog
 from dotenv import load_dotenv
 
@@ -125,6 +126,9 @@ def sync_chat_messages(
 
         try:
             data = _graph_get(url, token, params if not delta_link else None)
+        except RequestsSSLError as e:
+            log.warning("teams_sync.ssl_error_skip", chat=chat_topic, error=str(e)[:80])
+            break  # Skip this chat on SSL error, continue with next
         except requests.HTTPError as e:
             if e.response is not None and e.response.status_code == 400:
                 if delta_link or "delta" in url:
@@ -221,7 +225,7 @@ def sync_all_chats(
     token = get_access_token()
     source_type = "teams"
 
-    source_id = insert_source(conn=None, source_type=source_type, source_name=source_name)
+    source_id = insert_source(source_type=source_type, source_name=source_name)
 
     chats = list_chats(token)
     log.info("teams_sync.chats_found", count=len(chats))

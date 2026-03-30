@@ -135,7 +135,7 @@ def sync_calendar(
     events = fetch_calendar_events(token, start, end)
     print(f"Found {len(events)} calendar events")
 
-    source_id = insert_source(conn=None, source_type="calendar", source_name=source_name)
+    source_id = insert_source(source_type="calendar", source_name=source_name)
 
     imported = 0
     chunks_created = 0

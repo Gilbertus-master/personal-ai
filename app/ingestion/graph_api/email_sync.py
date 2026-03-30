@@ -382,7 +382,7 @@ def sync_folder(
     token = get_access_token()
     source_type = "email"
 
-    source_id = insert_source(conn=None, source_type=source_type, source_name=source_name)
+    source_id = insert_source(source_type=source_type, source_name=source_name)
 
     # Check for existing delta state
     delta_link = _load_delta_state(folder)
