@@ -37,19 +37,22 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, mobileOpen }: Side
   const baseModules = getNavigationModules(role);
 
   // ── Drag-and-drop order ─────────────────────────────────────────────────
-  const [order, setOrder] = useState<string[]>(() => {
-    if (typeof window === 'undefined') return baseModules.map(m => m.id);
+  // Initialize with default order (same on server + client → no hydration mismatch)
+  // Then read localStorage only after mount
+  const [order, setOrder] = useState<string[]>(() => baseModules.map(m => m.id));
+
+  useEffect(() => {
     try {
       const saved = localStorage.getItem(ORDER_KEY);
       if (saved) {
         const ids = JSON.parse(saved) as string[];
-        const valid = ids.filter(id => baseModules.some(m => m.id === id));
+        const valid = ids.filter((id: string) => baseModules.some(m => m.id === id));
         const missing = baseModules.filter(m => !valid.includes(m.id)).map(m => m.id);
-        return [...valid, ...missing];
+        setOrder([...valid, ...missing]);
       }
     } catch {}
-    return baseModules.map(m => m.id);
-  });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const modules = order
     .map(id => baseModules.find(m => m.id === id))
