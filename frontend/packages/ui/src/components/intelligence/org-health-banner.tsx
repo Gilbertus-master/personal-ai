@@ -25,10 +25,11 @@ const TREND_CONFIG: Record<string, { label: string; Icon: typeof TrendingUp; cla
 };
 const TREND_FALLBACK = { label: 'Nieznany', Icon: Minus, className: 'text-[var(--text-muted)] bg-[var(--surface-hover)]' };
 
-function CircularProgress({ score }: { score: number }) {
+function CircularProgress({ score }: { score: number | null }) {
+  const safeScore = score ?? 0;
   const radius = 40;
   const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (score / 100) * circumference;
+  const offset = circumference - (safeScore / 100) * circumference;
 
   return (
     <svg width="100" height="100" viewBox="0 0 100 100" className="shrink-0">
@@ -59,7 +60,7 @@ function CircularProgress({ score }: { score: number }) {
         dominantBaseline="central"
         className={cn('text-2xl font-bold fill-current', SCORE_COLOR(score))}
       >
-        {score}
+        {safeScore}
       </text>
     </svg>
   );
@@ -114,13 +115,13 @@ export function OrgHealthBanner({ data, isLoading, onAssess, isAssessing }: OrgH
             <p className="text-[var(--text-secondary)]">
               Najlepszy tydz.:{' '}
               <span className="text-emerald-400 font-medium">
-                {data.best_week.score} ({data.best_week.week})
+                {data.best_week?.score ?? '—'} ({data.best_week?.week ?? 'brak danych'})
               </span>
             </p>
             <p className="text-[var(--text-secondary)]">
               Najgorszy tydz.:{' '}
               <span className="text-red-400 font-medium">
-                {data.worst_week.score} ({data.worst_week.week})
+                {data.worst_week?.score ?? '—'} ({data.worst_week?.week ?? 'brak danych'})
               </span>
             </p>
           </div>
