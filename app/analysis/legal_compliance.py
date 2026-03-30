@@ -1574,7 +1574,7 @@ def check_contracts_compliance() -> dict[str, Any]:
                         SELECT id FROM compliance_matters
                         WHERE contract_id = %s AND status NOT IN ('closed', 'completed')
                     """, (c_id,))
-                    if not cur.fetchone():
+                    if len(cur.fetchall()) == 0:
                         cur.execute("""
                             INSERT INTO compliance_matters
                                 (title, matter_type, area_id, priority, description, contract_id)
