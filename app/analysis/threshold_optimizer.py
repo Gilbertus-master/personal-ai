@@ -23,6 +23,23 @@ log = structlog.get_logger(__name__)
 # ---------------------------------------------------------------------------
 
 _tables_ensured = False
+
+
+def _persist_suggestions(suggestions: list[dict]) -> None:
+    """Insert suggestion records into threshold_optimization_log."""
+    if not suggestions:
+        return
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.executemany(
+                "INSERT INTO threshold_optimization_log"
+                " (optimization_type, parameter_name, reason)"
+                " VALUES (%s, %s, %s)",
+                [(s["optimization_type"], s["parameter_name"], s["reason"]) for s in suggestions],
+            )
+        conn.commit()
+
+
 def _ensure_tables() -> None:
     global _tables_ensured
     if _tables_ensured:
@@ -112,21 +129,9 @@ def optimize_alert_thresholds(days: int = 30) -> list[dict]:
             }
 
         if suggestion:
-            # Log the suggestion
-            with get_pg_connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute("""
-                        INSERT INTO threshold_optimization_log
-                            (optimization_type, parameter_name, reason)
-                        VALUES (%s, %s, %s)
-                    """, (
-                        suggestion["optimization_type"],
-                        suggestion["parameter_name"],
-                        suggestion["reason"],
-                    ))
-                conn.commit()
             suggestions.append(suggestion)
 
+    _persist_suggestions(suggestions)
     log.info("alert_thresholds_optimized", suggestions=len(suggestions))
     return suggestions
 
@@ -173,20 +178,9 @@ def optimize_brief_sections(days: int = 30) -> list[dict]:
                         "avg_score": round(float(avg_score), 3),
                         "count": count,
                     }
-                    with get_pg_connection() as conn2:
-                        with conn2.cursor() as cur2:
-                            cur2.execute("""
-                                INSERT INTO threshold_optimization_log
-                                    (optimization_type, parameter_name, reason)
-                                VALUES (%s, %s, %s)
-                            """, (
-                                suggestion["optimization_type"],
-                                suggestion["parameter_name"],
-                                suggestion["reason"],
-                            ))
-                        conn2.commit()
                     suggestions.append(suggestion)
 
+    _persist_suggestions(suggestions)
     log.info("brief_sections_optimized", suggestions=len(suggestions))
     return suggestions
 

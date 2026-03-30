@@ -118,9 +118,9 @@ fi
 # ── 3. Build & Start ─────────────────────────────────────────────────
 info "Building and starting Omnius ($TENANT)..."
 
-COMPOSE_CMD="docker compose -f docker-compose.omnius.yml --profile $TENANT"
+COMPOSE_ARGS=(-f docker-compose.omnius.yml --profile "$TENANT")
 
-$COMPOSE_CMD up -d --build 2>&1 || { fail "Docker build/start failed."; exit 2; }
+docker compose "${COMPOSE_ARGS[@]}" up -d --build 2>&1 || { fail "Docker build/start failed."; exit 2; }
 
 ok "Containers started."
 
@@ -148,7 +148,7 @@ wait_for_service() {
 
 HEALTH_FAILED=false
 
-wait_for_service "omnius-db" "docker exec omnius-db pg_isready -U omnius" 30 || HEALTH_FAILED=true
+wait_for_service "omnius-db" "docker compose -f docker-compose.omnius.yml exec -T db pg_isready -U omnius" 30 || HEALTH_FAILED=true
 
 check_tenant_api() {
     local t="$1"
@@ -189,7 +189,8 @@ if [ -d "$MIGRATION_DIR" ]; then
             docker exec omnius-db psql -U omnius -c "CREATE DATABASE ${db};" 2>/dev/null
 
         # Run migrations in order
-        for migration in $(ls "$MIGRATION_DIR"/*.sql 2>/dev/null | sort); do
+        for migration in "$MIGRATION_DIR"/*.sql; do
+            [ -f "$migration" ] || continue
             local fname
             fname=$(basename "$migration")
             info "  Applying $fname to $db..."

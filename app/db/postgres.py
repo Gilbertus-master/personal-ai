@@ -18,7 +18,7 @@ _conninfo = psycopg.conninfo.make_conninfo(
 
 _pool = ConnectionPool(
     conninfo=_conninfo,
-    min_size=1,
+    min_size=int(os.getenv('PG_POOL_MIN_SIZE', '5')),
     max_size=10,
     open=True,
 )

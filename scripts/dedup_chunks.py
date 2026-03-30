@@ -31,7 +31,7 @@ def get_conn():
     )
 
 
-def main():
+def main() -> None:
     conn = get_conn()
     cur = conn.cursor()
 

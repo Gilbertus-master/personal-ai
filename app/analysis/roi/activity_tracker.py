@@ -80,165 +80,117 @@ def _insert_activity(
     )
 
 
-def _scan_ask_runs(owner: dict, since: datetime) -> int:
-    """Each ask_run = query answered."""
+def _run_scanner(
+    owner: dict,
+    since: datetime,
+    sql: str,
+    source_table: str,
+    activity_type: str,
+    extract_row,
+    domain: str,
+    table_to_check: str | None = None,
+) -> int:
+    """Generic scanner: query rows, dedup, insert, commit. Returns count of new activities."""
     count = 0
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT id, query_text, created_at FROM ask_runs WHERE created_at >= %s ORDER BY id",
-                (since,),
-            )
-            rows = cur.fetchall()
-            for row in rows:
-                rid, query_text, created_at = row
-                if _already_recorded(cur, "ask_runs", rid):
+            if table_to_check:
+                cur.execute(
+                    "SELECT EXISTS (SELECT 1 FROM information_schema.tables "
+                    "WHERE table_schema='public' AND table_name=%s)",
+                    (table_to_check,),
+                )
+                if not cur.fetchall()[0][0]:
+                    return 0
+            cur.execute(sql, (since,))
+            for row in cur.fetchall():
+                rid, desc_text, created_at, value_kwargs = extract_row(row)
+                if _already_recorded(cur, source_table, rid):
                     continue
-                value_pln, time_min = map_activity_value("query_answered", owner)
-                domain = get_domain_for_activity("query_answered", owner)
-                desc = (query_text or "")[:200]
-                _insert_activity(cur, owner["id"], "query_answered", domain, value_pln, time_min, desc, "ask_runs", rid, created_at)
+                value_pln, time_min = map_activity_value(activity_type, owner, **value_kwargs)
+                _insert_activity(cur, owner["id"], activity_type, domain, value_pln, time_min, (desc_text or "")[:200], source_table, rid, created_at)
                 count += 1
             conn.commit()
     return count
+
+
+def _scan_ask_runs(owner: dict, since: datetime) -> int:
+    """Each ask_run = query answered."""
+    return _run_scanner(
+        owner, since,
+        "SELECT id, query_text, created_at FROM ask_runs WHERE created_at >= %s ORDER BY id",
+        "ask_runs", "query_answered",
+        lambda row: (row[0], row[1], row[2], {}),
+        get_domain_for_activity("query_answered", owner),
+    )
 
 
 def _scan_decisions(owner: dict, since: datetime) -> int:
     """Each decision = management ROI."""
-    count = 0
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT id, decision_text, created_at FROM decisions WHERE created_at >= %s ORDER BY id",
-                (since,),
-            )
-            for row in cur.fetchall():
-                rid, text, created_at = row
-                if _already_recorded(cur, "decisions", rid):
-                    continue
-                value_pln, time_min = map_activity_value("decision_made", owner)
-                domain = get_domain_for_activity("decision_made", owner)
-                desc = (text or "")[:200]
-                _insert_activity(cur, owner["id"], "decision_made", domain, value_pln, time_min, desc, "decisions", rid, created_at)
-                count += 1
-            conn.commit()
-    return count
+    return _run_scanner(
+        owner, since,
+        "SELECT id, decision_text, created_at FROM decisions WHERE created_at >= %s ORDER BY id",
+        "decisions", "decision_made",
+        lambda row: (row[0], row[1], row[2], {}),
+        get_domain_for_activity("decision_made", owner),
+    )
 
 
 def _scan_action_items(owner: dict, since: datetime) -> int:
     """Executed action items = management ROI."""
-    count = 0
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT id, description, executed_at FROM action_items "
-                "WHERE status = 'executed' AND executed_at IS NOT NULL AND proposed_at >= %s ORDER BY id",
-                (since,),
-            )
-            for row in cur.fetchall():
-                rid, desc, executed_at = row
-                if _already_recorded(cur, "action_items", rid):
-                    continue
-                value_pln, time_min = map_activity_value("action_executed", owner)
-                domain = get_domain_for_activity("action_executed", owner)
-                _insert_activity(cur, owner["id"], "action_executed", domain, value_pln, time_min, (desc or "")[:200], "action_items", rid, executed_at)
-                count += 1
-            conn.commit()
-    return count
+    return _run_scanner(
+        owner, since,
+        "SELECT id, description, executed_at FROM action_items "
+        "WHERE status = 'executed' AND executed_at IS NOT NULL AND proposed_at >= %s ORDER BY id",
+        "action_items", "action_executed",
+        lambda row: (row[0], row[1], row[2], {}),
+        get_domain_for_activity("action_executed", owner),
+    )
 
 
 def _scan_code_review_findings(owner: dict, since: datetime) -> int:
     """Resolved code findings = builder ROI."""
-    count = 0
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
-            # Check if table exists
-            cur.execute(
-                "SELECT EXISTS (SELECT 1 FROM information_schema.tables "
-                "WHERE table_schema='public' AND table_name='code_review_findings')"
-            )
-            if not cur.fetchall()[0][0]:
-                return 0
-
-            cur.execute(
-                "SELECT id, description, severity, resolved_at FROM code_review_findings "
-                "WHERE status = 'resolved' AND resolved_at >= %s ORDER BY id",
-                (since,),
-            )
-            for row in cur.fetchall():
-                rid, desc, severity, resolved_at = row
-                if _already_recorded(cur, "code_review_findings", rid):
-                    continue
-                value_pln, time_min = map_activity_value("code_fix", owner, severity=severity)
-                _insert_activity(cur, owner["id"], "code_fix", "builder", value_pln, time_min, (desc or "")[:200], "code_review_findings", rid, resolved_at)
-                count += 1
-            conn.commit()
-    return count
+    return _run_scanner(
+        owner, since,
+        "SELECT id, description, severity, resolved_at FROM code_review_findings "
+        "WHERE status = 'resolved' AND resolved_at >= %s ORDER BY id",
+        "code_review_findings", "code_fix",
+        lambda row: (row[0], row[1], row[3], {"severity": row[2]}),
+        "builder",
+        table_to_check="code_review_findings",
+    )
 
 
 def _scan_documents(owner: dict, since: datetime) -> int:
     """New documents ingested = builder ROI (knowledge base growth)."""
-    count = 0
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT id, title, created_at FROM documents WHERE created_at >= %s ORDER BY id",
-                (since,),
-            )
-            for row in cur.fetchall():
-                rid, title, imported_at = row
-                if _already_recorded(cur, "documents", rid):
-                    continue
-                value_pln, time_min = map_activity_value("knowledge_added", owner)
-                _insert_activity(cur, owner["id"], "knowledge_added", "builder", value_pln, time_min, (title or "")[:200], "documents", rid, imported_at)
-                count += 1
-            conn.commit()
-    return count
+    return _run_scanner(
+        owner, since,
+        "SELECT id, title, created_at FROM documents WHERE created_at >= %s ORDER BY id",
+        "documents", "knowledge_added",
+        lambda row: (row[0], row[1], row[2], {}),
+        "builder",
+    )
 
 
 def _scan_meeting_minutes(owner: dict, since: datetime) -> int:
     """Productive meetings (with ROI score) = management ROI."""
-    count = 0
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT id, title, meeting_roi_score, created_at FROM meeting_minutes "
-                "WHERE meeting_roi_score IS NOT NULL AND created_at >= %s ORDER BY id",
-                (since,),
-            )
-            for row in cur.fetchall():
-                rid, title, roi_score, created_at = row
-                if _already_recorded(cur, "meeting_minutes", rid):
-                    continue
-                value_pln, time_min = map_activity_value("meeting_productive", owner, meeting_roi_score=float(roi_score))
-                _insert_activity(cur, owner["id"], "meeting_productive", "management", value_pln, time_min, (title or "")[:200], "meeting_minutes", rid, created_at)
-                count += 1
-            conn.commit()
-    return count
+    return _run_scanner(
+        owner, since,
+        "SELECT id, title, meeting_roi_score, created_at FROM meeting_minutes "
+        "WHERE meeting_roi_score IS NOT NULL AND created_at >= %s ORDER BY id",
+        "meeting_minutes", "meeting_productive",
+        lambda row: (row[0], row[1], row[3], {"meeting_roi_score": float(row[2])}),
+        "management",
+    )
 
 
 def _scan_communications(owner: dict, since: datetime) -> int:
     """Sent communications = management ROI."""
-    count = 0
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT EXISTS (SELECT 1 FROM information_schema.tables "
-                "WHERE table_schema='public' AND table_name='sent_communications')"
-            )
-            if not cur.fetchall()[0][0]:
-                return 0
-
-            cur.execute(
-                "SELECT id, subject, sent_at FROM sent_communications WHERE sent_at >= %s ORDER BY id",
-                (since,),
-            )
-            for row in cur.fetchall():
-                rid, subject, sent_at = row
-                if _already_recorded(cur, "sent_communications", rid):
-                    continue
-                value_pln, time_min = map_activity_value("communication_sent", owner)
-                _insert_activity(cur, owner["id"], "communication_sent", "management", value_pln, time_min, (subject or "")[:200], "sent_communications", rid, sent_at)
-                count += 1
-            conn.commit()
-    return count
+    return _run_scanner(
+        owner, since,
+        "SELECT id, subject, sent_at FROM sent_communications WHERE sent_at >= %s ORDER BY id",
+        "sent_communications", "communication_sent",
+        lambda row: (row[0], row[1], row[2], {}),
+        "management",
+        table_to_check="sent_communications",
+    )

@@ -77,18 +77,54 @@
       "entity_backlog": 1320,
       "event_backlog": 1320,
       "embedding_backlog": 0
+    },
+    {
+      "ts": "2026-03-30T19:30:02.956536+00:00",
+      "entity_backlog": 2371,
+      "event_backlog": 2371,
+      "embedding_backlog": 0
+    },
+    {
+      "ts": "2026-03-30T20:00:02.823360+00:00",
+      "entity_backlog": 2371,
+      "event_backlog": 2371,
+      "embedding_backlog": 29
+    },
+    {
+      "ts": "2026-03-30T20:30:05.137404+00:00",
+      "entity_backlog": 2371,
+      "event_backlog": 2371,
+      "embedding_backlog": 29
+    },
+    {
+      "ts": "2026-03-30T21:00:03.902697+00:00",
+      "entity_backlog": 2371,
+      "event_backlog": 2371,
+      "embedding_backlog": 29
+    },
+    {
+      "ts": "2026-03-30T21:30:04.331522+00:00",
+      "entity_backlog": 2371,
+      "event_backlog": 2371,
+      "embedding_backlog": 29
+    },
+    {
+      "ts": "2026-03-30T22:00:03.072852+00:00",
+      "entity_backlog": 2371,
+      "event_backlog": 2371,
+      "embedding_backlog": 29
     }
   ],
-  "last_check": "2026-03-29 21:30 UTC",
+  "last_check": "2026-03-30 22:00 UTC",
   "last_backlogs": {
-    "entity_backlog": 1320,
-    "event_backlog": 1320,
-    "embedding_backlog": 0
+    "entity_backlog": 2371,
+    "event_backlog": 2371,
+    "embedding_backlog": 29
   },
   "last_workers": {
-    "entity": 6,
+    "entity": 4,
     "event": 0,
-    "embedding": 2
+    "embedding": 4
   },
   "last_stall_action": "2026-03-29 16:30 UTC"
 }

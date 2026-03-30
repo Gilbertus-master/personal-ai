@@ -121,7 +121,6 @@ def create_entity(
                 (name, entity_type, parent_id, hourly_rate_pln, metadata or {}),
             )
             row = cur.fetchone()
-            conn.commit()
             log.info("roi_hierarchy_created", name=name, type=entity_type, id=row[0])
             return _row_to_dict(row)
 

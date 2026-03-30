@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 import requests
+import structlog
 from dotenv import load_dotenv
 
 from app.ingestion.common.db import (
@@ -29,6 +30,8 @@ from app.ingestion.common.db import (
 )
 
 load_dotenv()
+
+log = structlog.get_logger(__name__)
 
 PLAUD_API = "https://api.plaud.ai"
 PLAUD_TOKEN_DIR = Path("/mnt/c/Users/jablo/AppData/Roaming/Plaud/Local Storage/leveldb")
@@ -66,7 +69,6 @@ def list_recordings(token: str, limit: int = 50, skip: int = 0) -> list[dict[str
         headers=_headers(token),
         params={"skip": skip, "limit": limit, "is_trash": 0, "sort_by": "start_time", "is_desc": "true"},
         timeout=30,
-        verify=False,
     )
     resp.raise_for_status()
     data = resp.json()
@@ -82,7 +84,6 @@ def get_recording_details(token: str, file_ids: list[str]) -> list[dict[str, Any
         headers={**_headers(token), "Content-Type": "application/json"},
         json=file_ids,
         timeout=60,
-        verify=False,
     )
     resp.raise_for_status()
     data = resp.json()
@@ -154,7 +155,7 @@ def chunk_text(text: str) -> list[str]:
 def sync_plaud(limit: int = 50, sync_all: bool = False) -> tuple[int, int, int]:
     """Sync Plaud recordings into Gilbertus."""
     token = get_plaud_token()
-    print(f"Plaud token: ...{token[-20:]}")
+    log.info("plaud_token_loaded", token_suffix=token[-20:])
 
     # Fetch recording list
     all_recordings: list[dict] = []
@@ -173,12 +174,12 @@ def sync_plaud(limit: int = 50, sync_all: bool = False) -> tuple[int, int, int]:
         if len(recs) < batch:
             break
 
-    print(f"Found {len(all_recordings)} recordings")
+    log.info("plaud_recordings_found", count=len(all_recordings))
 
     if not all_recordings:
         return 0, 0, 0
 
-    source_id = insert_source(conn=None, source_type="audio_transcript", source_name="plaud_sync")
+    source_id = insert_source(source_type="audio_transcript", source_name="plaud_sync")
 
     # Check which are already imported
     new_recordings = []
@@ -191,7 +192,7 @@ def sync_plaud(limit: int = 50, sync_all: bool = False) -> tuple[int, int, int]:
         else:
             new_recordings.append(rec)
 
-    print(f"New: {len(new_recordings)}, Already imported: {skipped}")
+    log.info("plaud_sync_status", new=len(new_recordings), skipped=skipped)
 
     if not new_recordings:
         return 0, 0, skipped
@@ -211,7 +212,7 @@ def sync_plaud(limit: int = 50, sync_all: bool = False) -> tuple[int, int, int]:
         try:
             details = get_recording_details(token, file_ids)
         except Exception as e:
-            print(f"  Error fetching details: {e}")
+            log.error("plaud_details_error", error=str(e))
             continue
 
         for detail in details:
@@ -234,7 +235,7 @@ def sync_plaud(limit: int = 50, sync_all: bool = False) -> tuple[int, int, int]:
 
             transcript = extract_transcript(detail)
             if not transcript.strip():
-                print(f"  Skip: {title} (no transcript)")
+                log.info("plaud_skip_no_transcript", title=title)
                 continue
 
             # Build full text
@@ -253,7 +254,6 @@ def sync_plaud(limit: int = 50, sync_all: bool = False) -> tuple[int, int, int]:
             full_text = "\n".join(lines)
 
             document_id = insert_document(
-                conn=None,
                 source_id=source_id,
                 title=title,
                 created_at=recorded_at,
@@ -265,7 +265,6 @@ def sync_plaud(limit: int = 50, sync_all: bool = False) -> tuple[int, int, int]:
             chunks = chunk_text(full_text)
             for chunk_index, chunk in enumerate(chunks):
                 insert_chunk(
-                    conn=None,
                     document_id=document_id,
                     chunk_index=chunk_index,
                     text=chunk,
@@ -276,9 +275,9 @@ def sync_plaud(limit: int = 50, sync_all: bool = False) -> tuple[int, int, int]:
 
             imported += 1
             chunks_total += len(chunks)
-            print(f"  Imported: {title} ({len(chunks)} chunks)")
+            log.info("plaud_recording_imported", title=title, chunks=len(chunks))
 
-    print(f"Sync done: {imported} imported, {skipped} already had, {chunks_total} chunks")
+    log.info("plaud_sync_done", imported=imported, skipped=skipped, chunks=chunks_total)
     return imported, chunks_total, skipped
 
 

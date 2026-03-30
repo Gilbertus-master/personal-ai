@@ -11,6 +11,7 @@ interface NotificationBellProps {
   dismissedIds?: number[];
   onDismiss?: (alertId: number) => void;
   onViewAll?: () => void;
+  onAlertClick?: (alert: AlertItem) => void;
 }
 
 const SEVERITY_COLOR: Record<string, string> = {
@@ -42,6 +43,7 @@ export function NotificationBell({
   dismissedIds = [],
   onDismiss,
   onViewAll,
+  onAlertClick,
 }: NotificationBellProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -128,7 +130,10 @@ export function NotificationBell({
                     itemContent={alert}
                     context="alerts"
                   >
-                    <div className="group flex items-start gap-3 px-4 py-2.5 transition-colors hover:bg-[var(--surface-hover)]">
+                    <div
+                      className="group flex items-start gap-3 px-4 py-2.5 transition-colors hover:bg-[var(--surface-hover)] cursor-pointer"
+                      onClick={() => { onAlertClick?.(alert); close(); }}
+                    >
                       <span
                         className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${severityDot}`}
                         aria-label={`Severity: ${alert.severity}`}
@@ -144,7 +149,7 @@ export function NotificationBell({
                       {onDismiss && (
                         <button
                           type="button"
-                          onClick={() => onDismiss(alert.alert_id)}
+                          onClick={(e) => { e.stopPropagation(); onDismiss(alert.alert_id); }}
                           className="shrink-0 rounded p-0.5 text-[var(--text-secondary)] opacity-0 transition-opacity hover:text-[var(--text)] group-hover:opacity-100"
                           aria-label="Odrzuć"
                         >

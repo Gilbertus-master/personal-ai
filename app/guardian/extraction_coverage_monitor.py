@@ -54,8 +54,8 @@ def check_extraction_coverage() -> dict:
                 SELECT coverage_pct FROM extraction_coverage_snapshots
                 ORDER BY created_at DESC LIMIT 1
             """)
-            prev_row = cur.fetchone()
-            previous_coverage_pct = float(prev_row[0]) if prev_row else None
+            prev_rows = cur.fetchall()
+            previous_coverage_pct = float(prev_rows[0][0]) if len(prev_rows) > 0 else None
 
             # Calculate drop
             drop_pct = 0.0

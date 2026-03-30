@@ -42,7 +42,7 @@ def update_partner(partner_id: int, **fields) -> bool:
     if not updates:
         return False
 
-    set_clause = ", ".join(f"{k} = %s" for k in updates)
+    set_clause = ", ".join(f"{k} = %s" for k in updates) + ", updated_at = NOW()"
     values = list(updates.values()) + [partner_id]
 
     with get_pg_connection() as conn:

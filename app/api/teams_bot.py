@@ -12,6 +12,9 @@ data (whatsapp, chatgpt, whatsapp_live) is ever exposed.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
+import re
 import structlog
 import os
 import time
@@ -29,6 +32,8 @@ from app.api.presentation import (
     _enforce_source_filter,
     _validate_no_blocked_sources,
 )
+from app.db.conversation_store import get_store
+from app.db.postgres import get_pg_connection
 from app.retrieval.query_interpreter import interpret_query
 from app.retrieval.retriever import search_chunks
 from app.retrieval.answering import answer_question
@@ -210,6 +215,49 @@ async def _send_reply(service_url: str, conversation_id: str, activity_id: str, 
         log.error("teams_reply_failed", status=resp.status_code, url=url, body=resp.text[:500])
 
 
+# ─── Answer cache (lesson 15) ───────────────────────────────────────────────
+
+def _cache_key_for_teams_ask(query: str) -> str:
+    """Generate cache key for Teams bot questions (fixed source types, no date filters)."""
+    raw = json.dumps([query.strip().lower()], sort_keys=True)
+    return hashlib.md5(raw.encode()).hexdigest()
+
+
+def _check_answer_cache_teams(cache_key: str) -> tuple[str, dict] | None:
+    """Check if answer is cached and not expired."""
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT answer_text, meta FROM answer_cache WHERE cache_key = %s AND expires_at > NOW() LIMIT 1",
+                    (cache_key,),
+                )
+                rows = cur.fetchall()
+                if rows:
+                    answer_text, meta_json = rows[0]
+                    meta = meta_json if isinstance(meta_json, dict) else {}
+                    return (answer_text, meta)
+                return None
+    except Exception:
+        return None
+
+
+def _save_answer_cache_teams(cache_key: str, query: str, answer: str, meta: dict) -> None:
+    """Save answer to cache with 1-hour TTL."""
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """INSERT INTO answer_cache (cache_key, query_text, answer_text, meta, expires_at)
+                       VALUES (%s, %s, %s, %s::jsonb, NOW() + INTERVAL '1 hour')
+                       ON CONFLICT (cache_key) DO UPDATE SET answer_text=EXCLUDED.answer_text, meta=EXCLUDED.meta, expires_at=EXCLUDED.expires_at""",
+                    (cache_key, query, answer, json.dumps(meta, default=str)),
+                )
+            conn.commit()
+    except Exception:
+        pass
+
+
 # ─── Business-only query engine (mirrors presentation_ask) ──────────────────
 
 def _business_ask(query: str, conversation_id: str | None = None) -> str:
@@ -219,8 +267,16 @@ def _business_ask(query: str, conversation_id: str | None = None) -> str:
     """
     started_at = time.time()
 
+    # Check answer cache
+    cache_key = _cache_key_for_teams_ask(query)
+    cached = _check_answer_cache_teams(cache_key)
+    if cached:
+        answer_text, meta = cached
+        latency_ms = int((time.time() - started_at) * 1000)
+        log.info("teams_bot_cache_hit", latency_ms=latency_ms)
+        return answer_text
+
     # Conversation history
-    from app.db.conversation_store import get_store
     conversation_context = ""
     conv_store = None
     if conversation_id:
@@ -303,6 +359,13 @@ def _business_ask(query: str, conversation_id: str | None = None) -> str:
     latency_ms = int((time.time() - started_at) * 1000)
     log.info("teams_bot_answered", latency_ms=latency_ms, matches=len(redacted_matches), question_type=interpreted.question_type)
 
+    # Save to answer cache
+    cache_meta = {
+        "question_type": interpreted.question_type,
+        "match_count": len(redacted_matches),
+    }
+    _save_answer_cache_teams(cache_key, query, answer, cache_meta)
+
     return answer
 
 
@@ -324,7 +387,6 @@ def _strip_mention(text: str, entities: list[dict[str, Any]] | None) -> str:
                 text = text.replace(mentioned, "")
 
     # Also strip any leftover <at>...</at> HTML tags
-    import re
     text = re.sub(r"<at[^>]*>.*?</at>", "", text, flags=re.IGNORECASE)
     return text.strip()
 

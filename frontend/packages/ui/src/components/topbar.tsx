@@ -15,6 +15,7 @@ interface TopbarProps {
   notificationDismissedIds?: number[];
   onNotificationDismiss?: (alertId: number) => void;
   onNotificationViewAll?: () => void;
+  onNotificationAlertClick?: (alert: AlertItem) => void;
 }
 
 export function Topbar({
@@ -24,6 +25,7 @@ export function Topbar({
   notificationDismissedIds,
   onNotificationDismiss,
   onNotificationViewAll,
+  onNotificationAlertClick,
 }: TopbarProps) {
   const pathname = usePathname();
 
@@ -73,6 +75,7 @@ export function Topbar({
             dismissedIds={notificationDismissedIds}
             onDismiss={onNotificationDismiss}
             onViewAll={onNotificationViewAll}
+            onAlertClick={onNotificationAlertClick}
           />
         ) : (
           <button

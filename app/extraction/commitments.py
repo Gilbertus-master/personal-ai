@@ -100,7 +100,7 @@ def _ensure_tables() -> None:
                     person_id BIGINT,
                     commitment_text TEXT NOT NULL,
                     context TEXT,
-                    deadline TIMESTAMPTZ,
+                    deadline DATE,
                     source_chunk_id BIGINT,
                     source_event_id BIGINT,
                     status TEXT NOT NULL DEFAULT 'open'
@@ -119,6 +119,20 @@ def _ensure_tables() -> None:
             cur.execute("""
                 CREATE INDEX IF NOT EXISTS idx_commitments_deadline ON commitments(deadline)
                     WHERE status = 'open'
+            """)
+            cur.execute("""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'commitments'
+                          AND column_name = 'deadline'
+                          AND data_type = 'timestamp with time zone'
+                    ) THEN
+                        ALTER TABLE commitments
+                            ALTER COLUMN deadline TYPE DATE USING deadline::DATE;
+                    END IF;
+                END$$
             """)
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS chunks_commitment_checked (

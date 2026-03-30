@@ -7,18 +7,22 @@ import os
 import time
 from typing import Any
 
+import structlog
 from anthropic import Anthropic
 from dotenv import load_dotenv
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
+from app.db.cost_tracker import log_anthropic_cost
 from app.db.postgres import get_pg_connection
 
 load_dotenv()
 
 router = APIRouter(tags=["insights"])
+log = structlog.get_logger(__name__)
 
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+_anthropic_client = Anthropic()
 
 
 # ── Schemas ────────────────────────────────────────────────────────
@@ -45,16 +49,15 @@ class InsightsSummaryResponse(BaseModel):
     meta: dict[str, Any]
 
 
-# ── Endpoints ──────────────────────────────────────────────────────
+# ── Helpers ────────────────────────────────────────────────────────
 
-@router.get("/insights", response_model=InsightsListResponse)
-def list_insights(
-    area: str | None = Query(default=None, description="Filter by area"),
-    insight_type: str | None = Query(default=None, alias="type", description="Filter by insight_type"),
-    limit: int = Query(default=50, ge=1, le=500),
-) -> InsightsListResponse:
-    started_at = time.time()
-
+def _fetch_insights(
+    area: str | None,
+    insight_type: str | None,
+    limit: int,
+    columns: str,
+) -> list[tuple[Any, ...]]:
+    """Build and execute a parameterized insights query; return raw rows."""
     conditions: list[str] = []
     params: list[Any] = []
 
@@ -68,7 +71,7 @@ def list_insights(
     where_clause = (" WHERE " + " AND ".join(conditions)) if conditions else ""
 
     query = f"""
-        SELECT id, insight_type, area, title, description, evidence, confidence, created_at, reviewed
+        SELECT {columns}
         FROM insights
         {where_clause}
         ORDER BY created_at DESC
@@ -79,7 +82,23 @@ def list_insights(
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(query, tuple(params))
-            rows = cur.fetchall()
+            return cur.fetchall()
+
+
+# ── Endpoints ──────────────────────────────────────────────────────
+
+@router.get("/insights", response_model=InsightsListResponse)
+def list_insights(
+    area: str | None = Query(default=None, description="Filter by area"),
+    insight_type: str | None = Query(default=None, alias="type", description="Filter by insight_type"),
+    limit: int = Query(default=50, ge=1, le=500),
+) -> InsightsListResponse:
+    started_at = time.time()
+
+    rows = _fetch_insights(
+        area, insight_type, limit,
+        "id, insight_type, area, title, description, evidence, confidence, created_at, reviewed",
+    )
 
     insights = [
         InsightItem(
@@ -117,31 +136,10 @@ def insights_summary(
     """Claude-powered executive summary of recent insights."""
     started_at = time.time()
 
-    conditions: list[str] = []
-    params: list[Any] = []
-
-    if area:
-        conditions.append("area = %s")
-        params.append(area)
-    if insight_type:
-        conditions.append("insight_type = %s")
-        params.append(insight_type)
-
-    where_clause = (" WHERE " + " AND ".join(conditions)) if conditions else ""
-
-    query = f"""
-        SELECT insight_type, area, title, description, evidence, confidence, created_at
-        FROM insights
-        {where_clause}
-        ORDER BY created_at DESC
-        LIMIT %s
-    """
-    params.append(limit)
-
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(query, tuple(params))
-            rows = cur.fetchall()
+    rows = _fetch_insights(
+        area, insight_type, limit,
+        "insight_type, area, title, description, evidence, confidence, created_at",
+    )
 
     if not rows:
         return InsightsSummaryResponse(
@@ -175,11 +173,7 @@ def insights_summary(
         "Odpowiedz czytelnie, zwiezle, z naglowkami."
     )
 
-    import structlog
-    _log = structlog.get_logger("api.insights")
-
-    client = Anthropic()
-    response = client.messages.create(
+    response = _anthropic_client.messages.create(
         model=ANTHROPIC_MODEL,
         max_tokens=2048,
         system=[
@@ -193,12 +187,11 @@ def insights_summary(
         ],
     )
 
-    from app.db.cost_tracker import log_anthropic_cost
     if hasattr(response, "usage"):
         log_anthropic_cost(ANTHROPIC_MODEL, "api.insights", response.usage)
-        _log.info("cache_stats",
-                  cache_creation=getattr(response.usage, "cache_creation_input_tokens", 0),
-                  cache_read=getattr(response.usage, "cache_read_input_tokens", 0))
+        log.info("cache_stats",
+                 cache_creation=getattr(response.usage, "cache_creation_input_tokens", 0),
+                 cache_read=getattr(response.usage, "cache_read_input_tokens", 0))
 
     summary_text = response.content[0].text
     latency_ms = int((time.time() - started_at) * 1000)

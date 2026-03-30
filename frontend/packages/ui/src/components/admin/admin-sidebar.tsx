@@ -11,6 +11,7 @@ import {
   Users,
   FileSearch,
   Bot,
+  MousePointerClick,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -28,6 +29,7 @@ const ADMIN_NAV: NavItem[] = [
   { path: '/admin/costs', label: 'Koszty API', icon: DollarSign },
   { path: '/admin/code-review', label: 'Code Review', icon: Code },
   { path: '/admin/users', label: 'Użytkownicy', icon: Users },
+  { path: '/admin/activity', label: 'Aktywność', icon: MousePointerClick },
   { path: '/admin/audit', label: 'Audit Log', icon: FileSearch, adminOnly: true },
   { path: '/admin/omnius', label: 'Omnius Bridge', icon: Bot, adminOnly: true },
 ];

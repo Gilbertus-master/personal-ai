@@ -11,6 +11,7 @@ log = structlog.get_logger()
 ANTHROPIC_PRICING = {
     "claude-haiku-4-5-20251001": {"input": 0.80, "output": 4.00, "cache_read": 0.08, "cache_create": 1.00},
     "claude-sonnet-4-5": {"input": 3.00, "output": 15.00, "cache_read": 0.30, "cache_create": 3.75},
+    "claude-sonnet-4-20250514": {"input": 3.00, "output": 15.00, "cache_read": 0.30, "cache_create": 3.75},
     "claude-sonnet-4-6": {"input": 3.00, "output": 15.00, "cache_read": 0.30, "cache_create": 3.75},
     "claude-opus-4-6": {"input": 15.00, "output": 75.00, "cache_read": 1.50, "cache_create": 18.75},
 }
@@ -93,20 +94,35 @@ def check_budget(module: str) -> dict:
         t_start = time.monotonic()
         with get_pg_connection() as conn:
             with conn.cursor() as cur:
-                # Today's total spend
-                cur.execute("SELECT COALESCE(SUM(cost_usd), 0) FROM api_costs WHERE created_at >= CURRENT_DATE")
-                daily_total = float(cur.fetchall()[0][0])
+                # Fetch all data in single round-trip: daily total, module total, and budget limits
+                cur.execute("""
+                    WITH daily_spend AS (
+                        SELECT COALESCE(SUM(cost_usd), 0) as total FROM api_costs WHERE created_at >= CURRENT_DATE
+                    ),
+                    module_spend AS (
+                        SELECT COALESCE(SUM(cost_usd), 0) as total FROM api_costs WHERE created_at >= CURRENT_DATE AND module LIKE %s
+                    )
+                    SELECT 'daily' as type, (SELECT total FROM daily_spend) as amount, NULL::text as scope, NULL::float as limit_usd, NULL::integer as alert_pct, NULL::boolean as hard_limit
+                    UNION ALL
+                    SELECT 'module' as type, (SELECT total FROM module_spend) as amount, NULL::text as scope, NULL::float as limit_usd, NULL::integer as alert_pct, NULL::boolean as hard_limit
+                    UNION ALL
+                    SELECT 'budget' as type, NULL::float as amount, scope, limit_usd, alert_threshold_pct, hard_limit FROM cost_budgets
+                """, (f"{module}%",))
 
-                # Module spend today
-                cur.execute(
-                    "SELECT COALESCE(SUM(cost_usd), 0) FROM api_costs WHERE created_at >= CURRENT_DATE AND module LIKE %s",
-                    (f"{module}%",)
-                )
-                module_total = float(cur.fetchall()[0][0])
+                rows = cur.fetchall()
+                daily_total = 0.0
+                module_total = 0.0
+                budgets = {}
 
-                # Load budget limits
-                cur.execute("SELECT scope, limit_usd, alert_threshold_pct, hard_limit FROM cost_budgets")
-                budgets = {row[0]: {"limit": float(row[1]), "alert_pct": row[2], "hard": row[3]} for row in cur.fetchall()}
+                for row in rows:
+                    row_type = row[0]
+                    if row_type == 'daily':
+                        daily_total = float(row[1])
+                    elif row_type == 'module':
+                        module_total = float(row[1])
+                    elif row_type == 'budget':
+                        scope, limit_usd, alert_pct, hard = row[2], row[3], row[4], row[5]
+                        budgets[scope] = {"limit": float(limit_usd), "alert_pct": alert_pct, "hard": hard}
 
         elapsed = time.monotonic() - t_start
         if elapsed > _BUDGET_CHECK_TIMEOUT_S:

@@ -20,12 +20,15 @@ echo "$LOG_PREFIX: starting"
 
 $VENV_PYTHON - << 'PYEOF'
 import sys, os, requests, json, subprocess, tempfile, time
+from datetime import datetime
 sys.path.insert(0, '/home/sebastian/personal-ai')
 
+import structlog
 from app.ingestion.plaud_sync import get_plaud_token, list_recordings, sync_plaud
 from app.ingestion.common.db import document_exists_by_raw_path, insert_chunk, insert_document, insert_source
 from app.utils.network import ensure_wsl2_mtu
 
+log = structlog.get_logger()
 ensure_wsl2_mtu()
 
 WHISPER_URL = os.getenv("WHISPER_URL", "http://127.0.0.1:9090")
@@ -46,7 +49,7 @@ while True:
     skip += len(batch)
 
 needs = [r for r in all_recs if not r.get("is_trans") and r.get("duration", 0)/1000 > 10]
-print(f"Untranscribed: {len(needs)} / {len(all_recs)}")
+log.info("untranscribed_found", count=len(needs), total=len(all_recs))
 
 # Step 2: Try Plaud cloud trigger
 triggered = 0
@@ -68,14 +71,14 @@ for r in needs:
         if status_code == 0:
             triggered += 1
             plaud_triggered_ids.add(fid)
-            print(f"  Plaud triggered: {fname}")
+            log.info("plaud_triggered", filename=fname)
         else:
-            print(f"  Plaud cloud rejected: {fname} (status={status_code}, {msg}) — audio may not be synced from device")
+            log.warning("plaud_cloud_rejected", filename=fname, status=status_code, msg=msg)
     except Exception as e:
-        print(f"  Plaud cloud error: {fname}: {e}")
+        log.warning("plaud_cloud_error", filename=fname, error=str(e))
 
 if triggered:
-    print(f"  Waiting 30s for Plaud to process...")
+    log.info("waiting_for_plaud", seconds=30)
     time.sleep(30)
 
 # Step 3: Whisper fallback for still-untranscribed
@@ -100,7 +103,7 @@ for r in [x for x in needs if x['id'] not in plaud_triggered_ids]:
         audio_url = None
 
     if not audio_url:
-        print(f"  Skip (no S3 URL): {fname}")
+        log.info("skipped_no_s3_url", filename=fname)
         continue
 
     # Download via curl (SSL-safe)
@@ -111,15 +114,15 @@ for r in [x for x in needs if x['id'] not in plaud_triggered_ids]:
             timeout=130, capture_output=True
         )
         if result.returncode != 0 or not os.path.exists(tmp_audio):
-            print(f"  Skip (download failed): {fname}")
+            log.info("skipped_download_failed", filename=fname)
             continue
         size = os.path.getsize(tmp_audio)
         if size < 10000:
-            print(f"  Skip (file too small {size}B, not ready): {fname}")
+            log.info("skipped_file_too_small", filename=fname, size=size)
             os.unlink(tmp_audio)
             continue
     except Exception as e:
-        print(f"  Skip (curl error): {fname}: {e}")
+        log.warning("skipped_curl_error", filename=fname, error=str(e))
         continue
 
     # Send to Whisper
@@ -134,26 +137,27 @@ for r in [x for x in needs if x['id'] not in plaud_triggered_ids]:
         segments = result_data.get("segments", [])
         os.unlink(tmp_audio)
     except Exception as e:
-        print(f"  Skip (Whisper error): {fname}: {e}")
+        log.warning("skipped_whisper_error", filename=fname, error=str(e))
         if os.path.exists(tmp_audio): os.unlink(tmp_audio)
         continue
 
     if duration < MIN_AUDIO_SECONDS:
-        print(f"  Skip (only {duration:.0f}s transcribed, audio not fully uploaded): {fname}")
+        log.info("skipped_too_short", filename=fname, duration=duration)
         continue
 
     if not transcript.strip():
-        print(f"  Skip (empty transcript): {fname}")
+        log.info("skipped_empty_transcript", filename=fname)
         continue
 
     # Parse timestamp
-    from datetime import datetime
     recorded_at = None
     start_time = r.get("start_time", 0)
     if start_time:
         ts = start_time / 1000 if start_time > 1e12 else start_time
-        try: recorded_at = datetime.fromtimestamp(ts)
-        except: pass
+        try:
+            recorded_at = datetime.fromtimestamp(ts)
+        except (OSError, ValueError, OverflowError) as e:
+            log.warning('timestamp_parse_failed', recording_id=fid, ts=ts, error=str(e))
 
     # Build full text with timestamps
     lines = [f"Transkrypcja (Whisper): {fname}", f"Czas trwania: {int(duration)}s", ""]
@@ -181,9 +185,9 @@ for r in [x for x in needs if x['id'] not in plaud_triggered_ids]:
             timestamp_start=recorded_at, timestamp_end=recorded_at, embedding_id=None)
 
     whisper_imported += 1
-    print(f"  Whisper imported: {fname} ({duration:.0f}s, {len(chunks)} chunks)")
+    log.info("whisper_imported", filename=fname, duration=duration, chunks=len(chunks))
 
 # Step 4: Import Plaud-transcribed recordings
 imported, chunks_total, _ = sync_plaud(limit=50, sync_all=True)
-print(f"\nSummary: Plaud imported={imported}, Whisper imported={whisper_imported}, chunks={chunks_total}")
+log.info("pipeline_summary", plaud_imported=imported, whisper_imported=whisper_imported, chunks_total=chunks_total)
 PYEOF

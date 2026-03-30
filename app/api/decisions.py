@@ -17,6 +17,7 @@ import structlog
 
 from app.db.cost_tracker import log_anthropic_cost
 from app.db.postgres import get_pg_connection
+from app.analysis.decision_intelligence import auto_capture_decisions
 
 load_dotenv()
 
@@ -225,7 +226,6 @@ def list_decisions(
 def scan_decisions(hours: int = Query(default=24, ge=1, le=168)):
     """Trigger auto-capture of decisions from recent events."""
     try:
-        from app.analysis.decision_intelligence import auto_capture_decisions
         captured = auto_capture_decisions(hours=hours)
         log.info("decision_scan_complete", captured=len(captured), hours=hours)
         return {"captured": len(captured), "decisions": captured, "hours_scanned": hours}

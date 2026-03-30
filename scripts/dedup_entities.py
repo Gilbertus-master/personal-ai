@@ -140,6 +140,9 @@ def main():
         print("\n[COMMIT] Saving...")
         conn.commit()
         print("Done!")
+        # Entities are not indexed in Qdrant (only chunk vectors are stored there).
+        # If entity embeddings are added in the future, run cleanup_qdrant_stale.py
+        # after this script to remove any orphaned vectors for deleted entity IDs.
 
     conn.close()
 

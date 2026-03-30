@@ -6,6 +6,8 @@ import {
   fetchTimeline,
   fetchCommitments,
   fetchBudget,
+  fetchAlertSuppressions,
+  fetchAlertFixTasks,
 } from '@gilbertus/api-client';
 import type {
   MorningBriefResponse,
@@ -14,6 +16,8 @@ import type {
   TimelineResponse,
   CommitmentsListResponse,
   BudgetResponse,
+  AlertSuppressionsResponse,
+  AlertFixTasksResponse,
 } from '@gilbertus/api-client';
 import { useDashboardStore } from '../stores/dashboard-store';
 
@@ -85,5 +89,19 @@ export function useAlertsBell() {
     queryKey: ['alerts', 'bell'],
     queryFn: () => fetchAlerts({ active_only: true, limit: 5 }),
     refetchInterval: 60_000,
+  });
+}
+
+export function useAlertSuppressions() {
+  return useQuery<AlertSuppressionsResponse>({
+    queryKey: ['alerts', 'suppressions'],
+    queryFn: fetchAlertSuppressions,
+  });
+}
+
+export function useAlertFixTasks(status?: string) {
+  return useQuery<AlertFixTasksResponse>({
+    queryKey: ['alerts', 'fix-tasks', status],
+    queryFn: () => fetchAlertFixTasks(status),
   });
 }

@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+"""Fix bare python3 calls to .venv/bin/python in all shell scripts."""
+import glob
+import os
+import re
+
+# Resolve project root relative to this script's location and chdir to it
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+os.chdir(_project_root)
+
+files = glob.glob('scripts/*.sh') + glob.glob('scripts/*/run.sh')
+total = 0
+for f in files:
+    with open(f) as fh:
+        content = fh.read()
+
+    new_content = content
+    # Replace piped python3
+    new_content = new_content.replace('| python3 -c', '| .venv/bin/python -c')
+    new_content = new_content.replace('| python3 -m', '| .venv/bin/python -m')
+
+    lines = new_content.split('\n')
+    new_lines = []
+    file_replacements = 0
+    for line in lines:
+        stripped = line.lstrip()
+        # Skip comments, echo, printf, ALERT_MSG, python3 -m venv
+        if (stripped.startswith('#') or 'ALERT_MSG' in line
+            or 'python3 -m venv' in line):
+            new_lines.append(line)
+            continue
+        # Skip echo/printf lines but be careful about $(python3 inside echo
+        if (re.search(r'\becho\b', line) or re.search(r'\bprintf\b', line)) and 'python3' not in line:
+            new_lines.append(line)
+            continue
+
+        original_line = line
+
+        # Replace standalone python3 at start of line
+        if re.match(r'python3\s', stripped):
+            indent = line[:len(line) - len(stripped)]
+            line = indent + '.venv/bin/python ' + stripped[len('python3'):]
+
+        # Replace if python3
+        line = line.replace('if python3 ', 'if .venv/bin/python ')
+
+        # Replace remaining bare python3 tokens that aren't already .venv/bin/python
+        # Only in non-echo, non-comment contexts
+        if 'python3' in line:
+            if not stripped.startswith('#') and not re.search(r'\b(?:echo|printf)\b[^;|&\n]*python3', line):
+                line = re.sub(r'(?<![/\w])python3(?= |-)', '.venv/bin/python', line)
+
+        if line != original_line:
+            file_replacements += 1
+        new_lines.append(line)
+    new_content = '\n'.join(new_lines)
+
+    if new_content != content:
+        with open(f, 'w') as fh:
+            fh.write(new_content)
+        if file_replacements > 0:
+            total += file_replacements
+            print(f'  Fixed {f}: {file_replacements} replacements')
+
+print(f'Total: {total} replacements')

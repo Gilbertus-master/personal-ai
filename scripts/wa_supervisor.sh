@@ -13,9 +13,24 @@ PID_FILE="$HOME/.gilbertus/whatsapp_listener/listener.pid"
 HEALTH_URL="http://127.0.0.1:9393/health"
 NEEDS_REPAIR_FLAG="$HOME/.gilbertus/whatsapp_listener/needs_repair.flag"
 REPAIR_MONITOR="cd /home/sebastian/personal-ai && .venv/bin/python -m app.ingestion.whatsapp_live.wa_repair_monitor"
+RESTART_COUNTER="/tmp/wa_supervisor_restart_count"
 
 log() {
     echo "[$(date -u '+%Y-%m-%d %H:%M:%S')] $*" >> "$LOGFILE"
+}
+
+record_restart() {
+    COUNT=$(cat "$RESTART_COUNTER" 2>/dev/null || echo 0)
+    COUNT=$((COUNT + 1))
+    echo $COUNT > "$RESTART_COUNTER"
+    log "RESTART_COUNT: $COUNT"
+    if [ "$COUNT" -ge 3 ]; then
+        curl -s -X POST http://127.0.0.1:8000/internal/notify \
+            -H 'Content-Type: application/json' \
+            -d '{"msg":"wa_supervisor: 3+ restarts in succession — possible crash-loop"}' \
+            --max-time 5 || true
+        echo 0 > "$RESTART_COUNTER"
+    fi
 }
 
 # 0. If needs_repair.flag exists, delegate to repair monitor immediately
@@ -48,9 +63,11 @@ LAST_MSG=""
 QR_PENDING=false
 if HEALTH_RESPONSE=$(curl -s --max-time 5 "$HEALTH_URL" 2>/dev/null); then
     HEALTH_OK=true
-    CONNECTED=$(echo "$HEALTH_RESPONSE" | .venv/bin/python -c "import sys,json; print(json.load(sys.stdin).get('connected', False))" 2>/dev/null || echo "false")
-    LAST_MSG=$(echo "$HEALTH_RESPONSE" | .venv/bin/python -c "import sys,json; print(json.load(sys.stdin).get('last_msg_at', ''))" 2>/dev/null || echo "")
-    QR_PENDING=$(echo "$HEALTH_RESPONSE" | .venv/bin/python -c "import sys,json; print(json.load(sys.stdin).get('qr_pending', False))" 2>/dev/null || echo "false")
+    read -r CONNECTED LAST_MSG QR_PENDING < <(echo "$HEALTH_RESPONSE" | .venv/bin/python -c "
+import sys, json
+d = json.load(sys.stdin)
+print(str(d.get('connected', False)), d.get('last_msg_at', '') or '', str(d.get('qr_pending', False)))
+" 2>/dev/null || echo "false  false")
 fi
 
 # 4. If QR pending, let repair monitor handle it
@@ -64,10 +81,12 @@ if [ "$SERVICE_ACTIVE" = "false" ]; then
     log "RESTART: systemd service not active. Starting..."
     systemctl --user start whatsapp-listener.service
     log "RESTART: service start command issued"
+    record_restart
 elif [ "$PID_ALIVE" = "false" ] && [ "$HEALTH_OK" = "false" ]; then
     log "RESTART: PID dead and health check failed. Restarting service..."
     systemctl --user restart whatsapp-listener.service
     log "RESTART: service restart command issued"
+    record_restart
 elif [ "$CONNECTED" = "False" ] || [ "$CONNECTED" = "false" ]; then
     log "WARN: listener running but not connected to WhatsApp Web"
 else

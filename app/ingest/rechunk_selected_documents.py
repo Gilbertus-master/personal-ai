@@ -475,10 +475,17 @@ def delete_qdrant_points(point_ids: list[str]) -> None:
 
 
 def delete_old_chunks(document_id: int) -> None:
-    query = "DELETE FROM chunks WHERE document_id = %s"
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(query, (document_id,))
+            cur.execute(
+                "DELETE FROM chunks_event_checked WHERE chunk_id IN (SELECT id FROM chunks WHERE document_id = %s)",
+                (document_id,),
+            )
+            cur.execute(
+                "DELETE FROM chunks_entity_checked WHERE chunk_id IN (SELECT id FROM chunks WHERE document_id = %s)",
+                (document_id,),
+            )
+            cur.execute("DELETE FROM chunks WHERE document_id = %s", (document_id,))
         conn.commit()
 
 

@@ -9,13 +9,13 @@ echo ""
 
 # Check if cargo-tauri is installed
 if ! command -v cargo-tauri &>/dev/null; then
-  echo "[INFO] Installing tauri-cli..."
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] Installing tauri-cli..."
   cargo install tauri-cli
 fi
 
 # Check if key already exists
 if [ -f "$KEY_FILE" ]; then
-  echo "[WARN] Key already exists at $KEY_FILE"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] [WARN] Key already exists at $KEY_FILE"
   echo "       Delete it first if you want to regenerate."
   echo ""
   echo "=== Existing public key:"
@@ -27,7 +27,7 @@ fi
 mkdir -p "$KEY_DIR"
 
 # Generate key pair
-echo "[INFO] Generating signing key pair..."
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] Generating signing key pair..."
 cargo tauri signer generate -w "$KEY_FILE"
 
 echo ""
@@ -38,7 +38,7 @@ echo "   $(cat "${KEY_FILE}.pub")"
 echo ""
 echo "2. PRIVATE KEY (add to GitHub Secrets -> TAURI_SIGNING_PRIVATE_KEY):"
 echo "   File: $KEY_FILE"
-echo "   Run: cat $KEY_FILE | base64"
+echo "   Run: cat '${KEY_FILE}' | base64"
 echo ""
 echo "3. KEY PASSWORD (add to GitHub Secrets -> TAURI_KEY_PASSWORD):"
 echo "   The password you entered during generation"

@@ -362,8 +362,8 @@ def _send_whatsapp(message: str):
              "--target", WA_TARGET, "--message", message],
             capture_output=True, text=True, timeout=30,
         )
-    except Exception:
-        pass
+    except Exception as e:
+        _log.warning("whatsapp_send_failed", error=str(e))
 
 
 # ================================================================
@@ -448,8 +448,8 @@ def check_auto_execute_timeouts() -> list[dict[str, Any]]:
                 executed=True,
                 outcome="auto_executed_timeout",
             )
-        except Exception:
-            pass
+        except Exception as e:
+            _log.warning("feedback_record_failed", action_id=action_id, error=str(e))
 
     if executed:
         _log.info("auto_execute_timeouts_processed", count=len(executed))

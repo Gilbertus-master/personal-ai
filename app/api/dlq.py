@@ -14,7 +14,7 @@ def list_dlq(
     source_type: str | None = None,
     limit: int = Query(default=50, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
-):
+) -> dict:
     """List DLQ items with optional filters."""
     conditions = []
     params: list = []
@@ -52,7 +52,7 @@ def list_dlq(
 
 
 @router.get("/stats")
-def dlq_stats():
+def dlq_stats() -> dict:
     """Summary stats per source_type and status."""
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
@@ -94,7 +94,7 @@ def dlq_stats():
 
 
 @router.post("/{dlq_id}/retry")
-def retry_one(dlq_id: int):
+def retry_one(dlq_id: int) -> dict:
     """Manually retry a single DLQ item."""
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
@@ -141,7 +141,7 @@ def retry_one(dlq_id: int):
 
 
 @router.post("/retry-all")
-def retry_all():
+def retry_all() -> dict:
     """Retry all pending DLQ items."""
     from app.guardian.dlq_worker import run_worker
     stats = run_worker()

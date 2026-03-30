@@ -42,12 +42,11 @@ def mark_pattern_seen(pattern_id: int) -> dict:
                    RETURNING pattern_name, occurrences, alert_threshold""",
                 (now, pattern_id),
             )
-            row = cur.fetchone()
-            conn.commit()
-            if not row:
+            rows = cur.fetchall()
+            if not rows:
                 return {"error": "Pattern not found"}
-
-            name, occ, threshold = row
+            conn.commit()
+            name, occ, threshold = rows[0]
             alert = occ >= threshold
             log.info("rel.pattern.seen", pattern_id=pattern_id, occurrences=occ, alert=alert)
             return {

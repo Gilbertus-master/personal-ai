@@ -31,11 +31,14 @@ TTS_VOICE = os.getenv("TTS_VOICE", "pl-PL-ZofiaNeural")  # Polish female voice
 
 
 def _has_edge_tts() -> bool:
-    try:
-        import edge_tts  # noqa: F401
-        return True
-    except ImportError:
-        return False
+    return _EDGE_TTS_AVAILABLE
+
+
+try:
+    import edge_tts as _edge_tts_module  # noqa: F401
+    _EDGE_TTS_AVAILABLE = True
+except ImportError:
+    _EDGE_TTS_AVAILABLE = False
 
 
 async def _synthesize_speech(text: str, voice: str = TTS_VOICE) -> bytes | None:

@@ -398,6 +398,11 @@ def get_alerts(
     if active_only:
         conditions.append("is_active = TRUE")
 
+    # Exclude suppressed alert types
+    conditions.append(
+        "alert_type NOT IN (SELECT alert_type FROM alert_suppressions)"
+    )
+
     if alert_type:
         conditions.append("alert_type = %s")
         params.append(alert_type)

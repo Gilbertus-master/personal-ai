@@ -961,23 +961,13 @@ def main():
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
 
-    args = {"date": None, "force": False}
-    i = 1
-    while i < len(sys.argv):
-        arg = sys.argv[i]
-        if arg == "--date":
-            args["date"] = sys.argv[i + 1]
-            i += 2
-        elif arg == "--force":
-            args["force"] = True
-            i += 1
-        elif arg in ("--help", "-h"):
-            print(__doc__)
-            sys.exit(0)
-        else:
-            raise ValueError(f"Unknown argument: {arg}")
+    import argparse
+    parser = argparse.ArgumentParser(description="Generate weekly synthesis")
+    parser.add_argument("--date", default=None)
+    parser.add_argument("--force", action="store_true")
+    args = parser.parse_args()
 
-    result = generate_weekly_synthesis(date=args["date"], force=args["force"])
+    result = generate_weekly_synthesis(date=args.date, force=args.force)
 
     if result["status"] == "no_data":
         print("Brak danych do wygenerowania syntezy tygodniowej.")

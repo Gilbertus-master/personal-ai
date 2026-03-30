@@ -12,7 +12,7 @@ log = structlog.get_logger("perf_improver.bottleneck_detector")
 
 @dataclass
 class Bottleneck:
-    type: str  # e.g. "slow_answer", "slow_interpret", "none"
+    kind: str  # e.g. "slow_answer", "slow_interpret", "none"
     severity: str  # "critical", "high", "medium", "low", "none"
     detail: str  # human-readable explanation
     metric_value: float = 0.0
@@ -30,6 +30,12 @@ HIGH_DEPTH_THRESHOLD = 60.0
 
 def detect(stats: AskRunsStats) -> Bottleneck:
     """Detect the most impactful bottleneck. Returns highest-priority one."""
+    b = _classify(stats)
+    log.info("bottleneck_detected", kind=b.kind, severity=b.severity, metric=b.metric_value)
+    return b
+
+
+def _classify(stats: AskRunsStats) -> Bottleneck:
     if stats.total_runs == 0:
         return Bottleneck("insufficient_data", "none", "No queries in analysis window")
 

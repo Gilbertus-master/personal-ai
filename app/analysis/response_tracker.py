@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime, timezone
+from typing import Optional, TypedDict
 
 import structlog
 from anthropic import Anthropic
@@ -29,6 +30,10 @@ log = structlog.get_logger(__name__)
 
 ANTHROPIC_FAST = os.getenv("ANTHROPIC_FAST_MODEL", "claude-haiku-4-5")
 client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"), timeout=60.0)
+
+
+def _to_utc(ts: datetime) -> datetime:
+    return ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
 
 
 # ================================================================
@@ -189,8 +194,8 @@ def scan_for_response(comm: dict) -> dict:
         earliest = min(r[2] for r in matches if r[2])
         response_hours = None
         if earliest and sent_at:
-            sent_at_aware = sent_at if sent_at.tzinfo else sent_at.replace(tzinfo=timezone.utc)
-            earliest_aware = earliest if earliest.tzinfo else earliest.replace(tzinfo=timezone.utc)
+            sent_at_aware = _to_utc(sent_at)
+            earliest_aware = _to_utc(earliest)
             delta = earliest_aware - sent_at_aware
             response_hours = round(delta.total_seconds() / 3600, 1)
 
@@ -208,7 +213,7 @@ def scan_for_response(comm: dict) -> dict:
         }
 
     # No response found
-    elapsed_hours = (now - (sent_at.replace(tzinfo=timezone.utc) if sent_at.tzinfo is None else sent_at)).total_seconds() / 3600
+    elapsed_hours = (now - _to_utc(sent_at)).total_seconds() / 3600
     needs_follow_up = (
         elapsed_hours > 72
         and not comm.get("follow_up_sent", False)
@@ -264,7 +269,17 @@ def analyze_response_sentiment(response_text: str) -> str:
 # 4. Send follow-up
 # ================================================================
 
-def send_follow_up(comm_id: int, comm: dict) -> dict:
+class CommDict(TypedDict, total=False):
+    """Shape of the comm record passed to send_follow_up."""
+    channel: str               # required — delivery channel, e.g. "email", "teams", "whatsapp"
+    recipient: str             # required — address / handle of the recipient
+    subject: Optional[str]     # optional — message subject line
+    follow_up_sent: bool       # optional — whether a follow-up was already sent
+    follow_up_count: int       # optional — number of follow-ups sent so far
+    standing_order_id: Optional[int]  # optional — linked standing order, if any
+
+
+def send_follow_up(comm_id: int, comm: CommDict) -> dict:
     """Send follow-up reminder if authority allows (send_reminder = level 1)."""
     from app.orchestrator.authority import check_authority
 

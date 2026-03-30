@@ -20,17 +20,18 @@ log = structlog.get_logger(__name__)
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 FIX_PROMPT_PATH = PROJECT_DIR / "scripts" / "fix_prompt.md"
-MODEL = os.getenv("CODE_FIX_MODEL", "sonnet")
+MODEL_HEAVY = os.getenv("CODE_FIX_MODEL", "sonnet")
+MODEL_LIGHT = os.getenv("CODE_FIX_MODEL_LIGHT", "haiku")
 CLAUDE_BIN = os.getenv("CLAUDE_BIN", "/home/sebastian/.npm-global/bin/claude")
 _dotenv_vars = dotenv_values(PROJECT_DIR / ".env")
 
 
 def _launch_claude_session(system_prompt: str, user_prompt: str,
-                           budget: float) -> dict | None:
+                           budget: float, model: str = MODEL_HEAVY) -> dict | None:
     """Launch a claude -p session and parse the result."""
     cmd = [
         CLAUDE_BIN, "-p",
-        "--model", MODEL,
+        "--model", model,
         "--max-budget-usd", str(budget),
         "--system-prompt", system_prompt,
         "--output-format", "json",
@@ -77,9 +78,11 @@ def _launch_claude_session(system_prompt: str, user_prompt: str,
 
             data = json.loads(json_str)
         except (json.JSONDecodeError, IndexError):
-            log.warning("no_json_response", preview=wrapper.get("result", "")[:200])
+            log.warning("fix_no_json_response",
+                        result_preview=wrapper.get("result", "")[:200])
+            # Cannot confirm fix without structured response
             data = {
-                "fixed": True,
+                "fixed": False,
                 "changes_summary": wrapper.get("result", "")[:200],
                 "files_modified": [],
             }
@@ -202,6 +205,7 @@ def execute_tier2(cluster: dict, context: dict, prompt: str) -> dict:
     finding_ids = [f["id"] for f in cluster["findings"]]
     file_paths = cluster["file_paths"]
     budget = get_budget(cluster["size"])
+    model = MODEL_HEAVY if cluster.get("severity") in ("critical", "high") else MODEL_LIGHT
 
     log.info("tier2_start",
              cluster_id=cluster["cluster_id"],
@@ -212,7 +216,7 @@ def execute_tier2(cluster: dict, context: dict, prompt: str) -> dict:
     system_prompt = FIX_PROMPT_PATH.read_text(encoding="utf-8")
 
     # First attempt
-    result = _launch_claude_session(system_prompt, prompt, budget)
+    result = _launch_claude_session(system_prompt, prompt, budget, model)
 
     if result and result.get("fixed"):
         ok, detail = _verify_fix(file_paths)
@@ -242,7 +246,7 @@ def execute_tier2(cluster: dict, context: dict, prompt: str) -> dict:
     )
 
     log.info("tier2_retry", cluster_id=cluster["cluster_id"])
-    result2 = _launch_claude_session(system_prompt, retry_prompt, budget)
+    result2 = _launch_claude_session(system_prompt, retry_prompt, budget, model)
 
     if result2 and result2.get("fixed"):
         ok, detail = _verify_fix(file_paths)

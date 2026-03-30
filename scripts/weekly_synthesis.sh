@@ -7,7 +7,7 @@ flock -n 9 || { echo "[$(date)] weekly_synthesis already running, exiting."; exi
 trap 'rm -f "$LOCKFILE"' EXIT INT TERM
 
 cd /home/sebastian/personal-ai
-source .venv/bin/activate 2>/dev/null || true
+source .venv/bin/activate || { echo "[$(date)] ERROR: venv activation failed"; exit 1; }
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Generating weekly synthesis..."
 python -m app.retrieval.weekly_synthesis "$@"

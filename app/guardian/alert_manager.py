@@ -109,10 +109,10 @@ class AlertManager:
             return True
         return False
 
-    def acknowledge_latest(self, category: str | None = None) -> int:
+    def acknowledge_latest(self, category: str | None = None, acknowledged_by: str = "sebastian") -> int:
         """Acknowledge all unacknowledged critical alerts. Returns count."""
         conditions = ["tier = 3", "acknowledged = FALSE"]
-        params: list = []
+        params: list = [acknowledged_by]
         if category:
             conditions.append("category = %s")
             params.append(category)
@@ -126,7 +126,7 @@ class AlertManager:
                     UPDATE guardian_alerts
                     SET acknowledged = TRUE,
                         acknowledged_at = NOW(),
-                        acknowledged_by = 'sebastian'
+                        acknowledged_by = %s
                     WHERE {where}
                     RETURNING id
                     """,

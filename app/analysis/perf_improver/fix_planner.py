@@ -18,8 +18,7 @@ class FixPlan:
     param_name: str  # env var or file to change
     old_value: str
     new_value: str
-    change_type: str  # "env" or "file"
-    file_path: Optional[str] = None
+    change_type: str  # currently only "env" is supported by improvement_agent.py; TODO: add "file" support
 
 
 # Maps bottleneck_type → list of candidate fixes (tried in order)
@@ -83,7 +82,7 @@ FIX_STRATEGIES = {
 
 def _get_current_env_value(param: str, default: str) -> str:
     """Read current value from environment (loaded from .env via dotenv)."""
-    return os.getenv(param, default)
+    return os.getenv(param, default).strip().lower()
 
 
 def _was_recently_applied(param: str, new_value: str) -> bool:
@@ -105,13 +104,13 @@ def _was_recently_applied(param: str, new_value: str) -> bool:
 
 def plan_fix(bottleneck: Bottleneck) -> Optional[FixPlan]:
     """Return a concrete fix plan for the bottleneck, or None if no fix available."""
-    if bottleneck.type in ("none", "insufficient_data", "high_errors"):
-        log.info("no_auto_fix", bottleneck=bottleneck.type, reason="not auto-fixable")
+    if bottleneck.kind in ("none", "insufficient_data", "high_errors"):
+        log.info("no_auto_fix", bottleneck=bottleneck.kind, reason="not auto-fixable")
         return None
 
-    strategies = FIX_STRATEGIES.get(bottleneck.type, [])
+    strategies = FIX_STRATEGIES.get(bottleneck.kind, [])
     if not strategies:
-        log.info("no_strategy", bottleneck=bottleneck.type)
+        log.info("no_strategy", bottleneck=bottleneck.kind)
         return None
 
     for strategy in strategies:
@@ -139,5 +138,5 @@ def plan_fix(bottleneck: Bottleneck) -> Optional[FixPlan]:
         log.info("fix_planned", action=plan.action, param=plan.param_name, old=plan.old_value, new=plan.new_value)
         return plan
 
-    log.info("all_fixes_exhausted", bottleneck=bottleneck.type)
+    log.info("all_fixes_exhausted", bottleneck=bottleneck.kind)
     return None

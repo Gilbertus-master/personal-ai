@@ -26,7 +26,7 @@ from app.db.cost_tracker import log_anthropic_cost
 
 load_dotenv()
 
-ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+ANTHROPIC_MODEL = os.getenv("ANTHROPIC_FAST_MODEL", "claude-haiku-4-5")
 client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"), timeout=180.0)
 
 DISCOVERY_PROMPT = """Jesteś architektem systemów AI dla polskiej firmy energetycznej (REH/REF).

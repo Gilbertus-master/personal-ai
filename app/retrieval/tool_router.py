@@ -34,7 +34,7 @@ _KEYWORD_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\b(whatsapp|wiadomoś[ćc]|sms|czat)\b", re.IGNORECASE), "personal_comms"),
     (re.compile(r"\b(spotkani[eua]|teams|call|zoom|rozmow[aę]|audio|nagranie|transkrypc)\b", re.IGNORECASE), "business_comms"),
     (re.compile(r"\b(mail|email|e-mail|korespondencj[aę])\b", re.IGNORECASE), "business_comms"),
-    (re.compile(r"\b(kalendarz|calendar|event|termin)\b", re.IGNORECASE), "business_comms"),
+    (re.compile(r"\b(kalendarz|calendar|termin)\b", re.IGNORECASE), "business_comms"),
     (re.compile(r"\b(trad(?:ing|e)|cen[aęy]|PPA|kontrakt|umow[aęy]|faktur|ofert[aęy]|przetarg)\b", re.IGNORECASE), "trading"),
     (re.compile(r"\b(dokument|raport|analiz[aę]|notatk|pdf|arkusz|excel)\b", re.IGNORECASE), "knowledge"),
     (re.compile(r"\b(chatgpt|gpt|ai|claude)\b", re.IGNORECASE), "knowledge"),
@@ -61,7 +61,7 @@ def route_tools(
         list[str] of source types to filter on, or None for no filter (query all).
     """
     # If interpreter already provided explicit source_types, respect them
-    if source_types:
+    if source_types is not None:
         log.debug("tool_router_passthrough", source_types=source_types)
         return source_types
 
@@ -93,4 +93,4 @@ def _match_keywords(query: str) -> str | None:
         return None
 
     # Return group with most matches
-    return max(scores, key=scores.get)
+    return max(scores, key=lambda k: scores[k])

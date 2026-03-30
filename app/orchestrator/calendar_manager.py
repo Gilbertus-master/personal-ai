@@ -45,6 +45,9 @@ LUNCH_START_HOUR = 12
 LUNCH_END_HOUR = 13
 MEETING_OVERLOAD_THRESHOLD = 5
 
+# Owner name filters (excluded from meeting suggestions)
+OWNER_NAME_FILTERS = ['sebastian', 'jabłoński']
+
 
 # ---------------------------------------------------------------------------
 # Graph API helpers
@@ -244,7 +247,13 @@ def block_deep_work(
     duration_hours = end_hour - start_hour
 
     # Fetch events for that day
-    events = get_calendar_events(days_ahead=14)
+    # Calculate how many days to fetch based on the target date
+    target_date = datetime.strptime(date, "%Y-%m-%d").date()
+    today_date = datetime.now(timezone.utc).date()
+    days_to_fetch = max(1, (target_date - today_date).days + 1)
+
+    # Fetch events for that day
+    events = get_calendar_events(days_ahead=days_to_fetch)
     day_events = [
         e for e in events
         if not e.get("isCancelled")
@@ -352,21 +361,21 @@ def detect_conflicts(days_ahead: int = 3) -> list[dict]:
 
     conflicts: list[dict] = []
 
-    # Parse all events into (start, end, subject) tuples
-    parsed: list[tuple[datetime, datetime, str]] = []
+    # Parse all events into (start, end, subject, id) tuples
+    parsed: list[tuple[datetime, datetime, str, str]] = []
     for ev in active:
         s = _parse_event_dt(ev["start"])
         e = _parse_event_dt(ev["end"])
         if s and e:
-            parsed.append((s, e, ev.get("subject", "?")))
+            parsed.append((s, e, ev.get("subject", "?"), ev.get("id", "")))
 
     parsed.sort(key=lambda x: x[0])
 
     # Check overlaps
     for i in range(len(parsed)):
         for j in range(i + 1, len(parsed)):
-            s1, e1, subj1 = parsed[i]
-            s2, e2, subj2 = parsed[j]
+            s1, e1, subj1, id1 = parsed[i]
+            s2, e2, subj2, id2 = parsed[j]
             if s2 < e1:  # overlap
                 conflicts.append({
                     "type": "overlap",
@@ -380,10 +389,10 @@ def detect_conflicts(days_ahead: int = 3) -> list[dict]:
 
     # Group by day
     from collections import defaultdict
-    days: dict[str, list[tuple[datetime, datetime, str]]] = defaultdict(list)
-    for s, e, subj in parsed:
+    days: dict[str, list[tuple[datetime, datetime, str, str]]] = defaultdict(list)
+    for s, e, subj, ev_id in parsed:
         day_key = s.strftime("%Y-%m-%d")
-        days[day_key].append((s, e, subj))
+        days[day_key].append((s, e, subj, ev_id))
 
     for day_key, day_events in days.items():
         # Meeting overload
@@ -398,7 +407,7 @@ def detect_conflicts(days_ahead: int = 3) -> list[dict]:
 
         # No lunch break
         has_lunch_free = True
-        for s, e, subj in day_events:
+        for s, e, subj, ev_id in day_events:
             # Check if event overlaps 12:00-13:00 CET (convert UTC to Warsaw first)
             s_local = s.astimezone(WAR)
             lunch_start = s_local.replace(hour=LUNCH_START_HOUR, minute=0, second=0)
@@ -416,11 +425,11 @@ def detect_conflicts(days_ahead: int = 3) -> list[dict]:
             })
 
         # Meetings during deep work
-        for s, e, subj in day_events:
+        for s, e, subj, ev_id in day_events:
             if "deep work" in subj.lower():
                 # Check if any other meeting overlaps this deep work block
-                for s2, e2, subj2 in day_events:
-                    if subj2 == subj:
+                for s2, e2, subj2, ev_id2 in day_events:
+                    if ev_id2 == ev_id:
                         continue
                     if s2 < e and e2 > s:
                         conflicts.append({
@@ -464,6 +473,7 @@ def suggest_meetings() -> list[dict]:
                     return []
 
                 # Find people with stale interactions and open events
+                owner_filter_params = tuple('%' + name + '%' for name in OWNER_NAME_FILTERS)
                 cur.execute("""
                     SELECT
                         e.name,
@@ -473,14 +483,13 @@ def suggest_meetings() -> list[dict]:
                     LEFT JOIN event_entities ee ON ee.entity_id = e.id
                     LEFT JOIN events ev ON ev.id = ee.event_id
                     WHERE e.entity_type = 'person'
-                      AND e.name NOT ILIKE '%%sebastian%%'
-                      AND e.name NOT ILIKE '%%jabłoński%%'
+                      AND NOT (e.name ILIKE %s OR e.name ILIKE %s)
                     GROUP BY e.id, e.name
                     HAVING MAX(ev.event_time) < NOW() - INTERVAL '10 days'
                        AND COUNT(DISTINCT ev.id) > 2
                     ORDER BY MAX(ev.event_time) ASC
                     LIMIT 5
-                """)
+                """, owner_filter_params)
                 rows = cur.fetchall()
     except Exception as exc:
         log.error("suggest_meetings_db_failed", error=str(exc))

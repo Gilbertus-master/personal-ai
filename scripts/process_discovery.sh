@@ -49,16 +49,25 @@ import json
 print(json.dumps(generate_plans(), ensure_ascii=False, indent=2, default=str))
 "
 
-echo "Step 6: Deep App Analysis + Costs..."
+echo "Step 6a: Deep App Analysis..."
 python -c "
-from app.analysis.app_inventory import scan_applications_deep, analyze_app_costs, rank_replacement_priority
+from app.analysis.app_inventory import scan_applications_deep
 import json
-result = {
-  'deep': scan_applications_deep(),
-  'costs': analyze_app_costs(),
-  'top5': rank_replacement_priority()[:5]
-}
-print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+print(json.dumps(scan_applications_deep(), ensure_ascii=False, indent=2, default=str))
+"
+
+echo "Step 6b: App Cost Analysis..."
+python -c "
+from app.analysis.app_inventory import analyze_app_costs
+import json
+print(json.dumps(analyze_app_costs(), ensure_ascii=False, indent=2, default=str))
+"
+
+echo "Step 6c: Replacement Priority Ranking..."
+python -c "
+from app.analysis.app_inventory import rank_replacement_priority
+import json
+print(json.dumps(rank_replacement_priority()[:5], ensure_ascii=False, indent=2, default=str))
 "
 
 echo "Step 7: Tech Radar Refresh..."

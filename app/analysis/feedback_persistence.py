@@ -6,6 +6,7 @@ Identifies weak areas where answer quality is consistently low.
 """
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import structlog
@@ -93,6 +94,8 @@ def get_evaluation_trends(days: int = 30) -> dict:
     """
     _ensure_tables()
 
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             # Daily averages
@@ -104,10 +107,10 @@ def get_evaluation_trends(days: int = 30) -> dict:
                        AVG(overall) as avg_overall,
                        COUNT(*) as count
                 FROM answer_evaluations
-                WHERE created_at > NOW() - (%s * INTERVAL '1 day')
+                WHERE created_at > %s
                 GROUP BY DATE(created_at)
                 ORDER BY day DESC
-            """, (days,))
+            """, (cutoff,))
             daily = []
             for row in cur.fetchall():
                 daily.append({
@@ -126,8 +129,8 @@ def get_evaluation_trends(days: int = 30) -> dict:
                        MIN(overall), MAX(overall),
                        PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY overall)
                 FROM answer_evaluations
-                WHERE created_at > NOW() - (%s * INTERVAL '1 day')
-            """, (days,))
+                WHERE created_at > %s
+            """, (cutoff,))
             stats_row = cur.fetchone()
 
     if not stats_row or stats_row[4] == 0:
@@ -139,11 +142,13 @@ def get_evaluation_trends(days: int = 30) -> dict:
         }
 
     # Determine trend: compare first half vs second half
+    # daily is DESC order; reverse so index 0 = oldest, making first/second half names intuitive
     trend = "stable"
     if len(daily) >= 4:
-        mid = len(daily) // 2
-        first_half = sum(d["avg_overall"] for d in daily[mid:]) / len(daily[mid:])
-        second_half = sum(d["avg_overall"] for d in daily[:mid]) / len(daily[:mid])
+        daily_asc = list(reversed(daily))
+        mid = len(daily_asc) // 2
+        first_half = sum(d["avg_overall"] for d in daily_asc[:mid]) / len(daily_asc[:mid])
+        second_half = sum(d["avg_overall"] for d in daily_asc[mid:]) / len(daily_asc[mid:])
         diff = second_half - first_half
         if diff > 0.05:
             trend = "improving"
@@ -176,6 +181,7 @@ def get_weak_areas(threshold: float = 0.5, days: int = 30) -> list:
     """
     _ensure_tables()
 
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     weak: list[dict] = []
 
     with get_pg_connection() as conn:
@@ -190,12 +196,12 @@ def get_weak_areas(threshold: float = 0.5, days: int = 30) -> list:
                        AVG(ae.depth) as avg_dep
                 FROM answer_evaluations ae
                 JOIN ask_runs ar ON ar.id = ae.ask_run_id
-                WHERE ae.created_at > NOW() - (%s * INTERVAL '1 day')
+                WHERE ae.created_at > %s
                   AND ae.ask_run_id IS NOT NULL
                 GROUP BY ar.question_type
                 HAVING AVG(ae.overall) < %s AND COUNT(*) >= 3
                 ORDER BY avg_score ASC
-            """, (days, threshold))
+            """, (cutoff, threshold))
             for row in cur.fetchall():
                 weak.append({
                     "type": "question_type",
@@ -211,23 +217,29 @@ def get_weak_areas(threshold: float = 0.5, days: int = 30) -> list:
             cur.execute("""
                 SELECT arm.source_type,
                        AVG(ae.overall) as avg_score,
-                       COUNT(*) as count
+                       COUNT(*) as count,
+                       AVG(ae.relevance) as avg_rel,
+                       AVG(ae.grounding) as avg_gnd,
+                       AVG(ae.depth) as avg_dep
                 FROM answer_evaluations ae
                 JOIN ask_runs ar ON ar.id = ae.ask_run_id
                 JOIN ask_run_matches arm ON arm.ask_run_id = ar.id
-                WHERE ae.created_at > NOW() - (%s * INTERVAL '1 day')
+                WHERE ae.created_at > %s
                   AND ae.ask_run_id IS NOT NULL
                   AND arm.source_type IS NOT NULL
                 GROUP BY arm.source_type
                 HAVING AVG(ae.overall) < %s AND COUNT(*) >= 3
                 ORDER BY avg_score ASC
-            """, (days, threshold))
+            """, (cutoff, threshold))
             for row in cur.fetchall():
                 weak.append({
                     "type": "source_type",
                     "value": row[0],
                     "avg_score": round(float(row[1]), 3),
                     "count": row[2],
+                    "weakest_axis": _weakest_axis(
+                        float(row[3]), float(row[4]), float(row[5])
+                    ),
                 })
 
     return weak

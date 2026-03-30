@@ -122,12 +122,14 @@ def log_activity(req: ActivityCreate) -> dict[str, Any]:
                 (req.entity_id, req.activity_type, req.domain,
                  req.value_pln, req.time_saved_min, req.description),
             )
-            row = cur.fetchone()
+            rows = cur.fetchall()
             conn.commit()
 
+    if not rows:
+        raise HTTPException(500, "Activity insert returned no ID")
     return {
-        "id": row[0],
-        "created_at": str(row[1]),
+        "id": rows[0][0],
+        "created_at": str(rows[0][1]),
         "status": "recorded",
     }
 

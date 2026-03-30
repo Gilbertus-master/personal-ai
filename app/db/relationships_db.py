@@ -4,6 +4,7 @@ Relationships DB — migration, seed data, and SQL helper functions.
 from __future__ import annotations
 
 import structlog
+from psycopg import Cursor
 
 from app.db.postgres import get_pg_connection
 
@@ -87,7 +88,7 @@ SEED_PEOPLE = [
     ("wojtek-jablonski",    "Wojtek",    "Jabłoński",  "family",   "Syn ur. ~2016",            "Thames British School",    "active",     "bezpośredni",              True,  "positive"),
     ("adam-jablonski",      "Adam",      "Jabłoński",  "family",   "Syn ur. sierpień 2020",    None,                       "active",     "bezpośredni",              True,  "positive"),
     ("szczepan-jablonski",  "Szczepan",  "Jabłoński",  "family",   "Ojciec",                   None,                       "terminated", "brak kontaktu ~3 lata",    False, "negative"),
-    ("zofia-godula",        "Zofia",     "Godula",     "personal", "Była partnerka",            None,                       "terminated", "rozstanie 20.03.2026",     False, "complex"),
+    ("zofia-godula",        "Zofia",     "Godula",     "personal", "Była partnerka",            None,                       "terminated", "rozstanie 2026-03-20",     False, "complex"),
 ]
 
 SEED_OPEN_LOOPS = {
@@ -154,7 +155,7 @@ def run_migration() -> None:
 
 # ── SQL helpers ────────────────────────────────────────────────────
 
-def get_person_by_slug(cur, slug: str) -> dict | None:
+def get_person_by_slug(cur: Cursor, slug: str) -> dict | None:
     cur.execute(
         """
         SELECT p.id, p.slug, p.first_name, p.last_name, p.aliases,
@@ -175,7 +176,7 @@ def get_person_by_slug(cur, slug: str) -> dict | None:
     return _person_row_to_dict(rows[0])
 
 
-def get_person_full_profile(cur, person_id: int) -> dict:
+def get_person_full_profile(cur: Cursor, person_id: int) -> dict:
     """Load roles history, timeline, open loops for a person."""
     cur.execute(
         """
@@ -234,7 +235,7 @@ def get_person_full_profile(cur, person_id: int) -> dict:
     return {"roles_history": roles, "timeline": timeline, "open_loops": loops}
 
 
-def _person_row_to_dict(row) -> dict:
+def _person_row_to_dict(row: tuple) -> dict:
     return {
         "id": row[0],
         "slug": row[1],

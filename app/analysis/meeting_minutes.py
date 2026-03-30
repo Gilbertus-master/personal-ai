@@ -77,7 +77,7 @@ def _ensure_tables() -> None:
                     document_id BIGINT REFERENCES documents(id) UNIQUE,
                     title TEXT,
                     meeting_date TIMESTAMPTZ,
-                    participants TEXT[],
+                    participants JSONB,
                     topics JSONB,
                     decisions JSONB,
                     action_items JSONB,
@@ -197,7 +197,7 @@ def _save_minutes(document_id: int, minutes: dict[str, Any], raw_text: str) -> i
                 (
                     document_id,
                     minutes.get("title", "Bez tytułu"),
-                    minutes.get("participants", []),
+                    json.dumps(minutes.get("participants", []), ensure_ascii=False),
                     json.dumps(minutes.get("topics", []), ensure_ascii=False),
                     json.dumps(minutes.get("decisions", []), ensure_ascii=False),
                     json.dumps(minutes.get("action_items", []), ensure_ascii=False),

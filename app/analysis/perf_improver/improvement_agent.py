@@ -5,9 +5,11 @@ Performance Improvement Agent — orchestrates the daily loop:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import time
+import urllib.request
 from datetime import date
 
 import structlog
@@ -55,7 +57,7 @@ def _log_to_journal(
                 """,
                 (
                     date.today(),
-                    bottleneck.type,
+                    bottleneck.kind,
                     fix.action if fix else "none",
                     fix.param_name if fix else None,
                     fix.old_value if fix else None,
@@ -102,17 +104,33 @@ def _apply_env_change(param: str, value: str) -> str | None:
     return old_line
 
 
-def _revert_env_change(param: str, old_value: str) -> None:
-    """Revert an env var change."""
-    _apply_env_change(param, old_value)
-    log.info("env_reverted", param=param, value=old_value)
+def _revert_env_change(param: str, old_line: str | None) -> None:
+    """Revert an env var change by restoring the original line exactly."""
+    if not os.path.exists(ENV_FILE):
+        log.warning("env_file_missing", path=ENV_FILE)
+        return
+
+    with open(ENV_FILE) as f:
+        lines = f.readlines()
+
+    new_lines = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith(f"{param}=") or stripped.startswith(f"# {param}="):
+            if old_line is not None:
+                new_lines.append(old_line)
+            # old_line is None means param was newly appended — drop it on revert
+        else:
+            new_lines.append(line)
+
+    with open(ENV_FILE, "w") as f:
+        f.writelines(new_lines)
+
+    log.info("env_reverted", param=param)
 
 
 def _measure_latency() -> int | None:
     """Run test queries and return average latency in ms."""
-    import json
-    import urllib.request
-
     latencies = []
     for q in TEST_QUERIES:
         payload = json.dumps(q).encode()
@@ -176,9 +194,9 @@ def run(dry_run: bool = False) -> dict:
 
     # Step 2: Detect bottleneck
     bottleneck: Bottleneck = detect(stats)
-    log.info("bottleneck_detected", type=bottleneck.type, severity=bottleneck.severity, detail=bottleneck.detail)
+    log.info("bottleneck_detected", type=bottleneck.kind, severity=bottleneck.severity, detail=bottleneck.detail)
 
-    if bottleneck.type == "none":
+    if bottleneck.kind == "none":
         msg = f"No bottleneck detected — avg={stats.avg_latency_ms}ms, p95={stats.p95_ms}ms"
         _log_to_journal(bottleneck, None, stats.avg_latency_ms, None, False, False, msg)
         return {"status": "ok", "reason": msg}
@@ -186,9 +204,9 @@ def run(dry_run: bool = False) -> dict:
     # Step 3: Plan fix
     fix: FixPlan | None = plan_fix(bottleneck)
     if not fix:
-        msg = f"Bottleneck '{bottleneck.type}' detected but no applicable fix"
+        msg = f"Bottleneck '{bottleneck.kind}' detected but no applicable fix"
         _log_to_journal(bottleneck, None, stats.avg_latency_ms, None, False, False, msg)
-        return {"status": "no_fix", "bottleneck": bottleneck.type, "reason": msg}
+        return {"status": "no_fix", "bottleneck": bottleneck.kind, "reason": msg}
 
     if dry_run:
         msg = f"DRY RUN — would apply: {fix.action} ({fix.param_name}: {fix.old_value} → {fix.new_value})"
@@ -196,7 +214,7 @@ def run(dry_run: bool = False) -> dict:
         _log_to_journal(bottleneck, fix, stats.avg_latency_ms, None, False, False, f"dry_run: {msg}")
         return {
             "status": "dry_run",
-            "bottleneck": bottleneck.type,
+            "bottleneck": bottleneck.kind,
             "fix": fix.action,
             "param": fix.param_name,
             "old": fix.old_value,
@@ -206,8 +224,9 @@ def run(dry_run: bool = False) -> dict:
 
     # Step 4: Apply fix
     log.info("applying_fix", action=fix.action)
+    old_env_line: str | None = None
     if fix.change_type == "env":
-        _apply_env_change(fix.param_name, fix.new_value)
+        old_env_line = _apply_env_change(fix.param_name, fix.new_value)
     else:
         log.warning("unsupported_change_type", type=fix.change_type)
         _log_to_journal(bottleneck, fix, stats.avg_latency_ms, None, False, False, "unsupported change_type")
@@ -219,7 +238,7 @@ def run(dry_run: bool = False) -> dict:
 
     if latency_after is None:
         log.warning("verification_failed_no_response")
-        _revert_env_change(fix.param_name, fix.old_value)
+        _revert_env_change(fix.param_name, old_env_line)
         _log_to_journal(bottleneck, fix, stats.avg_latency_ms, None, False, True, "verification failed: no response")
         return {"status": "reverted", "reason": "Could not measure latency after fix"}
 
@@ -239,7 +258,7 @@ def run(dry_run: bool = False) -> dict:
             "committed": committed,
         }
     else:
-        _revert_env_change(fix.param_name, fix.old_value)
+        _revert_env_change(fix.param_name, old_env_line)
         _log_to_journal(bottleneck, fix, stats.avg_latency_ms, latency_after, False, True,
                         f"improvement only {improvement_pct}% (<10%) — reverted")
         return {

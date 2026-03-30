@@ -105,8 +105,12 @@ def import_transcripts(
     path: Path,
     source_name: str = "plaud_pin_s",
     limit: int | None = None,
-) -> tuple[int, int, int]:
-    """Import transcript files from a directory or single file."""
+) -> tuple[int, int, int, int]:
+    """Import transcript files from a directory or single file.
+
+    Returns:
+        Tuple of (total_docs, total_chunks, skipped, errors)
+    """
     source_type = "audio_transcript"
 
     log.info(f"Creating source: type={source_type}, name={source_name}")
@@ -119,7 +123,7 @@ def import_transcripts(
 
     if not files:
         log.info(f"No transcript files found in {path}")
-        return 0, 0, 0
+        return 0, 0, 0, 0
 
     if limit:
         files = files[:limit]
@@ -153,7 +157,7 @@ def import_transcripts(
         f"{total_docs} imported, {skipped} skipped (duplicates), "
         f"{errors} errors, {total_chunks} chunks created"
     )
-    return total_docs, total_chunks, skipped
+    return total_docs, total_chunks, skipped, errors
 
 
 def main() -> None:

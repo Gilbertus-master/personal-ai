@@ -8,17 +8,17 @@ Cron: 0 6,12,18 * * * (3x/day: 7:00, 13:00, 19:00 CET)
 """
 from __future__ import annotations
 
-import structlog
-
-log = structlog.get_logger(__name__)
-
 import json
 import os
 import subprocess
 from datetime import datetime, timezone
 from typing import Any
 
+import structlog
+
 from app.db.postgres import get_pg_connection
+
+log = structlog.get_logger(__name__)
 
 # Baseline — update after each major deploy
 BASELINE = {
@@ -144,6 +144,7 @@ def check_api_costs() -> dict[str, Any]:
 def check_cron_health() -> dict[str, Any]:
     """Check cron health by looking at data freshness (proxy for cron execution)."""
     issues = []
+    job_count = 0
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             # Check data freshness as proxy for cron health
@@ -164,10 +165,16 @@ def check_cron_health() -> dict[str, Any]:
                     pass
 
             # Count registered jobs
-            cur.execute("SELECT COUNT(*) FROM cron_registry")
-            job_count = cur.fetchall()[0][0]
-            if job_count < BASELINE["min_cron_jobs"]:
-                issues.append(f"cron_jobs: {job_count} < baseline {BASELINE['min_cron_jobs']}")
+            try:
+                cur.execute("SELECT COUNT(*) FROM cron_registry")
+                rows = cur.fetchall()
+                job_count = rows[0][0] if rows else 0
+                if job_count < BASELINE["min_cron_jobs"]:
+                    issues.append(f"cron_jobs: {job_count} < baseline {BASELINE['min_cron_jobs']}")
+            except Exception as exc:
+                log.warning('cron_registry_check_error', error=str(exc))
+                job_count = 0
+                issues.append('cron_jobs: registry query failed')
 
     return {"status": "ok" if not issues else "degraded", "issues": issues, "job_count": job_count}
 
@@ -262,7 +269,7 @@ def get_health_trend(days: int = 7) -> list[dict[str, Any]]:
             cur.execute("""
                 SELECT check_time, status, summary, alerts_sent
                 FROM health_checks
-                WHERE check_time > NOW() - INTERVAL '%s days'
+                WHERE check_time > NOW() - (%s * INTERVAL '1 day')
                 ORDER BY check_time DESC LIMIT 50
             """, (days,))
             return [

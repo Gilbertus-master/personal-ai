@@ -140,7 +140,7 @@ def check_duplicate_paths(conn) -> list[dict]:
 
 
 def check_chunk_size_anomaly(conn) -> list[dict]:
-    """Detect chunk size anomalies per source (< 50 chars, > 5000 chars, >2σ)."""
+    """Detect chunk size anomalies per source (< 50 chars, > 5000 chars, CV > 2 (stdev > 2×mean))."""
     issues: list[dict] = []
     with conn.cursor() as cur:
         cur.execute("""
@@ -186,12 +186,12 @@ def check_chunk_size_anomaly(conn) -> list[dict]:
             stdev = statistics.stdev(lengths)
             if stdev > 0 and stdev > 2 * mean:
                 issues.append({
-                    "check": "chunk_size_anomaly",
+                    "check": "chunk_size_high_variance",
                     "source": src,
                     "severity": "warning",
                     "detail": f"σ={stdev:.0f} > 2×mean={mean:.0f}",
                 })
-                log.warning("chunk_size_anomaly", source=src, mean=mean, stdev=stdev)
+                log.warning("chunk_size_high_variance", source=src, mean=mean, stdev=stdev)
 
     return issues
 

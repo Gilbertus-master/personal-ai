@@ -10,6 +10,7 @@ ISSUES=0
 
 add_issue() { ISSUES=$((ISSUES + 1)); REPORT="${REPORT}\n[ISSUE] $1"; }
 add_ok() { REPORT="${REPORT}\n[OK] $1"; }
+add_warn() { ISSUES=$((ISSUES + 1)); REPORT="${REPORT}\n[WARN] $1"; }
 
 echo "=== Architecture Review: ${NOW} ==="
 
@@ -25,9 +26,11 @@ fi
 # 2. API latency trend (this week vs last week)
 echo "2. API latency..."
 THIS_WEEK=$(docker exec gilbertus-postgres psql -U gilbertus -d gilbertus -t -A -c "
-SELECT ROUND(AVG(latency_ms)) FROM ask_runs WHERE created_at > NOW() - INTERVAL '7 days'" 2>/dev/null || echo "0")
+SELECT ROUND(AVG(latency_ms)) FROM ask_runs WHERE created_at > NOW() - INTERVAL '7 days'" 2>/dev/null || echo "")
+[ -z "$THIS_WEEK" ] && { add_warn "DB unreachable for latency check (this week)"; THIS_WEEK="0"; }
 LAST_WEEK=$(docker exec gilbertus-postgres psql -U gilbertus -d gilbertus -t -A -c "
-SELECT ROUND(AVG(latency_ms)) FROM ask_runs WHERE created_at > NOW() - INTERVAL '14 days' AND created_at < NOW() - INTERVAL '7 days'" 2>/dev/null || echo "0")
+SELECT ROUND(AVG(latency_ms)) FROM ask_runs WHERE created_at > NOW() - INTERVAL '14 days' AND created_at < NOW() - INTERVAL '7 days'" 2>/dev/null || echo "")
+[ -z "$LAST_WEEK" ] && { add_warn "DB unreachable for latency check (last week)"; LAST_WEEK="0"; }
 if [ -n "$THIS_WEEK" ] && [ -n "$LAST_WEEK" ] && [ "$LAST_WEEK" != "" ] && [ "$LAST_WEEK" != "0" ] 2>/dev/null; then
     CHANGE=$(echo "scale=0; ($THIS_WEEK - $LAST_WEEK) * 100 / $LAST_WEEK" | bc 2>/dev/null || echo "0")
     if [ "$CHANGE" -gt 20 ] 2>/dev/null; then
@@ -55,14 +58,16 @@ fi
 
 # 5. DB table count (detect schema drift)
 echo "5. Schema drift..."
-TABLE_COUNT=$(docker exec gilbertus-postgres psql -U gilbertus -d gilbertus -t -A -c "SELECT COUNT(*) FROM pg_tables WHERE schemaname='public'" 2>/dev/null || echo "0")
+TABLE_COUNT=$(docker exec gilbertus-postgres psql -U gilbertus -d gilbertus -t -A -c "SELECT COUNT(*) FROM pg_tables WHERE schemaname='public'" 2>/dev/null || echo "")
+[ -z "$TABLE_COUNT" ] && { add_warn "DB unreachable for schema drift check"; TABLE_COUNT="0"; }
 add_ok "Tables: $TABLE_COUNT"
 
 # 6. Qdrant sync check
 echo "6. Qdrant sync..."
 QDRANT_KEY=$(grep QDRANT_API_KEY .env 2>/dev/null | cut -d= -f2 | tr -d '"' | tr -d "'")
 QDRANT=$(curl -s -H "api-key: $QDRANT_KEY" http://localhost:6333/collections/gilbertus_chunks 2>/dev/null | .venv/bin/python -c "import sys,json; d=json.load(sys.stdin); print(d['result'].get('points_count') or d['result'].get('indexed_vectors_count') or 0)" 2>/dev/null || echo "0")
-PG_EMBEDDED=$(docker exec gilbertus-postgres psql -U gilbertus -d gilbertus -t -A -c "SELECT COUNT(*) FROM chunks WHERE embedding_status='done'" 2>/dev/null || echo "0")
+PG_EMBEDDED=$(docker exec gilbertus-postgres psql -U gilbertus -d gilbertus -t -A -c "SELECT COUNT(*) FROM chunks WHERE embedding_status='done'" 2>/dev/null || echo "")
+[ -z "$PG_EMBEDDED" ] && { add_warn "DB unreachable for Qdrant sync check"; PG_EMBEDDED="0"; }
 DRIFT=$((QDRANT - PG_EMBEDDED))
 if [ "$DRIFT" -gt 1000 ] || [ "$DRIFT" -lt -1000 ] 2>/dev/null; then
     add_issue "Qdrant drift: $QDRANT vectors vs $PG_EMBEDDED embedded (diff: $DRIFT)"
@@ -73,24 +78,29 @@ fi
 # 7. API cost trend (this week)
 echo "7. API costs..."
 WEEK_COST=$(docker exec gilbertus-postgres psql -U gilbertus -d gilbertus -t -A -c "
-SELECT ROUND(SUM(cost_usd)::numeric, 2) FROM api_costs WHERE created_at > NOW() - INTERVAL '7 days'" 2>/dev/null || echo "0")
+SELECT ROUND(SUM(cost_usd)::numeric, 2) FROM api_costs WHERE created_at > NOW() - INTERVAL '7 days'" 2>/dev/null || echo "")
+[ -z "$WEEK_COST" ] && { add_warn "DB unreachable for API cost check"; WEEK_COST="0"; }
 add_ok "API costs this week: \$${WEEK_COST}"
 
 # 8. Lessons learned count
 echo "8. Lessons learned..."
-LESSONS=$(docker exec gilbertus-postgres psql -U gilbertus -d gilbertus -t -A -c "SELECT COUNT(*) FROM lessons_learned" 2>/dev/null || echo "0")
+LESSONS=$(docker exec gilbertus-postgres psql -U gilbertus -d gilbertus -t -A -c "SELECT COUNT(*) FROM lessons_learned" 2>/dev/null || echo "")
+[ -z "$LESSONS" ] && { add_warn "DB unreachable for lessons learned check"; LESSONS="0"; }
 add_ok "Lessons learned: $LESSONS"
 
 # 9. Extraction coverage
 echo "9. Extraction..."
 EV_COV=$(docker exec gilbertus-postgres psql -U gilbertus -d gilbertus -t -A -c "
-SELECT ROUND(100.0*(1-(SELECT COUNT(*) FROM chunks c LEFT JOIN events e ON e.chunk_id=c.id LEFT JOIN chunks_event_checked cec ON cec.chunk_id=c.id WHERE e.id IS NULL AND cec.chunk_id IS NULL)::numeric/GREATEST(COUNT(*),1)),1) FROM chunks" 2>/dev/null || echo "0")
+SELECT ROUND(100.0*(1-(SELECT COUNT(*) FROM chunks c LEFT JOIN events e ON e.chunk_id=c.id LEFT JOIN chunks_event_checked cec ON cec.chunk_id=c.id WHERE e.id IS NULL AND cec.chunk_id IS NULL)::numeric/GREATEST(COUNT(*),1)),1) FROM chunks" 2>/dev/null || echo "")
+[ -z "$EV_COV" ] && { add_warn "DB unreachable for extraction coverage check"; EV_COV="0"; }
 add_ok "Event coverage: ${EV_COV}%"
 
 # 10. Feedback quality (if any)
 echo "10. Feedback..."
-FEEDBACK=$(docker exec gilbertus-postgres psql -U gilbertus -d gilbertus -t -A -c "SELECT COUNT(*) FROM response_feedback" 2>/dev/null || echo "0")
-POSITIVE=$(docker exec gilbertus-postgres psql -U gilbertus -d gilbertus -t -A -c "SELECT COUNT(*) FROM response_feedback WHERE rating > 0" 2>/dev/null || echo "0")
+FEEDBACK=$(docker exec gilbertus-postgres psql -U gilbertus -d gilbertus -t -A -c "SELECT COUNT(*) FROM response_feedback" 2>/dev/null || echo "")
+[ -z "$FEEDBACK" ] && { add_warn "DB unreachable for feedback check"; FEEDBACK="0"; }
+POSITIVE=$(docker exec gilbertus-postgres psql -U gilbertus -d gilbertus -t -A -c "SELECT COUNT(*) FROM response_feedback WHERE rating > 0" 2>/dev/null || echo "")
+[ -z "$POSITIVE" ] && POSITIVE="0"
 add_ok "Feedback: $FEEDBACK total, $POSITIVE positive"
 
 # === REPORT ===

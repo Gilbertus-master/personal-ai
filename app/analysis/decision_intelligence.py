@@ -462,15 +462,15 @@ def analyze_decision_patterns(months: int = 6) -> dict:
 
 
 def _llm_pattern_analysis(decisions: list[dict]) -> list[str]:
-    """Use Sonnet to detect patterns in decision data."""
+    """Use Haiku to detect patterns in decision data."""
     try:
         data_str = json.dumps(decisions, ensure_ascii=False, default=str)
         if len(data_str) > 12000:
             data_str = data_str[:12000] + "\n[truncated]"
 
         response = client.messages.create(
-            model=ANTHROPIC_MODEL,
-            max_tokens=1000,
+            model=ANTHROPIC_FAST,
+            max_tokens=1200,
             temperature=0.2,
             system=[{"type": "text", "text": PATTERN_ANALYSIS_PROMPT,
                      "cache_control": {"type": "ephemeral"}}],
@@ -478,7 +478,7 @@ def _llm_pattern_analysis(decisions: list[dict]) -> list[str]:
         )
 
         if hasattr(response, "usage"):
-            log_anthropic_cost(ANTHROPIC_MODEL, "analysis.decision_intelligence", response.usage)
+            log_anthropic_cost(ANTHROPIC_FAST, "analysis.decision_intelligence", response.usage)
 
         text = response.content[0].text.strip()
         if text.startswith("```"):

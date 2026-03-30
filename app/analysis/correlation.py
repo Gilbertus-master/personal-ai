@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import sys
+from contextlib import nullcontext
 from datetime import datetime, timezone
 from typing import Any
 
@@ -30,16 +31,18 @@ def correlate_event_types(
     event_type_b: str,
     window: str = "week",
     min_periods: int = 4,
+    conn: Any = None,
 ) -> dict[str, Any]:
     """
     Correlate two event types over time windows.
     Returns: co-occurrence data, trend, and insight.
     """
     trunc = "week" if window == "week" else "month"
-    assert trunc in ("week", "month"), f"Invalid trunc: {trunc}"  # SQL injection guard
+    if trunc not in ("week", "month"):
+        raise ValueError(f"Invalid window: {window}")
 
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
+    with (get_pg_connection() if conn is None else nullcontext(conn)) as _conn:
+        with _conn.cursor() as cur:
             cur.execute(f"""
                 WITH periods AS (
                     SELECT DATE_TRUNC('{trunc}', event_time) as period,
@@ -213,13 +216,14 @@ def detect_communication_anomalies(
     weeks_baseline: int = 8,
     threshold_stddev: float = 2.0,
     min_baseline_events: int = 5,
+    conn: Any = None,
 ) -> list[dict[str, Any]]:
     """
     Find people whose recent week activity deviates significantly
     from their baseline communication pattern.
     """
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
+    with (get_pg_connection() if conn is None else nullcontext(conn)) as _conn:
+        with _conn.cursor() as cur:
             cur.execute("""
                 WITH person_weekly AS (
                     SELECT ee.entity_id,
@@ -292,12 +296,13 @@ def generate_correlation_report() -> dict[str, Any]:
         ("approval", "trade"),
     ]
 
-    results = {}
-    for a, b in correlations:
-        key = f"{a}_vs_{b}"
-        results[key] = correlate_event_types(a, b)
+    with get_pg_connection() as conn:
+        results = {}
+        for a, b in correlations:
+            key = f"{a}_vs_{b}"
+            results[key] = correlate_event_types(a, b, conn=conn)
 
-    anomalies = detect_communication_anomalies()
+        anomalies = detect_communication_anomalies(conn=conn)
 
     return {
         "correlations": results,

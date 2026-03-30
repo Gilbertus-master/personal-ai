@@ -42,7 +42,6 @@ def _ensure_tables() -> None:
                     channel TEXT,
                     message_count INT DEFAULT 0,
                     last_communication TIMESTAMPTZ,
-                    topics TEXT[],
                     week_start DATE NOT NULL,
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     UNIQUE(person_a, person_b, channel, week_start)
@@ -194,9 +193,8 @@ def detect_silos() -> list[dict[str, Any]]:
             cur.execute(
                 "SELECT LOWER(person_a), LOWER(person_b), COUNT(*), COALESCE(SUM(message_count), 0)"
                 " FROM communication_edges"
-                " WHERE week_start > CURRENT_DATE - INTERVAL %s"
+                " WHERE week_start > CURRENT_DATE - INTERVAL '28 days'"
                 " GROUP BY 1, 2",
-                ("28 days",),
             )
             edge_rows = cur.fetchall()
 

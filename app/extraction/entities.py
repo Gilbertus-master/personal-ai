@@ -413,8 +413,8 @@ def main() -> None:
                     confidence=float(entity["confidence"]),
                 )
                 mentions_written += 1
-        else:
-            mark_entity_checked(current_chunk_id)
+
+        mark_entity_checked(current_chunk_id)
 
         processed += 1
 

@@ -59,6 +59,12 @@ def calculate_delegation_score(person_name: str, months: int = 3) -> dict[str, A
             completion_rate = round(fulfilled / denominator, 3) if denominator > 0 else None
 
             # Average days to complete (for fulfilled commitments with deadline)
+            # NOTE: updated_at is used as a proxy for fulfillment time because the
+            # commitments table has no dedicated fulfilled_at column. This may be
+            # inaccurate if a commitment was edited (e.g. notes, re-assignment) after
+            # being fulfilled, causing updated_at to drift from the actual completion
+            # timestamp. Add a fulfilled_at TIMESTAMPTZ column set on status→'fulfilled'
+            # transition to get an accurate measurement.
             cur.execute("""
                 SELECT AVG(EXTRACT(DAY FROM (updated_at - created_at)))
                 FROM commitments

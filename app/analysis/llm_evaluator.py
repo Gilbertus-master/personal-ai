@@ -14,16 +14,17 @@ Usage:
 """
 from __future__ import annotations
 
-import structlog
-
-log = structlog.get_logger(__name__)
-
 import json
 import os
 import time
 from typing import Any
 
+import structlog
+
+from app.db.cost_tracker import log_anthropic_cost
 from app.db.postgres import get_pg_connection
+
+log = structlog.get_logger(__name__)
 
 # ================================================================
 # Test cases — representative Gilbertus tasks
@@ -204,7 +205,6 @@ def evaluate_model(model: str, provider: str = "anthropic") -> dict[str, Any]:
             tokens_in = resp.usage.input_tokens
             tokens_out = resp.usage.output_tokens
 
-            from app.db.cost_tracker import log_anthropic_cost
             log_anthropic_cost(model, "llm_evaluator", resp.usage)
         else:
             # Placeholder for ollama/local models

@@ -4,13 +4,15 @@
 # Based on: 5:1 positivity ratio, Four Horsemen, emotional safety
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
+from typing import Any
+from zoneinfo import ZoneInfo
 
 import structlog
 from app.db.postgres import get_pg_connection
 
 log = structlog.get_logger("rel.health")
-CET = timezone(timedelta(hours=1))
+CET = ZoneInfo("Europe/Warsaw")
 
 # Gottman's Four Horsemen of the Apocalypse
 FOUR_HORSEMEN = {"criticism", "contempt", "defensiveness", "stonewalling"}
@@ -25,7 +27,7 @@ WEIGHTS = {
 }
 
 
-def compute_health_score(partner_id: int = 1, days: int = 7) -> dict:
+def compute_health_score(partner_id: int = 1, days: int = 7) -> dict[str, Any]:
     """Oblicz health score 1-10 na podstawie dostępnych danych."""
     since = datetime.now(CET) - timedelta(days=days)
 

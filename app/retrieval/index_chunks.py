@@ -16,6 +16,8 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 import psycopg
 
+from app.db.cost_tracker import log_openai_cost
+
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -110,7 +112,6 @@ def embed_texts(texts: list[str], max_retries: int = 10) -> list[list[float]]:
                 model=EMBEDDING_MODEL,
                 input=texts,
             )
-            from app.db.cost_tracker import log_openai_cost
             if hasattr(resp, "usage") and hasattr(resp.usage, "total_tokens"):
                 log_openai_cost(EMBEDDING_MODEL, "retrieval.embeddings", resp.usage.total_tokens)
             return [item.embedding for item in resp.data]

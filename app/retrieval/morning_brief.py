@@ -11,6 +11,7 @@ Usage:
 """
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import logging
 import os
@@ -29,7 +30,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5")
 
 client = Anthropic(api_key=ANTHROPIC_API_KEY, timeout=120.0)
 
@@ -221,8 +222,17 @@ def fetch_today_calendar(date: str) -> list[dict[str, Any]]:
     try:
         from app.ingestion.graph_api.calendar_sync import get_today_events
         from app.ingestion.graph_api.auth import get_access_token
-        token = get_access_token()
-        events = get_today_events(token)
+
+        def _fetch() -> list[dict]:
+            token = get_access_token()
+            return get_today_events(token)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_fetch)
+            events = future.result(timeout=15)
+    except concurrent.futures.TimeoutError:
+        logger.warning("Calendar fetch timed out after 15 s")
+        return []
     except Exception as e:
         logger.warning("Calendar fetch failed: %s", e)
         return []

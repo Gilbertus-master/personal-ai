@@ -9,7 +9,6 @@ importing them through the standard pipeline with deduplication.
 from __future__ import annotations
 
 import structlog
-import logging
 import time
 from datetime import datetime
 
@@ -34,9 +33,6 @@ from app.ingestion.common.db import (
 )
 
 log = structlog.get_logger(__name__)
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-log = logging.getLogger(__name__)
 
 # The gap period
 DATE_FROM = "2026-03-15T00:00:00Z"
@@ -63,7 +59,7 @@ def backfill_folder(
     Query Graph API for emails in folder within the gap period.
     Returns (imported, chunks_created, skipped).
     """
-    source_id = insert_source(conn=None, source_type=SOURCE_TYPE, source_name=source_name)
+    source_id = insert_source(source_type=SOURCE_TYPE, source_name=source_name)
     log.info(f"\n{'='*60}")
     log.info(f"Backfilling: {folder} (source_name={source_name}, source_id={source_id})")
     log.info(f"Period: {DATE_FROM} → {DATE_TO}")
@@ -151,7 +147,6 @@ def backfill_folder(
             subject = msg.get("subject") or "(no subject)"
 
             document_id = insert_document(
-                conn=None,
                 source_id=source_id,
                 title=subject,
                 created_at=received,
@@ -162,7 +157,6 @@ def backfill_folder(
 
             for chunk_index, chunk in enumerate(chunks):
                 insert_chunk(
-                    conn=None,
                     document_id=document_id,
                     chunk_index=chunk_index,
                     text=chunk,
@@ -224,6 +218,8 @@ def main():
     log.info(f"  Total chunks:   {total_chunks}")
     log.info(f"  Total skipped:  {total_skipped}")
     log.info(f"{'='*60}")
+    # After running: execute `python scripts/run_embeddings.py` to embed the new chunks,
+    # otherwise backfilled chunks will remain unembedded and unsearchable.
 
 
 if __name__ == "__main__":

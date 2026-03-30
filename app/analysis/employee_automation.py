@@ -234,7 +234,7 @@ def _collect_work_signals(person_slug: str, days: int = 90) -> dict[str, Any]:
             cur.execute("""
                 SELECT name, process_type, frequency, automation_potential, participants
                 FROM discovered_processes
-                WHERE participants::text ILIKE %s
+                WHERE EXISTS (SELECT 1 FROM jsonb_array_elements_text(participants) elem WHERE elem ILIKE %s)
                 ORDER BY automation_potential DESC
             """, (f"%{person_name.split()[0] if person_name else '???'}%",))
             process_data = [

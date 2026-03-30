@@ -40,6 +40,9 @@ BLOCKED_SOURCE_TYPES: frozenset[str] = frozenset({
     "whatsapp_live",
 })
 
+_PREFETCH_K = 50
+_ANSWER_MATCH_LIMIT = 14
+
 # ─── Filter helpers ───────────────────────────────────────────────────────────
 
 def enforce_source_filter(source_types: list[str] | None) -> list[str]:
@@ -98,7 +101,9 @@ def run_business_rag(
     query:                Raw user query.
     system_addendum:      Persona/instruction text prepended to the query for the LLM.
     conversation_context: Optional prior-turn context string.
-    top_k:                Number of cleaned matches to pass to the answer model (max 14).
+    top_k:                Max cleaned matches passed to the answer model after retrieval.
+                          Retrieval always fetches up to answer_match_limit=14 chunks from
+                          the vector store; cleanup_matches then trims to min(top_k, 14).
     date_from / date_to:  Optional ISO-8601 date range strings for retrieval.
 
     Returns
@@ -153,8 +158,8 @@ def run_business_rag(
 
         interpreted_source_types = enforce_source_filter(interpreted.source_types)
 
-        prefetch_k = 50
-        answer_match_limit = 14
+        prefetch_k = _PREFETCH_K
+        answer_match_limit = _ANSWER_MATCH_LIMIT
 
         matches = search_chunks(
             query=interpreted.normalized_query,

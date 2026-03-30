@@ -137,7 +137,7 @@ def detect_outcomes_for_pending_decisions(
             decision_text=text,
             area=area or "general",
             expected_outcome=expected or "",
-            decided_at=str(decided_at) if decided_at else "unknown",
+            decided_at=decided_at.strftime('%Y-%m-%d %H:%M:%S') if decided_at else "unknown",
             evidence=evidence,
         )
         if suggestion is None:
@@ -349,12 +349,12 @@ def link_decisions_to_actions(decision_id: int) -> list[dict]:
                     ON CONFLICT (decision_id, action_item_id) DO NOTHING
                     RETURNING id
                 """, (decision_id, action_id, "keyword"))
-                result = cur.fetchone()
+                link_row = cur.fetchone()
             conn.commit()
 
-        if result:
+        if link_row:
             links.append({
-                "link_id": result[0],
+                "link_id": link_row[0],
                 "decision_id": decision_id,
                 "action_item_id": action_id,
                 "action_type": atype,
@@ -395,7 +395,15 @@ def cascade_confidence_adjustment(area: str) -> dict:
         }
 
     confidences = [float(r[0]) if r[0] else 0.5 for r in rows]
-    ratings = [int(r[1]) for r in rows]
+    ratings = [int(r[1]) for r in rows if r[1] is not None]
+
+    if not ratings:
+        return {
+            "area": area,
+            "bias": "insufficient_data",
+            "adjustment": 0.0,
+            "sample_size": len(rows),
+        }
 
     avg_confidence = sum(confidences) / len(confidences)
     avg_rating = sum(ratings) / len(ratings)

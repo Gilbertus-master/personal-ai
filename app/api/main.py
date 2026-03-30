@@ -67,7 +67,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["Content-Type", "X-API-Key", "Authorization"],
     max_age=3600,
 )
@@ -110,6 +110,12 @@ from app.api.feedback import router as feedback_router
 app.include_router(feedback_router)
 from app.api.strategic_radar import router as strategic_radar_router
 app.include_router(strategic_radar_router)
+from app.api.activity import router as activity_router
+app.include_router(activity_router)
+from app.api.alerts import router as alerts_resolution_router
+app.include_router(alerts_resolution_router)
+from app.api.alerts_guardian import router as alerts_guardian_router
+app.include_router(alerts_guardian_router)
 
 
 # =========================

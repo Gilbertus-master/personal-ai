@@ -31,7 +31,14 @@ CRITICAL_LOGS = {
 ERROR_PATTERNS = ["ERROR", "FAILED", "CRITICAL", "Traceback", "Exception"]
 
 
-alert_mgr = AlertManager()
+_alert_mgr: AlertManager | None = None
+
+
+def _get_alert_mgr() -> AlertManager:
+    global _alert_mgr
+    if _alert_mgr is None:
+        _alert_mgr = AlertManager()
+    return _alert_mgr
 
 
 def check_cron_health() -> dict:
@@ -46,8 +53,10 @@ def check_cron_health() -> dict:
     errors_found = 0
     details = []
 
-    log_files = list(LOGS_DIR.glob("*.log"))
+    log_files = [LOGS_DIR / log_name for log_name in CRITICAL_LOGS]
     for log_file in log_files:
+        if not log_file.exists():
+            continue
         try:
             # Only check last 100 lines
             content = log_file.read_text(errors="replace")
@@ -81,7 +90,7 @@ def check_cron_health() -> dict:
         error_summary = "; ".join(
             f"{d['file']}:{d['error_count']} errors" for d in details[:5]
         )
-        alert_mgr.send(
+        _get_alert_mgr().send(
             tier=2,
             category="cron_health",
             title="Cron log errors detected",
@@ -140,7 +149,7 @@ def check_cron_freshness() -> dict:
         stale_summary = "; ".join(
             f"{d['file']}({d.get('age_human', 'missing')})" for d in details[:5]
         )
-        alert_mgr.send(
+        _get_alert_mgr().send(
             tier=2,
             category="cron_freshness",
             title="Stale cron logs detected",

@@ -2,7 +2,7 @@ import os
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
-GILBERTUS_API_KEY = os.getenv("GILBERTUS_API_KEY", "")
+GILBERTUS_API_KEY = os.getenv("GILBERTUS_API_KEY", "")  # NOTE: Key is loaded at startup — restart required after key rotation
 
 # Endpointy zawsze dostępne bez klucza (health checks, internal calls)
 PUBLIC_PATHS = {
@@ -44,9 +44,11 @@ async def api_key_middleware(request: Request, call_next):
         return await call_next(request)
 
     # Sprawdź klucz
+    auth_header = request.headers.get("Authorization", "")
+    bearer_token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
     provided = (
         request.headers.get("X-API-Key")
-        or request.headers.get("Authorization", "").removeprefix("Bearer ")
+        or bearer_token
         or request.query_params.get("api_key", "")
     )
 

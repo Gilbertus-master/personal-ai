@@ -37,7 +37,7 @@ def fetch_24h_stats(hours: int = 24) -> AskRunsStats:
 
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
-            # Basic stats
+            # Basic stats, stage averages, and high_depth_pct in one query
             cur.execute(
                 """
                 SELECT
@@ -47,13 +47,18 @@ def fetch_24h_stats(hours: int = 24) -> AskRunsStats:
                     COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms), 0) as p95,
                     COALESCE(MAX(latency_ms), 0) as max_ms,
                     COUNT(*) FILTER (WHERE error_flag) as errors,
-                    COUNT(*) FILTER (WHERE cache_hit) as cache_hits
+                    COUNT(*) FILTER (WHERE cache_hit) as cache_hits,
+                    COALESCE(ROUND(AVG((stage_ms->>'interpret')::int)), 0),
+                    COALESCE(ROUND(AVG((stage_ms->>'retrieve')::int)), 0),
+                    COALESCE(ROUND(AVG((stage_ms->>'answer')::int)), 0),
+                    ROUND(100.0 * COUNT(*) FILTER (WHERE analysis_depth = 'high') / NULLIF(COUNT(*), 0), 1)
                 FROM ask_runs
                 WHERE created_at > %s
                 """,
                 (cutoff,),
             )
-            row = cur.fetchone()
+            rows = cur.fetchall()
+            row = rows[0]
             stats.total_runs = row[0]
             if stats.total_runs == 0:
                 log.info("no_ask_runs_in_window", hours=hours)
@@ -67,35 +72,10 @@ def fetch_24h_stats(hours: int = 24) -> AskRunsStats:
             stats.cache_hit_count = row[6]
             stats.error_rate_pct = round(100.0 * stats.error_count / stats.total_runs, 1)
             stats.cache_hit_rate_pct = round(100.0 * stats.cache_hit_count / stats.total_runs, 1)
-
-            # Stage averages from stage_ms JSONB
-            cur.execute(
-                """
-                SELECT
-                    COALESCE(ROUND(AVG((stage_ms->>'interpret')::int)), 0),
-                    COALESCE(ROUND(AVG((stage_ms->>'retrieve')::int)), 0),
-                    COALESCE(ROUND(AVG((stage_ms->>'answer')::int)), 0)
-                FROM ask_runs
-                WHERE created_at > %s AND stage_ms IS NOT NULL
-                """,
-                (cutoff,),
-            )
-            stage_row = cur.fetchone()
-            stats.avg_interpret_ms = int(stage_row[0])
-            stats.avg_retrieve_ms = int(stage_row[1])
-            stats.avg_answer_ms = int(stage_row[2])
-
-            # High depth percentage
-            cur.execute(
-                """
-                SELECT
-                    ROUND(100.0 * COUNT(*) FILTER (WHERE analysis_depth = 'high') / NULLIF(COUNT(*), 0), 1)
-                FROM ask_runs
-                WHERE created_at > %s
-                """,
-                (cutoff,),
-            )
-            stats.high_depth_pct = float(cur.fetchall()[0][0] or 0)
+            stats.avg_interpret_ms = int(row[7])
+            stats.avg_retrieve_ms = int(row[8])
+            stats.avg_answer_ms = int(row[9])
+            stats.high_depth_pct = float(row[10] or 0)
 
             # Slowest 5 queries
             cur.execute(

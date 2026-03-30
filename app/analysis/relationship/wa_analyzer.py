@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime
 
 import structlog
@@ -58,11 +58,10 @@ def analyze_chat(file_path: str) -> dict:
     initiative_counts = Counter(daily_first.values())
 
     # Message length stats
-    lengths = {}
-    for sender in senders:
-        sender_msgs = [m for m in messages if m["sender"] == sender]
-        avg_len = sum(len(m["text"]) for m in sender_msgs) / max(len(sender_msgs), 1)
-        lengths[sender] = round(avg_len, 1)
+    lengths_sum = defaultdict(int)
+    for m in messages:
+        lengths_sum[m["sender"]] += len(m["text"])
+    lengths = {s: round(lengths_sum[s] / max(c, 1), 1) for s, c in senders.items()}
 
     # Response time (simplified: time between consecutive messages from different senders)
     response_times = {}

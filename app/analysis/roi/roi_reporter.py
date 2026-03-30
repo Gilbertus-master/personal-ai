@@ -1,6 +1,7 @@
 """ROI Reporter — generates and persists ROI summaries."""
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
 
 import structlog
@@ -15,6 +16,7 @@ def generate_roi_summary(
     period_start: date,
     period_end: date,
     domain: str | None = None,
+    synergy: dict | None = None,
 ) -> dict:
     """
     Generate (or refresh) an ROI summary for an entity over a period.
@@ -67,8 +69,9 @@ def generate_roi_summary(
             for d in breakdown:
                 breakdown[d]["subtotal_pln"] = round(breakdown[d]["subtotal_pln"], 2)
 
-            # Synergy
-            synergy = calculate_synergy(str(period_start), str(period_end))
+            # Synergy — use pre-computed value if supplied to avoid a second DB connection
+            if synergy is None:
+                synergy = calculate_synergy(str(period_start), str(period_end))
             synergy_bonus = synergy["total_bonus_pln"]
 
             # Upsert summary
@@ -149,7 +152,8 @@ def get_roi_report(
             return {"error": "No owner entity found"}
         entity_id = owner["id"]
 
-    return generate_roi_summary(entity_id, period_start, period_end, domain)
+    synergy = calculate_synergy(str(period_start), str(period_end))
+    return generate_roi_summary(entity_id, period_start, period_end, domain, synergy=synergy)
 
 
 def get_leaderboard(period: str = "week", limit: int = 10) -> list[dict]:
@@ -196,5 +200,4 @@ def get_leaderboard(period: str = "week", limit: int = 10) -> list[dict]:
 
 
 def _to_json(obj: dict) -> str:
-    import json
     return json.dumps(obj, default=str, ensure_ascii=False)

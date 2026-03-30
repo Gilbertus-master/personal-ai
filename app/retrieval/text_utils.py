@@ -36,6 +36,14 @@ def get_match_text(match: dict[str, Any]) -> str:
     return str(match.get("text") or match.get("chunk_text") or match.get("excerpt") or "")
 
 
+def get_match_title(match: dict[str, Any]) -> str:
+    return str(match.get("title") or "")
+
+
+def get_source_type(match: dict[str, Any]) -> str:
+    return str(match.get("source_type") or "")
+
+
 def overlap_count(query_tokens: list[str], haystack: str) -> int:
     if not query_tokens or not haystack:
         return 0
