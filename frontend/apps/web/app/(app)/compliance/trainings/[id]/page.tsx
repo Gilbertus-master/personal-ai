@@ -1,7 +1,11 @@
-// Server Component wrapper for Tauri static export.
-// generateStaticParams must live in a Server Component (not 'use client').
+// Server Component — Tauri static export requires generateStaticParams here.
+// dynamicParams = false: skip all unmatched dynamic routes (client-side routing handles them).
+import ClientPage from './_client';
+
+export const dynamicParams = false;
+
 export function generateStaticParams() {
-  return []; // Tauri: all dynamic routes loaded client-side
+  return []; // No pre-rendered pages; Tauri router handles navigation client-side
 }
 
-export { default } from './_client';
+export default ClientPage;
