@@ -352,7 +352,6 @@ def audit_all_documents(auto_fix: bool = True, dry_run: bool = False) -> dict:
                         "UPDATE compliance_documents SET content_text = %s, updated_at = NOW() WHERE id = %s",
                         (validation["content"], doc_id),
                     )
-                conn.commit()
                 results["fixed"] += 1
                 log.info("document_fixed", doc_id=doc_id, title=title, fixes=len(validation["fixes_applied"]))
 
@@ -363,6 +362,8 @@ def audit_all_documents(auto_fix: bool = True, dry_run: bool = False) -> dict:
                 detail["issue_details"] = validation["issues"]
 
             results["details"].append(detail)
+
+        conn.commit()
 
     log.info(
         "document_audit_complete",

@@ -334,7 +334,7 @@ def update_task_status(task_id: int, status: str, result: str):
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                """UPDATE wa_tasks SET status = %s, result = %s, completed_at = NOW()
+                """UPDATE wa_tasks SET status = %s, result = %s, completed_at = NOW() AT TIME ZONE 'UTC'
                    WHERE id = %s""",
                 (status, result, task_id),
             )

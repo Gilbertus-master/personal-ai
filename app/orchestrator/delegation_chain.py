@@ -328,7 +328,7 @@ def _mark_completed(task_id: int, evidence: str):
         with conn.cursor() as cur:
             cur.execute("""
                 UPDATE delegation_tasks
-                SET status = 'completed', completed_at = NOW(), result = %s
+                SET status = 'completed', completed_at = NOW() AT TIME ZONE 'UTC', result = %s
                 WHERE id = %s
                 RETURNING commitment_id
             """, (evidence, task_id))
@@ -351,7 +351,7 @@ def _update_check(task_id: int):
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE delegation_tasks SET check_count = check_count + 1, last_checked = NOW() WHERE id = %s",
+                "UPDATE delegation_tasks SET check_count = check_count + 1, last_checked = NOW() AT TIME ZONE 'UTC' WHERE id = %s",
                 (task_id,),
             )
         conn.commit()
