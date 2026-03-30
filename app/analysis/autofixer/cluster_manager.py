@@ -25,11 +25,12 @@ MAX_ROUNDS = 2
 # Tier 1 patterns: category-agnostic regex matching on title
 TIER1_PATTERNS: list[re.Pattern] = [
     re.compile(r"unused.*(import|variable)", re.IGNORECASE),
-    re.compile(r"(print\s*\(|print statement|print\(\).*structlog|structlog.*print)", re.IGNORECASE),
-    re.compile(r"(dead code|unreachable code)", re.IGNORECASE),
-    re.compile(r"\bdate\b.*format|date\(\).*locale|\$\(date\)", re.IGNORECASE),
+    # print→structlog: only for Python files where print() is directly replaceable
+    re.compile(r"print\(\).*instead of structlog|print\(\) used.*structlog|print.*should.*structlog", re.IGNORECASE),
+    re.compile(r"\$\(date\)(?!\s*\+)", re.IGNORECASE),  # bare $(date) in shell scripts
     re.compile(r"redundant.*import|duplicate.*import", re.IGNORECASE),
-    re.compile(r"missing structlog|no structlog|no logging", re.IGNORECASE),
+    # Note: "no structlog", "no logging", "silent swallowing" → tier-2 (need LLM to add logging)
+    # Note: dead code/unreachable → tier-2 (structural removal needs LLM)
 ]
 
 # Normalization rules: strip file-specific details from titles for better clustering

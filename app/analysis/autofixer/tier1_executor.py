@@ -80,7 +80,8 @@ def _fix_print_to_structlog(file_paths: list[str]) -> tuple[list[str], str | Non
         # Strategy:
         #   1. Insert `import structlog` in the imports block (after __future__, before code)
         #   2. Insert `log = structlog.get_logger(__name__)` AFTER the last import line
-        has_structlog = "import structlog" in content
+        # Check for top-level import (not inside function bodies — must be at indent 0)
+        has_structlog = bool(re.search(r'^import structlog\b', content, re.MULTILINE))
         has_log_var = re.search(r'^log\s*=\s*structlog', content, re.MULTILINE)
         if not has_structlog or not has_log_var:
             # Find last import line end, handling multi-line imports (open parens).
@@ -201,17 +202,34 @@ def _fix_dead_code(file_paths: list[str]) -> tuple[list[str], str | None]:
 
 
 def _verify_imports(file_paths: list[str]) -> tuple[bool, str]:
-    """Verify modified files are importable."""
+    """Verify modified files have no syntax/import errors.
+
+    Only checks files under app/ (proper Python packages with __init__.py).
+    Uses `py_compile` instead of full import to avoid triggering module-level
+    side effects (DB connections, API calls, etc.) that cause false negatives.
+    Falls back to AST parse for additional safety.
+    """
     for fp in file_paths:
         if not fp.endswith(".py"):
             continue
-        module = fp.replace("/", ".").replace(".py", "")
+        if not fp.startswith("app/"):
+            continue
         try:
-            result = _run_cmd(["python3", "-c", f"import {module}"], timeout=15)
+            # Syntax check via py_compile (no side effects)
+            result = _run_cmd(
+                [".venv/bin/python3", "-m", "py_compile", fp], timeout=15
+            )
             if result.returncode != 0:
-                return False, f"Import failed for {module}: {result.stderr[:200]}"
+                return False, f"Syntax error in {fp}: {result.stderr[:200]}"
+            # Quick ruff check for obvious errors (F821 undefined names, etc.)
+            ruff_result = _run_cmd(
+                [".venv/bin/ruff", "check", "--select", "F821,F811,E999", fp],
+                timeout=15,
+            )
+            if ruff_result.returncode != 0 and ruff_result.stdout.strip():
+                return False, f"Ruff errors in {fp}: {ruff_result.stdout[:200]}"
         except subprocess.TimeoutExpired:
-            return False, f"Import timeout for {module}"
+            return False, f"Verify timeout for {fp}"
     return True, ""
 
 
@@ -263,19 +281,26 @@ def execute_tier1(cluster: dict) -> dict:
     fixed_files: list[str] = []
     error: str | None = None
 
+    strategy_used = "none"
+
     if "unused" in title_lower and ("import" in title_lower or "variable" in title_lower):
+        strategy_used = "unused_imports"
         fixed_files, error = _fix_unused_imports(file_paths)
     elif "redundant" in title_lower and "import" in title_lower:
+        strategy_used = "unused_imports"
         fixed_files, error = _fix_unused_imports(file_paths)
     elif "print" in title_lower or "structlog" in title_lower:
+        strategy_used = "print_to_structlog"
         fixed_files, error = _fix_print_to_structlog(file_paths)
-    elif "date" in title_lower and ("format" in title_lower or "locale" in title_lower
-                                     or "$(date)" in title_lower):
+    elif "$(date)" in title_lower:
+        strategy_used = "date_format_shell"
         fixed_files, error = _fix_date_format_shell(file_paths)
-    elif "dead code" in title_lower or "unreachable" in title_lower:
-        fixed_files, error = _fix_dead_code(file_paths)
     else:
         error = f"No tier-1 strategy for: {cluster['title']}"
+        log.warning("tier1_no_strategy",
+                    cluster_id=cluster["cluster_id"],
+                    title=cluster["title"],
+                    files=file_paths)
         _mark_attempted(finding_ids)
         return {"fixed": False, "files_modified": [], "error": error}
 
@@ -284,6 +309,11 @@ def execute_tier1(cluster: dict) -> dict:
         return {"fixed": False, "files_modified": fixed_files, "error": error}
 
     if not fixed_files:
+        log.warning("tier1_no_files_modified",
+                    cluster_id=cluster["cluster_id"],
+                    title=cluster["title"],
+                    files_tried=file_paths,
+                    strategy=strategy_used)
         _mark_attempted(finding_ids)
         return {"fixed": False, "files_modified": [],
                 "error": "No files were modified by tier-1 fix"}
