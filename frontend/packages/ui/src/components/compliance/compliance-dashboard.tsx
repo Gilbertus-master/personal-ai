@@ -68,7 +68,11 @@ export function ComplianceDashboard({ dashboard, areas, isLoading = false }: Com
         />
         <KpiCard
           label="Sprawy otwarte"
-          value={dashboard?.open_matters ?? 0}
+          value={
+            typeof dashboard?.open_matters === 'object'
+              ? Object.values(dashboard.open_matters as Record<string, number>).reduce((a, b) => a + b, 0)
+              : (dashboard?.open_matters ?? 0)
+          }
           icon={<FolderOpen />}
           color="default"
           isLoading={isLoading}

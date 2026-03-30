@@ -291,7 +291,7 @@ export default function CalendarPage() {
 
         {/* Meeting Suggestions */}
         {suggestions.data?.suggestions &&
-          suggestions.data.suggestions.length > 0 && (
+          suggestions.data.suggestions?.length > 0 && (
             <div
               className="rounded-lg border p-4"
               style={{
@@ -326,7 +326,7 @@ export default function CalendarPage() {
                         >
                           {s.reason}
                         </div>
-                        {s.suggested_attendees.length > 0 && (
+                        {s.suggested_attendees?.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {s.suggested_attendees.map((name) => (
                               <span

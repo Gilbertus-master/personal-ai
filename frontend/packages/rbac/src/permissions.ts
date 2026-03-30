@@ -77,5 +77,13 @@ export function hasPermission(
   permission: string,
 ): boolean {
   if (roleLevel >= 99) return true;
-  return ROLE_PERMISSIONS[role]?.includes(permission) ?? false;
+  const perms = ROLE_PERMISSIONS[role] ?? [];
+  if (perms.includes(permission)) return true;
+  // Hierarchy: data:read:all covers data:read:department, data:read:team, etc.
+  const parts = permission.split(':');
+  if (parts.length >= 3) {
+    const wildcard = parts.slice(0, -1).join(':') + ':all';
+    if (perms.includes(wildcard)) return true;
+  }
+  return false;
 }
