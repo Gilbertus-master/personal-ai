@@ -1,20 +1,14 @@
-// Tauri static export requires force-static on all API routes.
-// When TAURI_BUILD=1, auth stubs are returned (not needed in desktop app).
-// In web mode, the real NextAuth handlers are used.
-export const dynamic = 'force-static'; // Turbopack requires static string literal
+// NextAuth route — conditionally stubbed for Tauri static export.
+// Turbopack (Next.js 16) can't handle dynamic imports in force-static routes,
+// so the real handlers are only loaded via top-level import in web mode.
+export const dynamic = 'force-static';
 
-export async function GET(req: Request) {
-  if (process.env.TAURI_BUILD === '1') {
-    return new Response(null, { status: 404 });
-  }
-  const { handlers } = await import('@/lib/auth');
-  return handlers.GET(req as Parameters<typeof handlers.GET>[0]);
+// NOTE: real auth is handled by next.config.ts webpack alias in web mode.
+// In Tauri build (TAURI_BUILD=1), this stub is used directly.
+export async function GET(_req: Request): Promise<Response> {
+  return new Response(null, { status: 404 });
 }
 
-export async function POST(req: Request) {
-  if (process.env.TAURI_BUILD === '1') {
-    return new Response(null, { status: 404 });
-  }
-  const { handlers } = await import('@/lib/auth');
-  return handlers.POST(req as Parameters<typeof handlers.POST>[0]);
+export async function POST(_req: Request): Promise<Response> {
+  return new Response(null, { status: 404 });
 }
