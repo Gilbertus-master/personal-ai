@@ -3,47 +3,25 @@
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { getNavigationModules } from '@gilbertus/rbac';
 import type { RoleName } from '@gilbertus/rbac';
 import {
-  LayoutDashboard,
-  Sunrise,
-  MessageSquare,
-  Users,
-  Brain,
-  Shield,
-  TrendingUp,
-  DollarSign,
-  Workflow,
-  Scale,
-  Calendar,
-  FileText,
-  Mic,
-  Settings,
-  Bot,
-  PanelLeftClose,
-  PanelLeft,
+  LayoutDashboard, Sunrise, MessageSquare, Users, Brain, Shield,
+  TrendingUp, DollarSign, Workflow, Scale, Calendar, FileText,
+  Mic, Settings, Bot, PanelLeftClose, PanelLeft, Send, Loader2, GripVertical,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { askGilbertus } from '@gilbertus/api-client';
 
 const ICON_MAP: Record<string, LucideIcon> = {
-  LayoutDashboard,
-  Sunrise,
-  MessageSquare,
-  Users,
-  Brain,
-  Shield,
-  TrendingUp,
-  DollarSign,
-  Workflow,
-  Scale,
-  Calendar,
-  FileText,
-  Mic,
-  Settings,
-  Bot,
+  LayoutDashboard, Sunrise, MessageSquare, Users, Brain, Shield,
+  TrendingUp, DollarSign, Workflow, Scale, Calendar, FileText,
+  Mic, Settings, Bot,
 };
+
+const ORDER_KEY = 'gilbertus-nav-order';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -56,87 +34,185 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, mobileOpen }: Side
   const pathname = usePathname();
   const { data: session } = useSession();
   const role = (session?.user as { role?: RoleName } | undefined)?.role ?? 'specialist';
-  const modules = getNavigationModules(role);
+  const baseModules = getNavigationModules(role);
+
+  // ── Drag-and-drop order ─────────────────────────────────────────────────
+  const [order, setOrder] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return baseModules.map(m => m.id);
+    try {
+      const saved = localStorage.getItem(ORDER_KEY);
+      if (saved) {
+        const ids = JSON.parse(saved) as string[];
+        const valid = ids.filter(id => baseModules.some(m => m.id === id));
+        const missing = baseModules.filter(m => !valid.includes(m.id)).map(m => m.id);
+        return [...valid, ...missing];
+      }
+    } catch {}
+    return baseModules.map(m => m.id);
+  });
+
+  const modules = order
+    .map(id => baseModules.find(m => m.id === id))
+    .filter(Boolean) as typeof baseModules;
+
+  const dragId = useRef<string | null>(null);
+  const dragOver = useRef<string | null>(null);
+
+  const handleDragStart = useCallback((id: string) => { dragId.current = id; }, []);
+  const handleDragEnter = useCallback((id: string) => { dragOver.current = id; }, []);
+
+  const handleDragEnd = useCallback(() => {
+    if (!dragId.current || !dragOver.current || dragId.current === dragOver.current) {
+      dragId.current = null; dragOver.current = null; return;
+    }
+    setOrder(prev => {
+      const next = [...prev];
+      const from = next.indexOf(dragId.current!);
+      const to = next.indexOf(dragOver.current!);
+      next.splice(from, 1);
+      next.splice(to, 0, dragId.current!);
+      try { localStorage.setItem(ORDER_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+    dragId.current = null; dragOver.current = null;
+  }, []);
+
+  // ── Inline chat ─────────────────────────────────────────────────────────
+  const [chatQ, setChatQ] = useState('');
+  const [chatA, setChatA] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+
+  const sendChat = useCallback(async () => {
+    if (!chatQ.trim() || chatLoading) return;
+    setChatLoading(true);
+    setChatA('');
+    try {
+      const res = await askGilbertus(chatQ.trim());
+      setChatA(res.answer ?? 'Brak odpowiedzi.');
+    } catch {
+      setChatA('Błąd połączenia z Gilbertusem.');
+    } finally {
+      setChatLoading(false);
+    }
+  }, [chatQ, chatLoading]);
 
   const nav = (
     <aside
       className={cn(
         'flex h-screen flex-col border-r border-[var(--border)] bg-[var(--surface)] transition-[width] duration-200',
         collapsed ? 'w-16' : 'w-[260px]',
-        // mobile: full overlay
         mobileOpen !== undefined && 'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:w-[260px]',
       )}
     >
       {/* Logo */}
-      <div className="flex h-14 items-center gap-2 border-b border-[var(--border)] px-4">
+      <div className="flex h-14 shrink-0 items-center gap-2 border-b border-[var(--border)] px-4">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--accent)] text-white font-bold text-sm">
           G
         </div>
         {!collapsed && (
-          <span className="text-sm font-semibold text-[var(--text)] truncate">
-            Gilbertus
-          </span>
+          <span className="text-sm font-semibold text-[var(--text)] truncate">Gilbertus</span>
         )}
       </div>
 
-      {/* Navigation */}
+      {/* Navigation — drag-and-drop */}
       <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
         {modules.map((mod) => {
           const Icon = ICON_MAP[mod.icon] ?? LayoutDashboard;
           const isActive = pathname === mod.path || pathname?.startsWith(mod.path + '/');
           return (
-            <Link
+            <div
               key={mod.id}
-              href={mod.path}
-              onClick={onMobileClose}
-              className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-[var(--accent)] bg-opacity-15 text-[var(--accent)]'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]',
-                collapsed && 'justify-center px-0',
-              )}
-              title={collapsed ? mod.label.pl : undefined}
+              draggable
+              onDragStart={() => handleDragStart(mod.id)}
+              onDragEnter={() => handleDragEnter(mod.id)}
+              onDragEnd={handleDragEnd}
+              onDragOver={(e) => e.preventDefault()}
+              className="group relative"
             >
-              <Icon className="h-5 w-5 shrink-0" />
-              {!collapsed && <span className="truncate">{mod.label.pl}</span>}
-            </Link>
+              <Link
+                href={mod.path}
+                onClick={onMobileClose}
+                className={cn(
+                  'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-[var(--accent)] bg-opacity-15 text-[var(--accent)]'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]',
+                  collapsed ? 'justify-center px-0' : 'pr-7',
+                )}
+                title={collapsed ? mod.label.pl : undefined}
+              >
+                <Icon className="h-5 w-5 shrink-0" />
+                {!collapsed && <span className="truncate">{mod.label.pl}</span>}
+              </Link>
+              {/* Drag handle (visible on hover, only when expanded) */}
+              {!collapsed && (
+                <GripVertical className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-secondary)] opacity-0 group-hover:opacity-40 cursor-grab active:cursor-grabbing transition-opacity" />
+              )}
+            </div>
           );
         })}
       </nav>
 
+      {/* Inline Chat Gilbertusa */}
+      {!collapsed && (
+        <div className="shrink-0 border-t border-[var(--border)] px-3 py-3 space-y-2">
+          <p className="text-[10px] uppercase tracking-widest text-[var(--text-secondary)] font-semibold px-1">
+            Zapytaj Gilbertusa
+          </p>
+
+          {/* Answer bubble */}
+          {(chatA || chatLoading) && (
+            <div className="rounded-md bg-[var(--surface-hover)] px-3 py-2 text-xs text-[var(--text)] max-h-32 overflow-y-auto leading-relaxed">
+              {chatLoading
+                ? <Loader2 className="h-3 w-3 animate-spin text-[var(--accent)]" />
+                : chatA}
+            </div>
+          )}
+
+          {/* Input */}
+          <div className="flex items-center gap-1.5">
+            <input
+              value={chatQ}
+              onChange={e => setChatQ(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && sendChat()}
+              placeholder="Zadaj pytanie…"
+              className="flex-1 min-w-0 rounded-md border border-[var(--border)] bg-[var(--bg)] px-2.5 py-1.5 text-xs text-[var(--text)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+            />
+            <button
+              onClick={sendChat}
+              disabled={chatLoading || !chatQ.trim()}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[var(--accent)] text-white disabled:opacity-40 hover:opacity-90 transition-opacity"
+            >
+              {chatLoading
+                ? <Loader2 className="h-3 w-3 animate-spin" />
+                : <Send className="h-3 w-3" />}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Footer: Collapse toggle */}
-      <div className="border-t border-[var(--border)] p-2">
+      <div className="shrink-0 border-t border-[var(--border)] p-2">
         <button
           onClick={onToggle}
           className="flex w-full items-center justify-center gap-2 rounded-md p-2 text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] transition-colors"
           aria-label={collapsed ? 'Rozwiń' : 'Zwiń'}
         >
-          {collapsed ? (
-            <PanelLeft className="h-5 w-5" />
-          ) : (
-            <>
-              <PanelLeftClose className="h-5 w-5" />
-              <span className="text-sm">Zwiń</span>
-            </>
-          )}
+          {collapsed
+            ? <PanelLeft className="h-5 w-5" />
+            : <><PanelLeftClose className="h-5 w-5" /><span className="text-sm">Zwiń</span></>}
         </button>
       </div>
     </aside>
   );
 
-  // Mobile: backdrop overlay
   if (mobileOpen) {
     return (
       <>
-        <div
-          className="fixed inset-0 z-30 bg-black/50 md:hidden"
-          onClick={onMobileClose}
-        />
+        <div className="fixed inset-0 z-30 bg-black/50 md:hidden" onClick={onMobileClose} />
         {nav}
       </>
     );
   }
-
   return nav;
 }
