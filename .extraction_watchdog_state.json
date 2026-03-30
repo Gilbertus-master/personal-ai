@@ -113,16 +113,22 @@
       "entity_backlog": 2371,
       "event_backlog": 2371,
       "embedding_backlog": 29
+    },
+    {
+      "ts": "2026-03-30T22:30:02.908705+00:00",
+      "entity_backlog": 2371,
+      "event_backlog": 2371,
+      "embedding_backlog": 29
     }
   ],
-  "last_check": "2026-03-30 22:00 UTC",
+  "last_check": "2026-03-30 22:30 UTC",
   "last_backlogs": {
     "entity_backlog": 2371,
     "event_backlog": 2371,
     "embedding_backlog": 29
   },
   "last_workers": {
-    "entity": 4,
+    "entity": 0,
     "event": 0,
     "embedding": 4
   },

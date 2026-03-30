@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { ArrowUpDown, Search as SearchIcon, Loader2 } from 'lucide-react';
+import { ArrowUpDown, Calendar, Clock, AlertTriangle, Search as SearchIcon, Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { Opportunity } from '@gilbertus/api-client';
 import { ActionableItem } from '../shared/actionable-item';
@@ -40,6 +40,29 @@ const STATUS_FILTERS = [
 
 function formatPln(value: number): string {
   return new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 0 }).format(value);
+}
+
+
+const URGENCY_CONFIG: Record<string, { label: string; color: string }> = {
+  immediate: { label: 'Dziś!', color: 'text-red-400 bg-red-500/10' },
+  this_week: { label: 'Ten tydzień', color: 'text-amber-400 bg-amber-500/10' },
+  this_month: { label: 'Ten miesiąc', color: 'text-blue-400 bg-blue-500/10' },
+  normal: { label: '—', color: 'text-[var(--text-secondary)]' },
+};
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function deadlineColor(dateStr: string | null | undefined): string {
+  if (!dateStr) return '';
+  const days = Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86_400_000);
+  if (days <= 0) return 'text-red-400 font-bold';
+  if (days <= 3) return 'text-red-400';
+  if (days <= 7) return 'text-amber-400';
+  return 'text-[var(--text-secondary)]';
 }
 
 export function OpportunitiesTable({
@@ -152,6 +175,9 @@ export function OpportunitiesTable({
                   </button>
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-[var(--text-secondary)]">Pewnosc</th>
+                <th className="px-4 py-3 text-left font-medium text-[var(--text-secondary)]">Odkryto</th>
+                <th className="px-4 py-3 text-left font-medium text-[var(--text-secondary)]">Deadline</th>
+                <th className="px-4 py-3 text-left font-medium text-[var(--text-secondary)]">Pilność</th>
                 <th className="px-4 py-3 text-left font-medium text-[var(--text-secondary)]">Status</th>
               </tr>
             </thead>
@@ -203,6 +229,31 @@ export function OpportunitiesTable({
                         {Math.round(opp.confidence * 100)}%
                       </span>
                     </div>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="flex items-center gap-1 text-xs text-[var(--text-secondary)]">
+                      <Calendar className="h-3 w-3" />
+                      {formatDate(opp.created)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {opp.deadline ? (
+                      <span className={cn('flex items-center gap-1 text-xs', deadlineColor(opp.deadline))}>
+                        <Clock className="h-3 w-3" />
+                        {formatDate(opp.deadline)}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-[var(--text-secondary)]">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {opp.urgency && opp.urgency !== 'normal' ? (
+                      <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-semibold', URGENCY_CONFIG[opp.urgency]?.color)}>
+                        {URGENCY_CONFIG[opp.urgency]?.label ?? opp.urgency}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-[var(--text-secondary)]">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <ActionableItem

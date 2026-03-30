@@ -231,13 +231,21 @@ def list_opportunities(status: str = "new", limit: int = 20):
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT id, opportunity_type, description, estimated_value_pln,
-                       estimated_effort_hours, roi_score, confidence, status, created_at
+                       estimated_effort_hours, roi_score, confidence, status, created_at,
+                       deadline, action_required_by, urgency
                 FROM opportunities WHERE status = %s
-                ORDER BY roi_score DESC NULLS LAST LIMIT %s
+                ORDER BY
+                  CASE WHEN deadline IS NOT NULL THEN 0 ELSE 1 END,
+                  deadline ASC NULLS LAST,
+                  roi_score DESC NULLS LAST
+                LIMIT %s
             """, (status, limit))
             return [{"id": r[0], "type": r[1], "description": r[2], "value_pln": float(r[3]) if r[3] else 0,
                      "effort_hours": float(r[4]) if r[4] else 0, "roi": float(r[5]) if r[5] else 0,
-                     "confidence": r[6], "status": r[7], "created": str(r[8])} for r in cur.fetchall()]
+                     "confidence": r[6], "status": r[7], "created": str(r[8]),
+                     "deadline": str(r[9]) if r[9] else None,
+                     "action_required_by": str(r[10]) if r[10] else None,
+                     "urgency": r[11] or "normal"} for r in cur.fetchall()]
 
 @app.get("/inefficiency")
 def inefficiency():

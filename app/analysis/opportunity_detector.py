@@ -47,7 +47,14 @@ For non-none items, estimate:
 - confidence: 0.0-1.0
 
 Return JSON array:
-[{"type": "optimization|opportunity|risk|new_business|none", "description": "...", "value_pln": N, "effort_hours": N, "confidence": 0.X, "event_ids": [...], "chunk_ids": [...]}]
+[{"type": "optimization|opportunity|risk|new_business|none", "description": "...", "value_pln": N, "effort_hours": N, "confidence": 0.X, "event_ids": [...], "chunk_ids": [...], "deadline": "YYYY-MM-DD or null", "urgency": "immediate|this_week|this_month|normal"}]
+
+Rules for deadline/urgency:
+- "immediate": action needed TODAY (expiring contract, urgent escalation, same-day meeting)
+- "this_week": action needed within 7 days
+- "this_month": action needed within 30 days
+- "normal": no hard deadline, can be scheduled
+- deadline: exact date if mentioned in source, otherwise derive from urgency. null if truly unknown.
 
 Be specific. Use real numbers. If unsure, set confidence low. Skip items with no clear business value.
 Respond ONLY with JSON array."""
@@ -171,8 +178,9 @@ def save_opportunities(items: list[dict[str, Any]]) -> list[int]:
 
                 cur.execute("""
                     INSERT INTO opportunities (opportunity_type, description, estimated_value_pln,
-                        estimated_effort_hours, confidence, source_event_ids, source_chunk_ids)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
+                        estimated_effort_hours, confidence, source_event_ids, source_chunk_ids,
+                        deadline, action_required_by, urgency)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
                 """, (
                     item["type"],
                     item.get("description", ""),
@@ -181,6 +189,9 @@ def save_opportunities(items: list[dict[str, Any]]) -> list[int]:
                     item.get("confidence", 0.5),
                     [int(x) for x in item.get("event_ids", []) if str(x).isdigit()],
                     [int(x) for x in item.get("chunk_ids", []) if str(x).isdigit()],
+                    item.get("deadline"),
+                    item.get("deadline"),
+                    item.get("urgency", "normal"),
                 ))
                 saved_ids.append(cur.fetchall()[0][0])
         conn.commit()

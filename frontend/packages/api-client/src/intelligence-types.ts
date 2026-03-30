@@ -9,6 +9,9 @@ export interface Opportunity {
   confidence: number;
   status: string;
   created: string;
+  deadline?: string | null;
+  action_required_by?: string | null;
+  urgency?: 'immediate' | 'this_week' | 'this_month' | 'normal';
 }
 
 export interface OpportunityScanResult {
