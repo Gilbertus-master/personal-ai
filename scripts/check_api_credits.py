@@ -6,13 +6,11 @@ import subprocess
 from pathlib import Path
 from dotenv import load_dotenv
 from datetime import datetime
-import zoneinfo
+from app.config.timezone import APP_TIMEZONE as CET
 from app.db.cost_tracker import log_anthropic_cost
 import structlog
 
 load_dotenv(Path(__file__).parent.parent / ".env")
-
-CET = zoneinfo.ZoneInfo('Europe/Warsaw')
 logger = structlog.get_logger(__name__)
 ALERT_FLAG = Path("/tmp/gilbertus_credit_alert_sent")
 

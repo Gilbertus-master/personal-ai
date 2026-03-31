@@ -5,11 +5,10 @@ Combines source freshness, extraction backlogs, DLQ stats, and guardian alerts
 into a single dashboard response.
 """
 import subprocess
-from datetime import datetime, timezone
-
 import structlog
 from fastapi import APIRouter
 
+from app.config.timezone import now as tz_now
 from app.db.postgres import get_pg_connection
 
 router = APIRouter(tags=["ingestion"])
@@ -214,5 +213,5 @@ def ingestion_dashboard() -> dict:
         "extraction": extraction,
         "alerts": alerts,
         "overall_health": overall,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": tz_now().isoformat(),
     }

@@ -18,19 +18,17 @@ import os
 import subprocess
 from datetime import datetime, timedelta, timezone
 from typing import Any
-from zoneinfo import ZoneInfo
 
 import requests
 import structlog
 from dotenv import load_dotenv
 
+from app.config.timezone import APP_TIMEZONE as WAR, APP_TIMEZONE_NAME
 from app.db.postgres import get_pg_connection
 
 log = structlog.get_logger(__name__)
 
 load_dotenv()
-
-WAR = ZoneInfo("Europe/Warsaw")
 
 OPENCLAW_BIN = os.getenv("OPENCLAW_BIN", "openclaw")
 WA_TARGET = os.getenv("WA_TARGET", "+48505441635")
@@ -200,8 +198,8 @@ def create_event(
 
     event_payload: dict[str, Any] = {
         "subject": subject,
-        "start": {"dateTime": start, "timeZone": "Europe/Warsaw"},
-        "end": {"dateTime": end, "timeZone": "Europe/Warsaw"},
+        "start": {"dateTime": start, "timeZone": APP_TIMEZONE_NAME},
+        "end": {"dateTime": end, "timeZone": APP_TIMEZONE_NAME},
         "body": {"contentType": "Text", "content": body},
     }
     if attendees:
@@ -316,8 +314,8 @@ def block_deep_work(
     user_path = _get_user_path()
     event_payload = {
         "subject": "🔒 Deep Work",
-        "start": {"dateTime": desired_start, "timeZone": "Europe/Warsaw"},
-        "end": {"dateTime": desired_end, "timeZone": "Europe/Warsaw"},
+        "start": {"dateTime": desired_start, "timeZone": APP_TIMEZONE_NAME},
+        "end": {"dateTime": desired_end, "timeZone": APP_TIMEZONE_NAME},
         "showAs": "busy",
         "body": {"contentType": "Text", "content": "Blok deep work — nie planować spotkań."},
         "isReminderOn": True,

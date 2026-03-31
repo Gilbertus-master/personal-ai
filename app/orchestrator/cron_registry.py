@@ -32,6 +32,7 @@ import json
 import sys
 from typing import Any
 
+from app.config.timezone import APP_TIMEZONE_NAME
 from app.db.postgres import get_pg_connection
 
 # ================================================================
@@ -226,7 +227,7 @@ def generate_crontab(username: str) -> str:
         return f"# No cron jobs enabled for {username}\n"
 
     lines = [
-        "TZ=Europe/Warsaw",
+        f"TZ={APP_TIMEZONE_NAME}",
         f"# === Gilbertus Albans — crontab for {username} ===",
         f"# Auto-generated from cron_registry. {len(jobs)} jobs enabled.",
         "# Do NOT edit manually — use: python -m app.orchestrator.cron_registry",

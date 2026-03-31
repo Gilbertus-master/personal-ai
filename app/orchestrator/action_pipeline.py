@@ -23,6 +23,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 
+from app.config.timezone import APP_TIMEZONE_NAME
 from app.db.postgres import get_pg_connection
 
 load_dotenv()
@@ -323,8 +324,8 @@ def _exec_schedule_meeting(params: dict) -> dict:
     event = {
         "subject": params.get("subject", "Meeting"),
         "body": {"contentType": "Text", "content": params.get("body", "")},
-        "start": {"dateTime": params["start"], "timeZone": "Europe/Warsaw"},
-        "end": {"dateTime": params["end"], "timeZone": "Europe/Warsaw"},
+        "start": {"dateTime": params["start"], "timeZone": APP_TIMEZONE_NAME},
+        "end": {"dateTime": params["end"], "timeZone": APP_TIMEZONE_NAME},
         "attendees": [{"emailAddress": {"address": a}, "type": "required"} for a in params.get("attendees", [])],
     }
 

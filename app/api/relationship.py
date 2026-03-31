@@ -140,9 +140,10 @@ def create_journal(data: JournalIn):
 @router.get("/journal")
 def list_journal(partner_id: int = 1, days: int = 30, limit: int = 20):
     """Ostatnie wpisy z journala."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
+    from app.config.timezone import APP_TIMEZONE as CET
 
-    since = datetime.now(timezone(timedelta(hours=1))) - timedelta(days=days)
+    since = datetime.now(CET) - timedelta(days=days)
     from app.db.postgres import get_pg_connection
 
     with get_pg_connection() as conn:

@@ -19,6 +19,7 @@ from typing import Any
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
+from app.config.timezone import APP_TIMEZONE_NAME
 from app.db.postgres import get_pg_connection
 from app.db.cost_tracker import log_anthropic_cost
 
@@ -103,10 +104,10 @@ def gather_wellbeing_indicators(week_start: str) -> dict[str, Any]:
                 FROM events e
                 WHERE e.event_time >= %s::date
                   AND e.event_time < %s::date + INTERVAL '7 days'
-                  AND EXTRACT(HOUR FROM e.event_time AT TIME ZONE 'Europe/Warsaw') >= 22
+                  AND EXTRACT(HOUR FROM e.event_time AT TIME ZONE %s) >= 22
                   AND e.event_type IN ('email_sent', 'email_received', 'teams_message',
                                        'meeting', 'decision', 'commitment')
-            """, (week_start, week_start))
+            """, (week_start, week_start, APP_TIMEZONE_NAME))
             indicators["late_night_count"] = cur.fetchall()[0][0]
 
             # Conflict events

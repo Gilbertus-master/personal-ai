@@ -74,9 +74,9 @@ def fetch_health() -> dict | None:
 
 def is_active_hours() -> bool:
     """Check if current CET hour is within active range."""
-    from zoneinfo import ZoneInfo
+    from app.config.timezone import APP_TIMEZONE
 
-    now_cet = datetime.now(ZoneInfo("Europe/Warsaw"))
+    now_cet = datetime.now(APP_TIMEZONE)
     return ACTIVE_HOUR_START <= now_cet.hour < ACTIVE_HOUR_END
 
 

@@ -27,7 +27,6 @@ import json
 import os
 import subprocess
 import sys
-from datetime import datetime
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
@@ -107,7 +106,8 @@ def get_current_metrics() -> dict:
     qdrant_health = _run("curl -sf --max-time 5 http://localhost:6333/healthz 2>/dev/null")
     metrics["qdrant_healthy"] = 1 if qdrant_health else 0
 
-    metrics["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S CET")
+    from app.config.timezone import now as tz_now
+    metrics["timestamp"] = tz_now().strftime("%Y-%m-%d %H:%M:%S CET")
 
     return metrics
 

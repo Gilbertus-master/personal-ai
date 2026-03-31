@@ -6,13 +6,12 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Any
-from zoneinfo import ZoneInfo
 
 import structlog
+from app.config.timezone import APP_TIMEZONE as CET
 from app.db.postgres import get_pg_connection
 
 log = structlog.get_logger("rel.health")
-CET = ZoneInfo("Europe/Warsaw")
 
 # Gottman's Four Horsemen of the Apocalypse
 FOUR_HORSEMEN = {"criticism", "contempt", "defensiveness", "stonewalling"}

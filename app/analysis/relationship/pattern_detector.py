@@ -1,13 +1,13 @@
 # PRIVATE — nie eksponować w Omnius ani publicznym API
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 
 import structlog
+from app.config.timezone import APP_TIMEZONE as CET
 from app.db.postgres import get_pg_connection
 
 log = structlog.get_logger("rel.patterns")
-CET = timezone(timedelta(hours=1))
 
 
 def get_active_patterns(partner_id: int = 1) -> list[dict]:

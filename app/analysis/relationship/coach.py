@@ -4,16 +4,16 @@
 # Bazuje na: health score, patterns, events, profilu Sebastiana (F84.5 Asperger)
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 
 import structlog
 
 from app.analysis.relationship.health_scorer import compute_health_score
 from app.analysis.relationship.pattern_detector import get_active_patterns, get_alerts
 from app.analysis.relationship.event_tracker import get_sentiment_stats
+from app.config.timezone import APP_TIMEZONE as CET
 
 log = structlog.get_logger("rel.coach")
-CET = timezone(timedelta(hours=1))
 
 # Sebastian's profile context for coaching
 SEBASTIAN_CONTEXT = {

@@ -17,7 +17,7 @@ import json
 import os
 import tempfile
 import uuid
-from datetime import datetime, timezone
+from app.config.timezone import now as tz_now
 
 import requests
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -67,7 +67,7 @@ def _append_message(conv_id: str, role: str, text: str):
     from app.db.postgres import get_pg_connection
     _ensure_conversation_table()
     messages = _get_conversation(conv_id)
-    messages.append({"role": role, "text": text, "timestamp": datetime.now(tz=timezone.utc).isoformat()})
+    messages.append({"role": role, "text": text, "timestamp": tz_now().isoformat()})
     # Keep last 20 messages for context
     messages = messages[-20:]
 

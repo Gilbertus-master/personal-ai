@@ -13,9 +13,9 @@ import structlog
 
 log = structlog.get_logger(__name__)
 
-from datetime import datetime, timezone
 from typing import Any
 
+from app.config.timezone import now as tz_now
 from app.omnius.client import get_omnius, list_tenants
 
 
@@ -153,5 +153,5 @@ def get_cross_company_insights() -> dict[str, Any]:
     return {
         "insights": insights,
         "tenants_reporting": len(insights),
-        "generated_at": datetime.now(tz=timezone.utc).isoformat(),
+        "generated_at": tz_now().isoformat(),
     }

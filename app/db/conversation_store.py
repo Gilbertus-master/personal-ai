@@ -14,10 +14,11 @@ Użycie:
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
 from typing import Literal
 
 import structlog
+
+from app.config.timezone import now as tz_now
 
 log = structlog.get_logger("conversation_store")
 
@@ -130,7 +131,7 @@ class ConversationStore:
                     messages.append({
                         "role": role,
                         "text": text.strip(),
-                        "ts": datetime.now(tz=timezone.utc).isoformat(),
+                        "ts": tz_now().isoformat(),
                     })
 
                     messages = self._apply_window(messages)

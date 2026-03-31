@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from anthropic import Anthropic
@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 import structlog
 
+from app.config.timezone import now as tz_now
 from app.db.cost_tracker import log_anthropic_cost
 from app.db.postgres import get_pg_connection
 from app.analysis.decision_intelligence import auto_capture_decisions
@@ -90,7 +91,7 @@ class PatternsResponse(BaseModel):
 
 @router.post("/decision", response_model=DecisionResponse)
 def create_decision(body: DecisionCreate) -> DecisionResponse:
-    decided_at = body.decided_at or datetime.now(tz=timezone.utc)
+    decided_at = body.decided_at or tz_now()
 
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
@@ -119,7 +120,7 @@ def create_decision(body: DecisionCreate) -> DecisionResponse:
 
 @router.post("/decision/{decision_id}/outcome", response_model=OutcomeResponse)
 def create_outcome(decision_id: int, body: OutcomeCreate) -> OutcomeResponse:
-    outcome_date = body.outcome_date or datetime.now(tz=timezone.utc)
+    outcome_date = body.outcome_date or tz_now()
 
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
