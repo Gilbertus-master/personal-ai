@@ -160,17 +160,17 @@ def run_monitor() -> None:
     # Only run Whisper if no cloud transcriptions were triggered this cycle.
     # If triggered > 0, cloud is actively processing — wait for next cycle.
     if needs_transcription and not triggered:
-        whisper_script = str(pathlib.Path(__file__).parent / "whisper_transcribe.py")
         log.info(
             "running_whisper_fallback",
             count=len(needs_transcription),
         )
         try:
             result = subprocess.run(
-                [sys.executable, whisper_script, str(len(needs_transcription))],
+                [sys.executable, "-m", "app.ingestion.whisper_transcribe", str(len(needs_transcription))],
                 capture_output=True,
                 text=True,
                 timeout=2200,
+                cwd=str(pathlib.Path(__file__).parent.parent.parent),
             )
             if result.stdout:
                 for line in result.stdout.strip().splitlines():
