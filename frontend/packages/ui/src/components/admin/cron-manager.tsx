@@ -95,8 +95,8 @@ export function CronManager({
     });
   }, [jobs, filters]);
 
-  const categories = summary?.categories.map((c) => c.category) ?? [];
-  const users = summary?.by_user.map((u) => u.username) ?? [];
+  const categories = summary?.categories?.map((c) => c.category) ?? [];
+  const users = summary?.by_user?.map((u) => u.username) ?? [];
   const hasFilters = filters.category !== null || filters.user !== null || filters.enabled !== null;
 
   if (isLoading) {
