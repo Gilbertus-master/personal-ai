@@ -43,7 +43,22 @@ def resolve_person_aliases(query: str) -> str:
                 people = cur.fetchall()
 
         expansions = []
+        expansions_list = []
         query_lower = query.lower()
+
+        # Organization-level aliases
+        ORG_ALIASES = {
+            "reh": ["Respect Energy Holding", "Respect Energy S.A.", "REH"],
+            "ref": ["Respect Energy Fuels", "Gaselle", "RE-Fuels", "REF"],
+            "re": ["Respect Energy", "RE"],
+        }
+        query_words = query_lower.split()
+        for short, org_expansions in ORG_ALIASES.items():
+            if short in query_words or any(e.lower() in query_lower for e in org_expansions):
+                for exp in org_expansions:
+                    if exp.lower() not in query_lower:
+                        expansions_list.append(exp)
+
         for first, last, aliases, canonical, role, org in people:
             # Check if person is mentioned in query (last name, first name, or full name)
             full_name = f"{first} {last}".lower()
@@ -61,6 +76,9 @@ def resolve_person_aliases(query: str) -> str:
                         if alias.lower() not in query_lower:
                             parts.append(alias)
                 expansions.append(" ".join(parts))
+
+        if expansions_list:
+            expansions.append(" ".join(expansions_list))
 
         if expansions:
             return f"{query} ({'; '.join(expansions)})"
@@ -187,7 +205,8 @@ def filter_matches(
 
     filtered_by_score = [
         m for m in matches
-        if float(m.get("score", 0.0)) >= score_threshold
+        if m.get("search_type") == "hybrid_rrf"
+        or float(m.get("score", 0.0)) >= score_threshold
     ]
 
     deduped: list[dict[str, Any]] = []
@@ -272,6 +291,119 @@ def _keyword_search_fallback(
         import structlog as _sl
         _sl.get_logger().warning("keyword_fallback.failed", error=str(e))
     return results
+
+
+def _bm25_search(
+    query: str,
+    top_k: int = 50,
+    source_types: list[str] | None = None,
+    source_names: list[str] | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+) -> list[dict[str, Any]]:
+    """Full-text search using PostgreSQL tsvector + ts_rank (BM25-like).
+    Returns results sorted by relevance with rank scores."""
+    where_clauses = ["c.text_tsv @@ plainto_tsquery('simple', %s)", "c.text IS NOT NULL"]
+    params: list = [query]
+
+    if source_types:
+        placeholders = ",".join(["%s"] * len(source_types))
+        where_clauses.append(f"s.source_type IN ({placeholders})")
+        params.extend(source_types)
+
+    if source_names:
+        placeholders = ",".join(["%s"] * len(source_names))
+        where_clauses.append(f"s.source_name IN ({placeholders})")
+        params.extend(source_names)
+
+    if date_from:
+        where_clauses.append("d.created_at >= %s")
+        params.append(date_from)
+
+    if date_to:
+        where_clauses.append("d.created_at <= %s")
+        params.append(date_to)
+
+    params.append(top_k)
+
+    sql = f"""
+        SELECT
+            c.id as chunk_id,
+            c.document_id,
+            c.text,
+            s.source_type,
+            s.source_name,
+            d.title,
+            d.created_at,
+            ts_rank(c.text_tsv, plainto_tsquery('simple', %s)) as bm25_score
+        FROM chunks c
+        JOIN documents d ON d.id = c.document_id
+        JOIN sources s ON s.id = d.source_id
+        WHERE {' AND '.join(where_clauses)}
+        ORDER BY bm25_score DESC
+        LIMIT %s
+    """
+    all_params = [query] + params
+
+    results = []
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, all_params)
+                for row in cur.fetchall():
+                    results.append({
+                        "chunk_id": row[0],
+                        "document_id": row[1],
+                        "text": row[2] or "",
+                        "source_type": row[3],
+                        "source_name": row[4],
+                        "title": row[5],
+                        "date": str(row[6]) if row[6] else None,
+                        "score": float(row[7]),
+                        "search_type": "bm25",
+                    })
+    except Exception as e:
+        import structlog as _sl
+        _sl.get_logger().warning("bm25_search.failed", error=str(e))
+    return results
+
+
+def _rrf_merge(
+    vector_results: list[dict],
+    bm25_results: list[dict],
+    k: int = 60,
+) -> list[dict]:
+    """Reciprocal Rank Fusion: combine vector and BM25 results.
+    RRF score = 1/(k + rank_vector) + 1/(k + rank_bm25)
+    """
+    rrf_scores: dict[int, float] = {}
+    result_map: dict[int, dict] = {}
+
+    for rank, item in enumerate(vector_results, 1):
+        cid = item.get("chunk_id")
+        if cid is None:
+            continue
+        rrf_scores[cid] = rrf_scores.get(cid, 0.0) + 1.0 / (k + rank)
+        result_map[cid] = item
+
+    for rank, item in enumerate(bm25_results, 1):
+        cid = item.get("chunk_id")
+        if cid is None:
+            continue
+        rrf_scores[cid] = rrf_scores.get(cid, 0.0) + 1.0 / (k + rank)
+        if cid not in result_map:
+            result_map[cid] = item
+
+    sorted_ids = sorted(rrf_scores.keys(), key=lambda x: rrf_scores[x], reverse=True)
+
+    merged = []
+    for cid in sorted_ids:
+        item = result_map[cid].copy()
+        item["score"] = rrf_scores[cid]
+        item["search_type"] = "hybrid_rrf"
+        merged.append(item)
+
+    return merged
 
 
 def _date_filtered_search(
@@ -467,6 +599,22 @@ def search_chunks(
             continue
 
         enriched.append(enriched_match)
+
+    # Hybrid: also run BM25 search and merge via RRF
+    try:
+        bm25_hits = _bm25_search(
+            query=query,
+            top_k=limit,
+            source_types=source_types,
+            source_names=source_names,
+            date_from=date_from,
+            date_to=date_to,
+        )
+        if bm25_hits:
+            enriched = _rrf_merge(enriched, bm25_hits)
+    except Exception as _e:
+        import structlog as _sl
+        _sl.get_logger().warning("hybrid_search.bm25_failed", error=str(_e))
 
     cleaned = filter_matches(enriched, question_type=question_type)
 
