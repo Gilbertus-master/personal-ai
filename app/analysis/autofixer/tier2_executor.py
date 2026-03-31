@@ -116,7 +116,13 @@ def _count_ruff_errors(fp: str) -> int:
 
 
 def _verify_fix(file_paths: list[str]) -> tuple[bool, str]:
-    """Verify fix didn't introduce new errors (baseline comparison)."""
+    """Verify fix didn't introduce new errors (baseline comparison).
+
+    Uses ``git show HEAD:<file>`` + temp file instead of ``git stash``
+    so that parallel workers don't interfere with each other.
+    """
+    import tempfile
+
     # 1. Check git diff — ensure something changed
     try:
         diff = subprocess.run(
@@ -136,22 +142,25 @@ def _verify_fix(file_paths: list[str]) -> tuple[bool, str]:
         # Get CURRENT error count (with fix applied)
         after_errors = _count_ruff_errors(fp)
 
-        # Get BASELINE error count (before fix)
+        # Get BASELINE from git (thread-safe, no stash needed)
+        baseline = subprocess.run(
+            ["git", "show", f"HEAD:{fp}"],
+            capture_output=True, text=True, timeout=10, cwd=str(PROJECT_DIR),
+        )
+        if baseline.returncode != 0:
+            continue  # new file — no baseline to compare
+
+        tmp_path = None
         try:
-            subprocess.run(
-                ["git", "stash", "--quiet"],
-                capture_output=True, text=True, timeout=10, cwd=str(PROJECT_DIR),
-            )
-            before_errors = _count_ruff_errors(fp)
-            subprocess.run(
-                ["git", "stash", "pop", "--quiet"],
-                capture_output=True, text=True, timeout=10, cwd=str(PROJECT_DIR),
-            )
-        except Exception as e:
-            # If stash fails, try to recover
-            subprocess.run(["git", "stash", "pop", "--quiet"],
-                          capture_output=True, text=True, timeout=10, cwd=str(PROJECT_DIR))
-            return False, f"baseline check failed: {e}"
+            with tempfile.NamedTemporaryFile(
+                suffix=".py", mode="w", delete=False, dir=str(PROJECT_DIR),
+            ) as tmp:
+                tmp.write(baseline.stdout)
+                tmp_path = tmp.name
+            before_errors = _count_ruff_errors(tmp_path)
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                os.unlink(tmp_path)
 
         new_errors = after_errors - before_errors
         if new_errors > 0:
