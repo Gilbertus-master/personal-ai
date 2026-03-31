@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any, Optional
 
 from app.db.postgres import get_pg_connection
+
+logger = logging.getLogger(__name__)
 
 
 def _safe_int(value: Any, default: int = 0) -> int:
@@ -274,5 +277,5 @@ def persist_ask_run_best_effort(
         insert_ask_run_matches(ask_run_id, matches or [])
         return ask_run_id
     except Exception as exc:
-        print(f"[runtime_persistence] WARNING: failed to persist ask run: {exc}")
+        logger.warning("persist_ask_run_failed", exc_info=exc)
         return None
