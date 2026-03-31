@@ -23,10 +23,9 @@ export const MODULES: ModuleConfig[] = [
   { id: 'calendar', icon: 'Calendar', roles: ['ceo', 'board', 'director', 'manager'], label: { pl: 'Kalendarz', en: 'Calendar' }, path: '/calendar' },
   { id: 'documents', icon: 'FileText', roles: ['ceo', 'board', 'director'], label: { pl: 'Dokumenty', en: 'Documents' }, path: '/documents' },
   { id: 'voice', icon: 'Mic', roles: ['ceo', 'board'], label: { pl: 'Głos', en: 'Voice' }, path: '/voice' },
-  { id: 'admin', icon: 'ShieldCheck', roles: ['gilbertus_admin', 'operator'], label: { pl: 'Admin', en: 'Admin' }, path: '/admin' },
+  { id: 'admin', icon: 'ShieldCheck', roles: ['ceo', 'gilbertus_admin', 'operator'], label: { pl: 'Admin', en: 'Admin' }, path: '/admin' },
   { id: 'settings', icon: 'Settings', roles: ['*'], label: { pl: 'Ustawienia', en: 'Settings' }, path: '/settings' },
-  { id: 'omnius', icon: 'Bot', roles: ['gilbertus_admin'], label: { pl: 'Omnius', en: 'Omnius' }, path: '/admin/omnius' },
-  { id: 'admin-autofixers', icon: 'Wrench', roles: ['gilbertus_admin', 'operator'], label: { pl: 'Autofixery', en: 'Autofixers' }, path: '/admin/autofixers' },
+  { id: 'admin-autofixers', icon: 'Wrench', roles: ['ceo', 'gilbertus_admin', 'operator'], label: { pl: 'Autofixery', en: 'Autofixers' }, path: '/admin/autofixers' },
 ];
 
 export function getNavigationModules(role: RoleName): ModuleConfig[] {
