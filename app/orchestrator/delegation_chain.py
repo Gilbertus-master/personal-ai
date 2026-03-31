@@ -220,23 +220,23 @@ def check_delegation_status() -> dict[str, Any]:
 def _check_completion_evidence(task_id: int, assignee: str, title: str) -> str | None:
     """Search recent events/chunks for evidence that the task was completed."""
     keywords = [w.lower() for w in re.split(r'\s+', title) if len(w) > 3]
-    if not keywords:
+    if not keywords or len(keywords) < 2:
         return None
 
-    # Build keyword filter — match any 2 keywords in event description
-    keyword_conditions = " OR ".join(
-        ["LOWER(e.description) LIKE %s"] * len(keywords)
-    )
+    # Build keyword filter — require at least 2 keywords to match
+    case_conditions = " + ".join([
+        "(CASE WHEN LOWER(e.description) LIKE %s THEN 1 ELSE 0 END)"
+        for _ in keywords
+    ])
     params: list[Any] = [f"%{kw}%" for kw in keywords]
     params.append(assignee)
 
     query = (
             "SELECT e.description, e.event_date FROM events e "
-            "WHERE (" + keyword_conditions + ") "
+            "WHERE (" + case_conditions + ") >= 2 "
             "AND LOWER(e.person_name) = LOWER(%s) "
             "AND e.event_date > NOW() - INTERVAL '7 days' "
-            "AND e.event_type IN ('commitment_made', 'task_completed', "
-            "                     'decision_made', 'deliverable') "
+            "AND e.event_type = 'task_completed' "
             "ORDER BY e.event_date DESC LIMIT 3"
         )
 
