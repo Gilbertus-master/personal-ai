@@ -170,7 +170,7 @@ def run_monitor() -> None:
                 [sys.executable, whisper_script, str(len(needs_transcription))],
                 capture_output=True,
                 text=True,
-                timeout=3600,
+                timeout=2200,
             )
             if result.stdout:
                 for line in result.stdout.strip().splitlines():

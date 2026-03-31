@@ -17,8 +17,11 @@ if ! flock -n 9; then
   if [ "$LOCK_AGE" -lt 2700 ]; then echo "[$(date '+%Y-%m-%d %H:%M')] plaud_monitor already running (${LOCK_AGE}s), skipping"; exit 0; fi
   echo "[$(date '+%Y-%m-%d %H:%M')] plaud_monitor stale lock (${LOCK_AGE}s), stealing"
 fi
-trap 'flock -u 9; rm -f $LOCKFILE' EXIT INT TERM
+trap 'rm -f "$LOCKFILE"' EXIT INT TERM
+
+LOG=/home/sebastian/personal-ai/logs/plaud_monitor.log
+exec >> "$LOG" 2>&1
 
 cd "$(dirname "$0")/.."
 
-.venv/bin/python -m app.ingestion.plaud_monitor
+timeout 2400 .venv/bin/python -m app.ingestion.plaud_monitor

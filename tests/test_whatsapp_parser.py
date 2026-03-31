@@ -1,6 +1,5 @@
 import tempfile
 from datetime import datetime
-from pathlib import Path
 
 from app.ingestion.whatsapp.parser import (
     WhatsAppMessage,

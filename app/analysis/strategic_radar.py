@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -583,7 +584,6 @@ def generate_strategic_radar(force: bool = False) -> dict[str, Any]:
     try:
         radar = json.loads(raw)
     except json.JSONDecodeError:
-        import re
         try:
             fixed = re.sub(r',\s*}', '}', re.sub(r',\s*]', ']', raw))
             radar = json.loads(fixed)

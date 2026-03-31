@@ -14,6 +14,7 @@ log = structlog.get_logger(__name__)
 
 import json
 import os
+import threading
 from datetime import datetime, timezone
 from typing import Any
 
@@ -53,48 +54,51 @@ Respond ONLY with a JSON array of 5 objects:
 # ================================================================
 
 _tables_ensured = False
+_ensure_tables_lock = threading.Lock()
+
 def _ensure_tables() -> None:
     global _tables_ensured
-    if _tables_ensured:
-        return
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS scenarios (
-                    id BIGSERIAL PRIMARY KEY,
-                    title TEXT NOT NULL,
-                    description TEXT,
-                    scenario_type TEXT NOT NULL DEFAULT 'risk'
-                        CHECK (scenario_type IN ('risk', 'opportunity', 'strategic')),
-                    status TEXT NOT NULL DEFAULT 'draft'
-                        CHECK (status IN ('draft', 'analyzed', 'archived')),
-                    trigger_event TEXT,
-                    created_by TEXT DEFAULT 'system',
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    analyzed_at TIMESTAMPTZ
-                );
+    with _ensure_tables_lock:
+        if _tables_ensured:
+            return
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS scenarios (
+                        id BIGSERIAL PRIMARY KEY,
+                        title TEXT NOT NULL,
+                        description TEXT,
+                        scenario_type TEXT NOT NULL DEFAULT 'risk'
+                            CHECK (scenario_type IN ('risk', 'opportunity', 'strategic')),
+                        status TEXT NOT NULL DEFAULT 'draft'
+                            CHECK (status IN ('draft', 'analyzed', 'archived')),
+                        trigger_event TEXT,
+                        created_by TEXT DEFAULT 'system',
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        analyzed_at TIMESTAMPTZ
+                    );
 
-                CREATE TABLE IF NOT EXISTS scenario_outcomes (
-                    id BIGSERIAL PRIMARY KEY,
-                    scenario_id BIGINT NOT NULL REFERENCES scenarios(id) ON DELETE CASCADE,
-                    dimension TEXT NOT NULL
-                        CHECK (dimension IN ('revenue', 'costs', 'people', 'operations', 'reputation')),
-                    impact_description TEXT,
-                    impact_value_pln NUMERIC,
-                    probability NUMERIC(3,2) CHECK (probability >= 0 AND probability <= 1),
-                    time_horizon TEXT,
-                    mitigation TEXT,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                );
+                    CREATE TABLE IF NOT EXISTS scenario_outcomes (
+                        id BIGSERIAL PRIMARY KEY,
+                        scenario_id BIGINT NOT NULL REFERENCES scenarios(id) ON DELETE CASCADE,
+                        dimension TEXT NOT NULL
+                            CHECK (dimension IN ('revenue', 'costs', 'people', 'operations', 'reputation')),
+                        impact_description TEXT,
+                        impact_value_pln NUMERIC,
+                        probability NUMERIC(3,2) CHECK (probability >= 0 AND probability <= 1),
+                        time_horizon TEXT,
+                        mitigation TEXT,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    );
 
-                CREATE INDEX IF NOT EXISTS idx_scenarios_status
-                    ON scenarios(status);
-                CREATE INDEX IF NOT EXISTS idx_scenario_outcomes_scenario
-                    ON scenario_outcomes(scenario_id);
-            """)
-            conn.commit()
-    log.info("scenario_analyzer.tables_ensured")
-    _tables_ensured = True
+                    CREATE INDEX IF NOT EXISTS idx_scenarios_status
+                        ON scenarios(status);
+                    CREATE INDEX IF NOT EXISTS idx_scenario_outcomes_scenario
+                        ON scenario_outcomes(scenario_id);
+                """)
+                conn.commit()
+        log.info("scenario_analyzer.tables_ensured")
+        _tables_ensured = True
 
 
 # ================================================================

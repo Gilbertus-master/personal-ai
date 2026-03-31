@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Monitor retrieval quality and send alerts on degradation."""
-import os, sys, subprocess
+import os
+import sys
+import subprocess
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv

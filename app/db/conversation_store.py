@@ -19,6 +19,7 @@ from typing import Literal
 import structlog
 
 from app.config.timezone import now as tz_now
+from app.db.postgres import get_pg_connection
 
 log = structlog.get_logger("conversation_store")
 
@@ -47,7 +48,6 @@ class ConversationStore:
     def get_messages(self) -> list[dict]:
         """Returns full message list from DB."""
         try:
-            from app.db.postgres import get_pg_connection
             with get_pg_connection() as conn:
                 with conn.cursor() as cur:
                     cur.execute(
@@ -59,7 +59,7 @@ class ConversationStore:
                 msgs = rows[0][0] if isinstance(rows[0][0], list) else json.loads(rows[0][0])
                 return msgs
         except Exception as e:
-            log.warning("get_messages_failed", channel=self.channel_key, error=str(e))
+            log.error("get_messages_failed", channel=self.channel_key, error=str(e))
         return []
 
     def get_history(self, n: int = CONTEXT_MSGS) -> list[dict]:
@@ -109,13 +109,12 @@ class ConversationStore:
     # Write
     # ──────────────────────────────────────────────────────────────
 
-    def add(self, role: Literal["user", "assistant"], text: str) -> None:
-        """Add message to window. Applies sliding window automatically."""
+    def add(self, role: Literal["user", "assistant"], text: str) -> bool:
+        """Add message to window. Applies sliding window automatically. Returns True on success, False on failure."""
         if not text or not text.strip():
-            return
+            return True
 
         try:
-            from app.db.postgres import get_pg_connection
             with get_pg_connection() as conn:
                 with conn.cursor() as cur:
                     cur.execute(
@@ -152,14 +151,15 @@ class ConversationStore:
                          len(messages), total_chars),
                     )
                 conn.commit()
+            return True
 
         except Exception as e:
-            log.warning("add_message_failed", channel=self.channel_key, error=str(e))
+            log.error("add_message_failed", channel=self.channel_key, error=str(e))
+            return False
 
     def clear(self) -> None:
         """Clear conversation window."""
         try:
-            from app.db.postgres import get_pg_connection
             with get_pg_connection() as conn:
                 with conn.cursor() as cur:
                     cur.execute(
@@ -168,7 +168,7 @@ class ConversationStore:
                     )
                 conn.commit()
         except Exception as e:
-            log.warning("clear_failed", channel=self.channel_key, error=str(e))
+            log.error("clear_failed", channel=self.channel_key, error=str(e))
 
     # ──────────────────────────────────────────────────────────────
     # Window management
@@ -219,7 +219,6 @@ def get_store(channel: str | None, session_id: str | None = None) -> Conversatio
 def cleanup_inactive_windows(hours: int = 24) -> int:
     """Delete conversation windows inactive for more than `hours`. Returns deleted count."""
     try:
-        from app.db.postgres import get_pg_connection
         with get_pg_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -231,5 +230,5 @@ def cleanup_inactive_windows(hours: int = 24) -> int:
             conn.commit()
         return deleted
     except Exception as e:
-        log.warning("cleanup_inactive_windows_failed", hours=hours, error=str(e))
+        log.error("cleanup_inactive_windows_failed", hours=hours, error=str(e))
         return 0

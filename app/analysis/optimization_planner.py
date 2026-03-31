@@ -14,6 +14,7 @@ log = structlog.get_logger(__name__)
 
 import json
 import os
+import threading
 from datetime import datetime, timezone
 from typing import Any
 
@@ -47,33 +48,36 @@ Respond ONLY with JSON array."""
 
 
 _tables_ensured = False
+_ensure_tables_lock = threading.Lock()
+
 def _ensure_tables():
     global _tables_ensured
-    if _tables_ensured:
-        return
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS optimization_plans (
-                    id BIGSERIAL PRIMARY KEY,
-                    process_id BIGINT REFERENCES discovered_processes(id) ON DELETE CASCADE,
-                    process_name TEXT,
-                    current_state TEXT,
-                    target_state TEXT,
-                    steps JSONB DEFAULT '[]',
-                    time_savings_hours NUMERIC DEFAULT 0,
-                    cost_savings_pln NUMERIC DEFAULT 0,
-                    implementation_effort TEXT DEFAULT 'medium',
-                    risk TEXT,
-                    priority_score INTEGER DEFAULT 50 CHECK (priority_score >= 0 AND priority_score <= 100),
-                    status TEXT DEFAULT 'planned'
-                        CHECK (status IN ('planned', 'in_progress', 'done', 'rejected')),
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                );
-                CREATE INDEX IF NOT EXISTS idx_op_priority ON optimization_plans(priority_score DESC);
-            """)
-            conn.commit()
-    _tables_ensured = True
+    with _ensure_tables_lock:
+        if _tables_ensured:
+            return
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS optimization_plans (
+                        id BIGSERIAL PRIMARY KEY,
+                        process_id BIGINT REFERENCES discovered_processes(id) ON DELETE CASCADE,
+                        process_name TEXT,
+                        current_state TEXT,
+                        target_state TEXT,
+                        steps JSONB DEFAULT '[]',
+                        time_savings_hours NUMERIC DEFAULT 0,
+                        cost_savings_pln NUMERIC DEFAULT 0,
+                        implementation_effort TEXT DEFAULT 'medium',
+                        risk TEXT,
+                        priority_score INTEGER DEFAULT 50 CHECK (priority_score >= 0 AND priority_score <= 100),
+                        status TEXT DEFAULT 'planned'
+                            CHECK (status IN ('planned', 'in_progress', 'done', 'rejected')),
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_op_priority ON optimization_plans(priority_score DESC);
+                """)
+                conn.commit()
+        _tables_ensured = True
 
 
 def generate_plans() -> dict[str, Any]:

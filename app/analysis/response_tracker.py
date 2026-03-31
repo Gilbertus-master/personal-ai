@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 from datetime import datetime, timezone
 from typing import Optional, TypedDict
 
@@ -41,49 +42,52 @@ def _to_utc(ts: datetime) -> datetime:
 # ================================================================
 
 _tables_ensured = False
+_ensure_tables_lock = threading.Lock()
+
 def _ensure_tables():
     """Add response tracking columns to sent_communications."""
     global _tables_ensured
-    if _tables_ensured:
-        return
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                ALTER TABLE sent_communications
-                    ADD COLUMN IF NOT EXISTS response_received BOOLEAN DEFAULT FALSE
-            """)
-            cur.execute("""
-                ALTER TABLE sent_communications
-                    ADD COLUMN IF NOT EXISTS response_time_hours NUMERIC
-            """)
-            cur.execute("""
-                ALTER TABLE sent_communications
-                    ADD COLUMN IF NOT EXISTS response_sentiment TEXT
-            """)
-            cur.execute("""
-                ALTER TABLE sent_communications
-                    ADD COLUMN IF NOT EXISTS response_chunk_id BIGINT
-            """)
-            cur.execute("""
-                ALTER TABLE sent_communications
-                    ADD COLUMN IF NOT EXISTS follow_up_sent BOOLEAN DEFAULT FALSE
-            """)
-            cur.execute("""
-                ALTER TABLE sent_communications
-                    ADD COLUMN IF NOT EXISTS follow_up_count INT DEFAULT 0
-            """)
-            cur.execute("""
-                ALTER TABLE sent_communications
-                    ADD COLUMN IF NOT EXISTS checked_at TIMESTAMPTZ
-            """)
-            cur.execute("""
-                CREATE INDEX IF NOT EXISTS idx_sent_comms_response
-                    ON sent_communications(response_received)
-                    WHERE response_received = FALSE
-            """)
-        conn.commit()
-    log.debug("response_tracker_tables_ensured")
-    _tables_ensured = True
+    with _ensure_tables_lock:
+        if _tables_ensured:
+            return
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    ALTER TABLE sent_communications
+                        ADD COLUMN IF NOT EXISTS response_received BOOLEAN DEFAULT FALSE
+                """)
+                cur.execute("""
+                    ALTER TABLE sent_communications
+                        ADD COLUMN IF NOT EXISTS response_time_hours NUMERIC
+                """)
+                cur.execute("""
+                    ALTER TABLE sent_communications
+                        ADD COLUMN IF NOT EXISTS response_sentiment TEXT
+                """)
+                cur.execute("""
+                    ALTER TABLE sent_communications
+                        ADD COLUMN IF NOT EXISTS response_chunk_id BIGINT
+                """)
+                cur.execute("""
+                    ALTER TABLE sent_communications
+                        ADD COLUMN IF NOT EXISTS follow_up_sent BOOLEAN DEFAULT FALSE
+                """)
+                cur.execute("""
+                    ALTER TABLE sent_communications
+                        ADD COLUMN IF NOT EXISTS follow_up_count INT DEFAULT 0
+                """)
+                cur.execute("""
+                    ALTER TABLE sent_communications
+                        ADD COLUMN IF NOT EXISTS checked_at TIMESTAMPTZ
+                """)
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_sent_comms_response
+                        ON sent_communications(response_received)
+                        WHERE response_received = FALSE
+                """)
+            conn.commit()
+        log.debug("response_tracker_tables_ensured")
+        _tables_ensured = True
 
 
 # ================================================================

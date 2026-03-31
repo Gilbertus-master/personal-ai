@@ -3,9 +3,7 @@ Integration tests for Gilbertus Albans.
 Tests that require running services (Postgres, Qdrant) are marked with pytest.mark.
 Run with: .venv/bin/python -m pytest tests/test_integration.py -v
 """
-import os
 import pytest
-from unittest.mock import patch
 
 # ── DB integration tests (require Postgres) ──
 

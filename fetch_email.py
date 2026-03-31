@@ -1,5 +1,11 @@
 """Fetch specific email with attachments — uses Docker for SSL-proof downloads."""
-import json, os, subprocess, base64, requests, re, sys
+import json
+import os
+import subprocess
+import base64
+import requests
+import re
+import sys
 from datetime import datetime
 from html import unescape
 from app.ingestion.graph_api.auth import get_access_token

@@ -1,11 +1,12 @@
 """Observability dashboard & alert endpoint — self-hosted tracing for Gilbertus."""
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import threading
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from app.db.postgres import get_pg_connection
 
@@ -229,7 +230,6 @@ def get_trace(run_id: int):
             """, (run_id,))
             row = cur.fetchone()
     if not row:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
     stage_ms = row[8] or {}
     total_ms = row[7] or 0
@@ -269,8 +269,6 @@ def get_trace(run_id: int):
 @router.get("/graph/action/{action_id}")
 def get_action_graph_state(action_id: int):
     """Inspect current state of an action in the LangGraph pipeline."""
-    import json as _json
-
     try:
         with get_pg_connection() as conn:
             with conn.cursor() as cur:
@@ -286,7 +284,7 @@ def get_action_graph_state(action_id: int):
         status, result_raw, proposed_at, decided_at, executed_at = row
         result_data = {}
         try:
-            result_data = _json.loads(result_raw) if result_raw else {}
+            result_data = json.loads(result_raw) if result_raw else {}
         except Exception:
             pass
 

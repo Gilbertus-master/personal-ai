@@ -1,12 +1,9 @@
 import json
 import tempfile
-from datetime import datetime, UTC
 
 from app.ingestion.chatgpt.parser import (
-    ChatGPTConversation,
     parse_chatgpt_export_file,
     _extract_text_parts,
-    _flatten_messages,
 )
 
 

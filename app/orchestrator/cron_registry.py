@@ -25,15 +25,16 @@ Usage:
 """
 from __future__ import annotations
 
-import structlog
-log = structlog.get_logger(__name__)
-
 import json
 import sys
 from typing import Any
 
+import structlog
+from psycopg.errors import ForeignKeyViolation
 from app.config.timezone import APP_TIMEZONE_NAME
 from app.db.postgres import get_pg_connection
+
+log = structlog.get_logger(__name__)
 
 # ================================================================
 # DB Setup
@@ -124,13 +125,15 @@ def enable_job(job_name: str, username: str) -> dict[str, Any]:
     _ensure_tables()
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO cron_user_assignments (job_name, username, enabled)
-                VALUES (%s, %s, TRUE)
-                ON CONFLICT (job_name, username) DO UPDATE SET enabled = TRUE
-            """, (job_name, username))
-            if cur.rowcount == 0:
-                return {"error": f"Job '{job_name}' not found"}
+            try:
+                cur.execute("""
+                    INSERT INTO cron_user_assignments (job_name, username, enabled)
+                    VALUES (%s, %s, TRUE)
+                    ON CONFLICT (job_name, username) DO UPDATE SET enabled = TRUE
+                """, (job_name, username))
+            except ForeignKeyViolation:
+                conn.rollback()
+                return {"error": f"Job '{job_name}' not found in registry"}
         conn.commit()
     return {"job_name": job_name, "username": username, "enabled": True}
 
@@ -475,6 +478,60 @@ SEED_JOBS = [
      "command": "cd /home/sebastian/personal-ai && .venv/bin/python -c \"from app.analysis.tech_radar import discover_solutions, calculate_priority_scores, generate_roadmap, link_to_strategic_goals; discover_solutions(force=True); calculate_priority_scores(); link_to_strategic_goals(); import json; print(json.dumps(generate_roadmap(), ensure_ascii=False, indent=2, default=str))\"",
      "description": "Monthly Tech Radar: discover solutions, rank by ROI, generate roadmap (after workforce analysis)", "category": "intelligence",
      "log_file": "/home/sebastian/personal-ai/logs/tech_radar.log",
+     "users": ["sebastian"]},
+
+    # === People Intelligence (daily/weekly) ===
+    {"job_name": "sentiment_daily", "schedule": "0 21 * * *",
+     "command": "cd /home/sebastian/personal-ai && .venv/bin/python -c \"from app.analysis.sentiment_tracker import run_weekly_sentiment_scan; import json; print(json.dumps(run_weekly_sentiment_scan(), ensure_ascii=False, indent=2, default=str))\"",
+     "description": "Daily sentiment analysis for top contacts (21:00 CET)", "category": "intelligence",
+     "log_file": "/home/sebastian/personal-ai/logs/sentiment_daily.log",
+     "users": ["sebastian"]},
+    {"job_name": "delegation_analysis", "schedule": "0 7 * * 1",
+     "command": "cd /home/sebastian/personal-ai && .venv/bin/python -c \"from app.analysis.delegation_tracker import run_delegation_report; import json; print(json.dumps(run_delegation_report(), ensure_ascii=False, indent=2, default=str))\"",
+     "description": "Weekly delegation effectiveness report (Monday 7:00 CET)", "category": "intelligence",
+     "log_file": "/home/sebastian/personal-ai/logs/delegation_analysis.log",
+     "users": ["sebastian"]},
+    {"job_name": "network_analysis", "schedule": "0 19 * * 0",
+     "command": "cd /home/sebastian/personal-ai && .venv/bin/python -c \"from app.analysis.network_graph import run_network_analysis; import json; print(json.dumps(run_network_analysis(), ensure_ascii=False, indent=2, default=str))\"",
+     "description": "Weekly communication network/silo detection (Sunday 19:00 CET)", "category": "intelligence",
+     "log_file": "/home/sebastian/personal-ai/logs/network_analysis.log",
+     "users": ["sebastian"]},
+    {"job_name": "response_tracking", "schedule": "0 20 * * *",
+     "command": "cd /home/sebastian/personal-ai && .venv/bin/python -c \"from app.analysis.response_tracker import run_response_tracking; import json; print(json.dumps(run_response_tracking(), ensure_ascii=False, indent=2, default=str))\"",
+     "description": "Daily response time tracking by person/channel (20:00 CET)", "category": "intelligence",
+     "log_file": "/home/sebastian/personal-ai/logs/response_tracking.log",
+     "users": ["sebastian"]},
+    {"job_name": "blind_spot_scan", "schedule": "0 18 * * 3",
+     "command": "cd /home/sebastian/personal-ai && .venv/bin/python -m app.analysis.blind_spot_detector",
+     "description": "Weekly blind spot detection (Wednesday 18:00 CET)", "category": "intelligence",
+     "log_file": "/home/sebastian/personal-ai/logs/blind_spot_scan.log",
+     "users": ["sebastian"]},
+
+    # === Business Intelligence (daily/weekly) ===
+    {"job_name": "opportunity_scan", "schedule": "0 */4 * * *",
+     "command": "cd /home/sebastian/personal-ai && .venv/bin/python -c \"from app.analysis.opportunity_detector import run_opportunity_scan; import json; print(json.dumps(run_opportunity_scan(), ensure_ascii=False, indent=2, default=str))\"",
+     "description": "Opportunity scan every 4 hours", "category": "intelligence",
+     "log_file": "/home/sebastian/personal-ai/logs/opportunity_scan.log",
+     "users": ["sebastian"]},
+    {"job_name": "org_health_daily", "schedule": "0 6 * * *",
+     "command": "cd /home/sebastian/personal-ai && .venv/bin/python -c \"from app.analysis.org_health import run_health_assessment; import json; print(json.dumps(run_health_assessment(), ensure_ascii=False, indent=2, default=str))\"",
+     "description": "Daily org health score assessment (6:00 CET)", "category": "intelligence",
+     "log_file": "/home/sebastian/personal-ai/logs/org_health_daily.log",
+     "users": ["sebastian"]},
+    {"job_name": "correlation_scan", "schedule": "30 22 * * *",
+     "command": "cd /home/sebastian/personal-ai && .venv/bin/python -c \"from app.analysis.correlation import run_correlation; import json; print(json.dumps(run_correlation(), ensure_ascii=False, indent=2, default=str))\"",
+     "description": "Daily cross-domain pattern detection (22:30 CET)", "category": "intelligence",
+     "log_file": "/home/sebastian/personal-ai/logs/correlation_scan.log",
+     "users": ["sebastian"]},
+    {"job_name": "strategic_goals_update", "schedule": "0 6 * * 1",
+     "command": "cd /home/sebastian/personal-ai && .venv/bin/python -c \"from app.analysis.strategic_goals import run_goal_tracking; import json; print(json.dumps(run_goal_tracking(), ensure_ascii=False, indent=2, default=str))\"",
+     "description": "Weekly strategic goals progress update (Monday 6:00 CET)", "category": "intelligence",
+     "log_file": "/home/sebastian/personal-ai/logs/strategic_goals_update.log",
+     "users": ["sebastian"]},
+    {"job_name": "data_flow_validation", "schedule": "0 4 * * *",
+     "command": "cd /home/sebastian/personal-ai && .venv/bin/python -c \"from app.analysis.data_flow_mapper import map_data_flows; import json; print(json.dumps(map_data_flows(), ensure_ascii=False, indent=2, default=str))\"",
+     "description": "Daily data flow validation (4:00 CET)", "category": "intelligence",
+     "log_file": "/home/sebastian/personal-ai/logs/data_flow_validation.log",
      "users": ["sebastian"]},
 ]
 

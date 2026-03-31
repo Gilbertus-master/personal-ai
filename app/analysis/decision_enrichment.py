@@ -16,6 +16,7 @@ import structlog
 log = structlog.get_logger(__name__)
 
 import json
+import threading
 from datetime import timedelta
 from typing import Any
 
@@ -23,35 +24,38 @@ from app.db.postgres import get_pg_connection
 
 
 _tables_ensured = False
+_ensure_tables_lock = threading.Lock()
+
 def _ensure_tables():
     global _tables_ensured
-    if _tables_ensured:
-        return
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS decision_context (
-                    id BIGSERIAL PRIMARY KEY,
-                    decision_id BIGINT NOT NULL REFERENCES decisions(id) ON DELETE CASCADE,
-                    market_context JSONB DEFAULT '[]',
-                    competitor_context JSONB DEFAULT '[]',
-                    goal_alignment JSONB DEFAULT '[]',
-                    enriched_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    UNIQUE(decision_id)
-                );
+    with _ensure_tables_lock:
+        if _tables_ensured:
+            return
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS decision_context (
+                        id BIGSERIAL PRIMARY KEY,
+                        decision_id BIGINT NOT NULL REFERENCES decisions(id) ON DELETE CASCADE,
+                        market_context JSONB DEFAULT '[]',
+                        competitor_context JSONB DEFAULT '[]',
+                        goal_alignment JSONB DEFAULT '[]',
+                        enriched_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        UNIQUE(decision_id)
+                    );
 
-                CREATE TABLE IF NOT EXISTS decision_outcome_checks (
-                    id BIGSERIAL PRIMARY KEY,
-                    decision_id BIGINT NOT NULL REFERENCES decisions(id) ON DELETE CASCADE,
-                    check_days INTEGER NOT NULL,
-                    check_date DATE NOT NULL,
-                    checked BOOLEAN DEFAULT FALSE,
-                    outcome_notes TEXT,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                );
-            """)
-            conn.commit()
-    _tables_ensured = True
+                    CREATE TABLE IF NOT EXISTS decision_outcome_checks (
+                        id BIGSERIAL PRIMARY KEY,
+                        decision_id BIGINT NOT NULL REFERENCES decisions(id) ON DELETE CASCADE,
+                        check_days INTEGER NOT NULL,
+                        check_date DATE NOT NULL,
+                        checked BOOLEAN DEFAULT FALSE,
+                        outcome_notes TEXT,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    );
+                """)
+                conn.commit()
+        _tables_ensured = True
 
 
 def enrich_decision(decision_id: int) -> dict[str, Any]:

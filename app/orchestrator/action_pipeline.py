@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 from typing import Any
 
@@ -373,7 +374,6 @@ def _send_whatsapp(message: str):
 
 def handle_approval_message(text: str, sender_phone: str = "") -> dict[str, Any] | None:
     """Parse approval/rejection from WhatsApp message."""
-    import re
     import structlog as _sl
     _log = _sl.get_logger(__name__)
 

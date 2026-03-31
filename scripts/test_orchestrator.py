@@ -154,7 +154,7 @@ def test_t3() -> TestResult:
             return TestResult(tid, name, False, f"Port {PGBOUNCER_PORT} not open — PgBouncer not running?")
         # Try actual query through pgbouncer
         try:
-            rows = _pg_query("SELECT 1", use_pgbouncer=True)
+            _pg_query("SELECT 1", use_pgbouncer=True)
             return TestResult(tid, name, True, f"PgBouncer alive on :{PGBOUNCER_PORT}, query OK")
         except Exception as e:
             # Port open but can't query — indicates misconfiguration
@@ -333,7 +333,7 @@ def test_t11() -> TestResult:
     try:
         code, body = _http_get("/coverage/heatmap")
         if code == 200:
-            return TestResult(tid, name, True, f"GET /coverage/heatmap → 200 OK")
+            return TestResult(tid, name, True, "GET /coverage/heatmap → 200 OK")
         elif code == 404:
             return TestResult(tid, name, False, "GET /coverage/heatmap → 404 Not Found")
         else:
@@ -561,7 +561,7 @@ def run_all_tests() -> list[TestResult]:
         try:
             result = test_fn()
         except Exception as e:
-            result = TestResult(tid, f"(crashed)", False, f"Unexpected error: {e}")
+            result = TestResult(tid, "(crashed)", False, f"Unexpected error: {e}")
         results.append(result)
     return results
 
@@ -573,7 +573,7 @@ def main():
     total = len(results)
 
     print(f"\n{'=' * 60}")
-    print(f"GILBERTUS QUALITY UPGRADE — RAPORT TESTÓW")
+    print("GILBERTUS QUALITY UPGRADE — RAPORT TESTÓW")
     print(f"{'=' * 60}")
     print(f"✅ Passed: {passed}/{total}")
     print(f"❌ Failed: {failed}/{total}")

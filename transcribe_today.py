@@ -1,5 +1,6 @@
 """Download today's Plaud recordings and transcribe with local Whisper."""
-import os, subprocess, requests, json, tempfile
+import subprocess
+import requests
 from datetime import datetime
 from app.ingestion.common.db import document_exists_by_raw_path, insert_chunk, insert_document, insert_source
 
@@ -61,12 +62,12 @@ for rec in today:
         capture_output=True, text=True, timeout=300)
 
     if dl.returncode != 0 or not dl.stdout.strip():
-        print(f"    Download failed")
+        print("    Download failed")
         continue
     print(f"    {int(dl.stdout.strip())/1024:.0f}KB")
 
     # Transcribe with Whisper
-    print(f"    Transcribing...")
+    print("    Transcribing...")
     with open(f"/tmp/whisper_audio/{fid}.mp3", "rb") as f:
         tr = requests.post(f"{WHISPER_URL}/transcribe", files={"file": f}, data={"language": "pl"}, timeout=600)
 
@@ -84,7 +85,7 @@ for rec in today:
     print(f"    {len(transcript)} chars, {len(segments)} segments, {duration:.0f}s")
 
     if not transcript.strip():
-        print(f"    Empty transcript")
+        print("    Empty transcript")
         continue
 
     recorded_at = None

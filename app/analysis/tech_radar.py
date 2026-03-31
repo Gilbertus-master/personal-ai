@@ -9,20 +9,20 @@ Cron: monthly (2nd of month, 5:00 CET — after F2 runs on 1st)
 """
 from __future__ import annotations
 
-import structlog
-
-log = structlog.get_logger(__name__)
-
 import json
 import os
+import threading
 from datetime import datetime, timezone
 from typing import Any
 
+import structlog
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
 from app.db.postgres import get_pg_connection
 from app.db.cost_tracker import log_anthropic_cost
+
+log = structlog.get_logger(__name__)
 
 load_dotenv()
 
@@ -106,69 +106,73 @@ SOLUTION_TOOL = {
 }
 
 
+_tables_lock = threading.Lock()
 _tables_ensured = False
 def _ensure_tables():
     global _tables_ensured
     if _tables_ensured:
         return
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS tech_solutions (
-                    id BIGSERIAL PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    description TEXT,
-                    solution_type TEXT DEFAULT 'build'
-                        CHECK (solution_type IN ('build', 'buy', 'extend')),
-                    target_module TEXT,
-                    capability_description TEXT,
-                    problems_solved JSONB DEFAULT '[]',
-                    estimated_dev_hours NUMERIC DEFAULT 0,
-                    estimated_cost_pln NUMERIC DEFAULT 0,
-                    estimated_annual_savings_pln NUMERIC DEFAULT 0,
-                    roi_ratio NUMERIC DEFAULT 0,
-                    payback_months NUMERIC DEFAULT 0,
-                    strategic_alignment_score INTEGER DEFAULT 50
-                        CHECK (strategic_alignment_score >= 0 AND strategic_alignment_score <= 100),
-                    strategic_goal_ids JSONB DEFAULT '[]',
-                    priority_score INTEGER DEFAULT 50
-                        CHECK (priority_score >= 0 AND priority_score <= 100),
-                    status TEXT DEFAULT 'proposed'
-                        CHECK (status IN ('proposed', 'approved', 'in_development', 'deployed', 'rejected')),
-                    risk_notes TEXT,
-                    confidence NUMERIC DEFAULT 0.5,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                );
-                CREATE INDEX IF NOT EXISTS idx_ts_priority ON tech_solutions(priority_score DESC);
-                CREATE INDEX IF NOT EXISTS idx_ts_status ON tech_solutions(status);
-                CREATE INDEX IF NOT EXISTS idx_ts_type ON tech_solutions(solution_type);
+    with _tables_lock:
+        if _tables_ensured:
+            return
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS tech_solutions (
+                        id BIGSERIAL PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        description TEXT,
+                        solution_type TEXT DEFAULT 'build'
+                            CHECK (solution_type IN ('build', 'buy', 'extend')),
+                        target_module TEXT,
+                        capability_description TEXT,
+                        problems_solved JSONB DEFAULT '[]',
+                        estimated_dev_hours NUMERIC DEFAULT 0,
+                        estimated_cost_pln NUMERIC DEFAULT 0,
+                        estimated_annual_savings_pln NUMERIC DEFAULT 0,
+                        roi_ratio NUMERIC DEFAULT 0,
+                        payback_months NUMERIC DEFAULT 0,
+                        strategic_alignment_score INTEGER DEFAULT 50
+                            CHECK (strategic_alignment_score >= 0 AND strategic_alignment_score <= 100),
+                        strategic_goal_ids JSONB DEFAULT '[]',
+                        priority_score INTEGER DEFAULT 50
+                            CHECK (priority_score >= 0 AND priority_score <= 100),
+                        status TEXT DEFAULT 'proposed'
+                            CHECK (status IN ('proposed', 'approved', 'in_development', 'deployed', 'rejected')),
+                        risk_notes TEXT,
+                        confidence NUMERIC DEFAULT 0.5,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_ts_priority ON tech_solutions(priority_score DESC);
+                    CREATE INDEX IF NOT EXISTS idx_ts_status ON tech_solutions(status);
+                    CREATE INDEX IF NOT EXISTS idx_ts_type ON tech_solutions(solution_type);
 
-                CREATE TABLE IF NOT EXISTS tech_dependencies (
-                    id BIGSERIAL PRIMARY KEY,
-                    solution_id BIGINT NOT NULL REFERENCES tech_solutions(id) ON DELETE CASCADE,
-                    depends_on_id BIGINT REFERENCES tech_solutions(id) ON DELETE SET NULL,
-                    depends_on_name TEXT NOT NULL,
-                    dependency_type TEXT DEFAULT 'blocks'
-                        CHECK (dependency_type IN ('blocks', 'enhances', 'data_source')),
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                );
-                CREATE INDEX IF NOT EXISTS idx_td_solution ON tech_dependencies(solution_id);
-                CREATE INDEX IF NOT EXISTS idx_td_depends ON tech_dependencies(depends_on_id);
+                    CREATE TABLE IF NOT EXISTS tech_dependencies (
+                        id BIGSERIAL PRIMARY KEY,
+                        solution_id BIGINT NOT NULL REFERENCES tech_solutions(id) ON DELETE CASCADE,
+                        depends_on_id BIGINT REFERENCES tech_solutions(id) ON DELETE SET NULL,
+                        depends_on_name TEXT NOT NULL,
+                        dependency_type TEXT DEFAULT 'blocks'
+                            CHECK (dependency_type IN ('blocks', 'enhances', 'data_source')),
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_td_solution ON tech_dependencies(solution_id);
+                    CREATE INDEX IF NOT EXISTS idx_td_depends ON tech_dependencies(depends_on_id);
 
-                CREATE TABLE IF NOT EXISTS tech_roadmap_snapshots (
-                    id BIGSERIAL PRIMARY KEY,
-                    snapshot_date DATE NOT NULL UNIQUE,
-                    roadmap JSONB NOT NULL,
-                    total_solutions INTEGER DEFAULT 0,
-                    total_dev_hours NUMERIC DEFAULT 0,
-                    total_savings_pln NUMERIC DEFAULT 0,
-                    notes TEXT,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                );
-            """)
-            conn.commit()
-    _tables_ensured = True
+                    CREATE TABLE IF NOT EXISTS tech_roadmap_snapshots (
+                        id BIGSERIAL PRIMARY KEY,
+                        snapshot_date DATE NOT NULL UNIQUE,
+                        roadmap JSONB NOT NULL,
+                        total_solutions INTEGER DEFAULT 0,
+                        total_dev_hours NUMERIC DEFAULT 0,
+                        total_savings_pln NUMERIC DEFAULT 0,
+                        notes TEXT,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    );
+                """)
+                conn.commit()
+        _tables_ensured = True
 
 
 # ---------------------------------------------------------------------------

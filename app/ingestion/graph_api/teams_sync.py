@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -158,7 +159,6 @@ def sync_chat_messages(
             body = msg.get("body", {})
             content = body.get("content", "")
             if body.get("contentType") == "html":
-                import re
                 from html import unescape
                 content = re.sub(r"(?is)<.*?>", " ", content)
                 content = unescape(content).strip()

@@ -3,7 +3,6 @@ Faster-Whisper REST API server for Gilbertus.
 Accepts audio files, returns JSON transcription with timestamps and speaker segments.
 """
 import os
-import json
 import tempfile
 from flask import Flask, request, jsonify
 

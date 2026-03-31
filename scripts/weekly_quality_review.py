@@ -17,7 +17,7 @@ import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
-from datetime import datetime, timedelta
+from datetime import datetime
 from statistics import mean
 
 import structlog
@@ -314,7 +314,7 @@ def main() -> None:
     report_lines = [
         f"Weekly Quality Review ({review_week})",
         f"Reviewed: {len(scores_all)}/{len(samples)} queries",
-        f"",
+        "",
         f"Avg Overall: {avg_overall}/5",
         f"  Completeness: {avg_completeness}/5",
         f"  Accuracy: {avg_accuracy}/5",

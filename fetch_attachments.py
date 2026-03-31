@@ -1,5 +1,10 @@
 """Download attachments one-by-one with aggressive retry. Bypass SSL issues."""
-import json, os, base64, time, requests, sys, re
+import os
+import base64
+import time
+import requests
+import sys
+import re
 from datetime import datetime
 from html import unescape
 from app.ingestion.graph_api.auth import get_access_token
@@ -128,9 +133,9 @@ for name, filepath, size in downloaded:
         except Exception as e:
             print(f"  Text failed: {e}")
     elif name.lower().endswith((".xlsx", ".xls")):
-        print(f"  Excel: skipped (would need openpyxl)")
+        print("  Excel: skipped (would need openpyxl)")
     elif name.lower().endswith((".png", ".jpg", ".jpeg", ".gif")):
-        print(f"  Image: skipped")
+        print("  Image: skipped")
     else:
         try:
             with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
@@ -139,7 +144,7 @@ for name, filepath, size in downloaded:
                 all_text.append((name, text[:10000]))
                 print(f"  Generic text: {len(text)} chars")
         except:
-            print(f"  Cannot extract text")
+            print("  Cannot extract text")
 
 # 5. Import attachment texts to DB
 if all_text:

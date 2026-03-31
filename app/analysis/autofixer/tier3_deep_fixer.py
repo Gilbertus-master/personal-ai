@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -206,7 +207,6 @@ def _parse_fix_result(output: str) -> dict:
             except json.JSONDecodeError:
                 continue
     # Try to find in code blocks
-    import re
     json_blocks = re.findall(r'```json\s*\n(.*?)\n```', output, re.DOTALL)
     for block in reversed(json_blocks):
         try:
@@ -218,7 +218,6 @@ def _parse_fix_result(output: str) -> dict:
 
 def _extract_cost(output: str) -> float:
     """Extract cost from claude output."""
-    import re
     for line in output.split("\n"):
         m = re.search(r'"cost_usd":\s*([\d.]+)', line)
         if m:

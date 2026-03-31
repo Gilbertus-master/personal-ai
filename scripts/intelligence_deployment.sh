@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Intelligence Deployment Orchestrator
 # Deploys People & Business intelligence crons + Gilbertus App pages
-set -uo pipefail
+set -euo pipefail
 
 PROJ=/home/sebastian/personal-ai
 LOG="$PROJ/logs/intelligence_deployment.log"
@@ -11,6 +11,14 @@ ts() { date '+%Y-%m-%d %H:%M:%S'; }
 log() { echo "[$(ts)] $*" | tee -a "$LOG"; }
 mkdir -p "$PROJ/logs"
 
+LOCKFILE="/tmp/intelligence_deployment.lock"
+exec 9>"$LOCKFILE"
+if ! flock -n 9; then
+  log "Already running (locked). Exiting."
+  exit 0
+fi
+trap 'flock -u 9; rm -f "$LOCKFILE"' EXIT INT TERM
+
 log "=== Intelligence Deployment — start ==="
 cd "$PROJ"
 
@@ -18,7 +26,7 @@ cd "$PROJ"
 CURRENT_CRONS=$(crontab -l 2>/dev/null | grep -c -v "^#\|^$" || true)
 log "Current crons: $CURRENT_CRONS"
 
-$CLAUDE_BIN --permission-mode bypassPermissions --print --max-turns 80 \
+if ! timeout 3600 $CLAUDE_BIN --dangerously-skip-permissions --print --max-turns 80 --add-dir "$PROJ" \
 "You are deploying People & Business intelligence features to the Gilbertus App.
 
 ## CURRENT STATE
@@ -154,7 +162,7 @@ Add sub-navigation or links from existing /people and /intelligence pages to the
    .venv/bin/python -c 'from app.analysis.org_health import calculate_org_health; print(calculate_org_health())'
 
 5. Commit all changes:
-   git add -A
+   git add app/orchestrator/cron_registry.py frontend/apps/web/app/\(app\)/people/intelligence/ frontend/apps/web/app/\(app\)/intelligence/business/ frontend/packages/
    git commit -m 'feat(intelligence): deploy People & Business daily crons + App pages
 
    - Added 10+ intelligence cron jobs (sentiment, commitments, delegation,
@@ -170,9 +178,10 @@ Add sub-navigation or links from existing /people and /intelligence pages to the
 - Use structlog, not print()
 - Frontend: follow existing patterns (CSS variables, Tailwind, TanStack Query)
 - Use app.config.timezone for any datetime operations
-" 2>&1 | tee -a "$LOG"
-
-log "Exit code: $?"
+" 2>&1 | tee -a "$LOG" ; then
+  log "ERROR: claude agent exited with failure — deployment may be incomplete"
+  exit 1
+fi
 
 # Post-deployment check
 log "Post-deployment verification..."

@@ -11,6 +11,7 @@ import subprocess
 from pathlib import Path
 
 import structlog
+from psycopg import sql
 
 from app.db.postgres import get_pg_connection
 
@@ -63,7 +64,8 @@ def _fix_print_to_structlog(file_paths: list[str]) -> tuple[list[str], str | Non
 
         try:
             content = abs_path.read_text(encoding="utf-8")
-        except Exception:
+        except Exception as e:
+            log.warning("tier1.read_error", file=fp, error=str(e))
             continue
 
         has_print = re.search(r"\bprint\(", content)
@@ -136,7 +138,7 @@ def _fix_print_to_structlog(file_paths: list[str]) -> tuple[list[str], str | Non
                 continue
 
             # Replace print() with log.info()
-            match = re.match(r'print\((.*)\)\s*(?:#.*)?$', stripped)
+            match = re.match(r'print\((.*?)\)\s*(?:#.*)?$', stripped)
             if match:
                 arg = match.group(1)
                 new_lines.append(f"{indent}log.info({arg})")
@@ -147,12 +149,16 @@ def _fix_print_to_structlog(file_paths: list[str]) -> tuple[list[str], str | Non
 
         if modified:
             abs_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
-            verify = _run_cmd([".venv/bin/ruff", "check", fp])
-            if verify.returncode != 0 and "error" in verify.stdout.lower():
+            try:
+                verify = _run_cmd([".venv/bin/ruff", "check", fp])
+                if verify.returncode != 0 and "error" in verify.stdout.lower():
+                    _run_cmd(["git", "checkout", "--", fp])
+                    log.warning("tier1_print_revert", file=fp, reason=verify.stdout[:200])
+                else:
+                    fixed_files.append(fp)
+            except Exception as exc:
                 _run_cmd(["git", "checkout", "--", fp])
-                log.warning("tier1_print_revert", file=fp, reason=verify.stdout[:200])
-            else:
-                fixed_files.append(fp)
+                log.warning("tier1_print_revert", file=fp, reason=str(exc))
 
     return fixed_files, None
 
@@ -167,7 +173,8 @@ def _fix_date_format_shell(file_paths: list[str]) -> tuple[list[str], str | None
 
         try:
             content = abs_path.read_text(encoding="utf-8")
-        except Exception:
+        except Exception as e:
+            log.warning("tier1.read_error", file=fp, error=str(e))
             continue
 
         # Replace bare $(date) that doesn't already have a format
@@ -240,12 +247,10 @@ def _mark_resolved(finding_ids: list[int]) -> None:
     try:
         with get_pg_connection() as conn:
             with conn.cursor() as cur:
-                placeholders = ",".join(["%s"] * len(finding_ids))
-                cur.execute(f"""
-                    UPDATE code_review_findings
-                    SET resolved = TRUE, resolved_at = NOW()
-                    WHERE id IN ({placeholders})
-                """, tuple(finding_ids))
+                query = sql.SQL(
+                    "UPDATE code_review_findings SET resolved = TRUE, resolved_at = NOW() WHERE id IN ({ids})"
+                ).format(ids=sql.SQL(", ").join(sql.Placeholder() * len(finding_ids)))
+                cur.execute(query, tuple(finding_ids))
                 rowcount = cur.rowcount
             conn.commit()
             log.info("autofixer.tier1.mark_resolved", count=len(finding_ids), ids=finding_ids, rowcount=rowcount)
@@ -261,13 +266,10 @@ def _mark_attempted(finding_ids: list[int]) -> None:
     try:
         with get_pg_connection() as conn:
             with conn.cursor() as cur:
-                placeholders = ",".join(["%s"] * len(finding_ids))
-                cur.execute(f"""
-                    UPDATE code_review_findings
-                    SET fix_attempted_at = NOW(),
-                        fix_attempt_count = fix_attempt_count + 1
-                    WHERE id IN ({placeholders})
-                """, tuple(finding_ids))
+                query = sql.SQL(
+                    "UPDATE code_review_findings SET fix_attempted_at = NOW(), fix_attempt_count = fix_attempt_count + 1 WHERE id IN ({ids})"
+                ).format(ids=sql.SQL(", ").join(sql.Placeholder() * len(finding_ids)))
+                cur.execute(query, tuple(finding_ids))
                 rowcount = cur.rowcount
             conn.commit()
             log.info("autofixer.tier1.mark_attempted", count=len(finding_ids), rowcount=rowcount)
@@ -307,6 +309,9 @@ def execute_tier1(cluster: dict) -> dict:
     elif "$(date)" in title_lower:
         strategy_used = "date_format_shell"
         fixed_files, error = _fix_date_format_shell(file_paths)
+    elif "dead" in title_lower or "f841" in title_lower or "unused variable" in title_lower:
+        strategy_used = "dead_code"
+        fixed_files, error = _fix_dead_code(file_paths)
     else:
         error = f"No tier-1 strategy for: {cluster['title']}"
         log.warning("tier1_no_strategy",

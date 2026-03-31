@@ -12,20 +12,21 @@ Cron: co 30 min (po imporcie audio)
 """
 from __future__ import annotations
 
-import structlog
-log = structlog.get_logger(__name__)
-
 import json
 import os
 import subprocess
+import threading
 from datetime import datetime, timezone
 from typing import Any
 
+import structlog
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
 from app.db.postgres import get_pg_connection
 from app.db.cost_tracker import log_anthropic_cost
+
+log = structlog.get_logger(__name__)
 
 load_dotenv()
 
@@ -64,31 +65,34 @@ Zasady:
 
 
 _tables_ensured = False
+_ensure_tables_lock = threading.Lock()
+
 def _ensure_tables() -> None:
     """Create meeting_minutes table if not exists."""
     global _tables_ensured
-    if _tables_ensured:
-        return
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS meeting_minutes (
-                    id BIGSERIAL PRIMARY KEY,
-                    document_id BIGINT REFERENCES documents(id) UNIQUE,
-                    title TEXT,
-                    meeting_date TIMESTAMPTZ,
-                    participants JSONB,
-                    topics JSONB,
-                    decisions JSONB,
-                    action_items JSONB,
-                    summary TEXT,
-                    raw_minutes TEXT,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                )
-            """)
-            conn.commit()
-    log.info("meeting_minutes_table_ensured")
-    _tables_ensured = True
+    with _ensure_tables_lock:
+        if _tables_ensured:
+            return
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS meeting_minutes (
+                        id BIGSERIAL PRIMARY KEY,
+                        document_id BIGINT REFERENCES documents(id) UNIQUE,
+                        title TEXT,
+                        meeting_date TIMESTAMPTZ,
+                        participants JSONB,
+                        topics JSONB,
+                        decisions JSONB,
+                        action_items JSONB,
+                        summary TEXT,
+                        raw_minutes TEXT,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                """)
+                conn.commit()
+        log.info("meeting_minutes_table_ensured")
+        _tables_ensured = True
 
 
 def _get_unprocessed_recordings() -> list[dict[str, Any]]:

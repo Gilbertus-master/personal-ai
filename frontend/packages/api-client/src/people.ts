@@ -9,10 +9,13 @@ import type {
   SentimentTrend,
   SentimentAlertsResponse,
   DelegationScore,
+  DelegationStatsResponse,
   NetworkGraph,
   EvaluateRequest,
   EvaluationResult,
   WellbeingResponse,
+  ResponseTrackingResponse,
+  BlindSpotsResponse,
   PersonTimelineEvent,
   TimelineEventCreate,
   RoleHistory,
@@ -134,4 +137,22 @@ export async function fetchWellbeing(weeks?: number): Promise<WellbeingResponse>
 
 export async function fetchSentimentAlerts(): Promise<SentimentAlertsResponse> {
   return customFetch<SentimentAlertsResponse>({ url: '/sentiment-alerts', method: 'GET' });
+}
+
+export async function fetchResponseTracking(days?: number): Promise<ResponseTrackingResponse> {
+  const queryParams: Record<string, string> = {};
+  if (days) queryParams.days = String(days);
+  return customFetch<ResponseTrackingResponse>({
+    url: '/response-tracking',
+    method: 'GET',
+    params: Object.keys(queryParams).length ? queryParams : undefined,
+  });
+}
+
+export async function fetchBlindSpots(): Promise<BlindSpotsResponse> {
+  return customFetch<BlindSpotsResponse>({ url: '/blind-spots', method: 'GET' });
+}
+
+export async function fetchDelegationStats(): Promise<DelegationStatsResponse> {
+  return customFetch<DelegationStatsResponse>({ url: '/delegation', method: 'GET' });
 }

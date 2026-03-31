@@ -189,3 +189,34 @@ export interface RoleHistoryCreate {
 export interface OpenLoopCreate {
   description: string;
 }
+
+// === Response Tracking ===
+export interface ResponseTrackingResponse {
+  days: number;
+  stats: Array<{
+    person: string;
+    channel: string;
+    avg_response_hours: number;
+    count: number;
+  }>;
+}
+
+// === Blind Spots ===
+export interface BlindSpotsResponse {
+  blind_spots: Array<{
+    area: string;
+    severity: string;
+    description: string;
+    last_data: string | null;
+  }>;
+}
+
+// === Delegation Stats (aggregate) ===
+export interface DelegationStatsResponse {
+  rankings: Array<{
+    person: string;
+    score: number;
+    tasks_delegated: number;
+    completion_rate: number;
+  }>;
+}
