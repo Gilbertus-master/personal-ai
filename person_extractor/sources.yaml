@@ -1,0 +1,101 @@
+# sources.yaml — konfiguracja tabel źródłowych person_extractor
+# Dodaj nowe źródło = nowa sekcja. Pipeline automatycznie je wykryje.
+
+sources:
+
+  - name: contacts
+    enabled: true
+    adapter: contacts
+    table: contacts
+    watermark_column: updated_at
+    columns:
+      full_name: full_name
+      email: email
+      phone: phone
+      job_title: job_title
+      company: company
+    channel: email
+    extract_text: false
+
+  - name: emails
+    enabled: true
+    adapter: emails
+    table: emails
+    watermark_column: received_at
+    columns:
+      from_name: from_name
+      from_email: from_email
+      to_emails: to_emails
+      cc_emails: cc_emails
+      subject: subject
+      body: body
+      thread_id: thread_id
+    channel: email
+    extract_text: true
+    llm_extract_fields:
+      - mentioned_persons
+      - commitments
+      - topics
+
+  - name: telegram_messages
+    enabled: false
+    adapter: messages
+    table: telegram_messages
+    watermark_column: sent_at
+    columns:
+      sender_name: sender_name
+      sender_username: sender_username
+      recipient_name: recipient_name
+      message_text: text
+      chat_id: chat_id
+    channel: telegram
+    extract_text: true
+    llm_extract_fields:
+      - mentioned_persons
+      - commitments
+
+  - name: whatsapp_messages
+    enabled: false
+    adapter: messages
+    table: whatsapp_messages
+    watermark_column: sent_at
+    columns:
+      sender_phone: sender_phone
+      sender_name: sender_name
+      message_text: body
+    channel: whatsapp
+    extract_text: false
+
+  - name: calendar_events
+    enabled: false
+    adapter: calendar
+    table: calendar_events
+    watermark_column: created_at
+    columns:
+      attendee_emails: attendees_json
+      organizer_email: organizer_email
+      title: title
+      description: description
+    channel: email
+    extract_text: false
+
+  - name: custom_contacts_table
+    enabled: false
+    adapter: generic_sql
+    table: my_custom_table
+    watermark_column: modified_at
+    columns:
+      full_name: person_full_name
+      email: contact_email
+      phone: mobile_number
+    channel: email
+    extract_text: false
+
+# Globalne ustawienia
+settings:
+  watermark_overlap_hours: 1
+  llm_batch_size: 10
+  llm_max_tokens: 1024
+  min_confidence_for_auto_merge: 0.90
+  fuzzy_name_threshold: 0.85
+  log_level: INFO
