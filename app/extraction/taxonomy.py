@@ -20,6 +20,7 @@ EVENT_TYPES = [
     "escalation",
     "blocker",
     "task_assignment",
+    "task_completed",
     "approval",
     "rejection",
 ]
