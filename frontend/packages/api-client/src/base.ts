@@ -1,9 +1,18 @@
 declare const process: { env: Record<string, string | undefined> } | undefined;
 
-const BASE_URL =
-  typeof process !== 'undefined'
-    ? process.env.NEXT_PUBLIC_GILBERTUS_API_URL ?? 'http://127.0.0.1:8000'
-    : 'http://127.0.0.1:8000';
+function resolveBaseUrl(): string {
+  // Browser: derive API URL from the page host (works on localhost, WSL2 IP, etc.)
+  if (typeof window !== 'undefined') {
+    return `http://${window.location.hostname}:8000`;
+  }
+  // Server-side (SSR): use env variable
+  if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_GILBERTUS_API_URL) {
+    return process.env.NEXT_PUBLIC_GILBERTUS_API_URL;
+  }
+  return 'http://127.0.0.1:8000';
+}
+
+const BASE_URL = resolveBaseUrl();
 
 let apiKey: string | null = null;
 

@@ -3,7 +3,7 @@ import os
 import random
 import time
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any
 
 from dotenv import load_dotenv, dotenv_values
@@ -60,8 +60,7 @@ app = FastAPI(
 CORS_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
 CORS_ORIGINS = [o.strip() for o in CORS_ORIGINS if o.strip()]
 if not CORS_ORIGINS:
-    CORS_ORIGINS = ["http://localhost:3000", "http://localhost:8080",
-                    "http://127.0.0.1:3000", "http://127.0.0.1:8080"]
+    CORS_ORIGINS = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -199,12 +198,13 @@ def scorecard(request: Request, person_slug: str):
             # Recent events (last 30 days)
             recent = []
             if eid:
+                cutoff_date = (datetime.now(timezone.utc) - timedelta(days=30)).date().isoformat()
                 cur.execute("""
                     SELECT e.event_type, e.event_time, e.summary
                     FROM events e JOIN event_entities ee ON ee.event_id = e.id
-                    WHERE ee.entity_id = %s AND e.event_time > NOW() - INTERVAL '30 days'
+                    WHERE ee.entity_id = %s AND e.event_time > %s
                     ORDER BY e.event_time DESC LIMIT 10
-                """, (eid,))
+                """, (eid, cutoff_date))
                 recent = [{"type": r[0], "time": str(r[1]) if r[1] else None, "summary": r[2]} for r in cur.fetchall()]
 
             # Open loops
@@ -232,7 +232,8 @@ def scorecard(request: Request, person_slug: str):
 # =========================
 
 @app.post("/opportunities/scan")
-def scan_opportunities(hours: int = 2):
+@limiter.limit("5/minute")
+def scan_opportunities(request: Request, hours: int = 2):
     return run_opportunity_scan(hours=hours, notify=False)
 
 @app.get("/opportunities")
@@ -2102,6 +2103,7 @@ def fulfill_compliance_obligation(obligation_id: int, body: dict = {}):
 def compliance_deadlines(days_ahead: int = 30, area_code: str | None = None):
     """Upcoming compliance deadlines."""
     from app.db.postgres import get_pg_connection
+    cutoff_date = (datetime.now(timezone.utc) + timedelta(days=days_ahead)).date().isoformat()
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             sql = """
@@ -2109,10 +2111,10 @@ def compliance_deadlines(days_ahead: int = 30, area_code: str | None = None):
                        d.recurrence, a.code as area_code, a.name_pl as area_name
                 FROM compliance_deadlines d
                 LEFT JOIN compliance_areas a ON a.id = d.area_id
-                WHERE d.deadline_date <= CURRENT_DATE + %s
+                WHERE d.deadline_date <= %s
                   AND d.status IN ('pending','in_progress')
             """
-            params: list = [days_ahead]
+            params: list = [cutoff_date]
             if area_code:
                 sql += " AND a.code = %s"
                 params.append(area_code.upper())
@@ -2129,18 +2131,19 @@ def compliance_deadlines(days_ahead: int = 30, area_code: str | None = None):
 def compliance_deadlines_overdue():
     """Overdue compliance deadlines."""
     from app.db.postgres import get_pg_connection
+    today = datetime.now(timezone.utc).date().isoformat()
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT d.id, d.title, d.deadline_date, d.deadline_type,
                        a.code, a.name_pl,
-                       CURRENT_DATE - d.deadline_date as days_overdue
+                       %s::date - d.deadline_date as days_overdue
                 FROM compliance_deadlines d
                 LEFT JOIN compliance_areas a ON a.id = d.area_id
                 WHERE d.status = 'overdue'
-                   OR (d.deadline_date < CURRENT_DATE AND d.status = 'pending')
+                   OR (d.deadline_date < %s::date AND d.status = 'pending')
                 ORDER BY d.deadline_date ASC
-            """)
+            """, (today, today))
             return {"overdue": [
                 {"id": r[0], "title": r[1], "date": str(r[2]), "type": r[3],
                  "area_code": r[4], "area_name": r[5], "days_overdue": r[6]}
@@ -2149,7 +2152,8 @@ def compliance_deadlines_overdue():
 
 
 @app.post("/compliance/matters/{matter_id}/research")
-def compliance_research(matter_id: int, body: dict = {}):
+@limiter.limit("5/minute")
+def compliance_research(request: Request, matter_id: int, body: dict = {}):
     """Trigger AI research on compliance matter."""
     from app.analysis.legal_compliance import research_regulation
     return research_regulation(matter_id, query=body.get("query"))
@@ -2163,7 +2167,8 @@ def compliance_advance(matter_id: int, body: dict = {}):
 
 
 @app.post("/compliance/matters/{matter_id}/report")
-def compliance_report(matter_id: int):
+@limiter.limit("5/minute")
+def compliance_report(request: Request, matter_id: int):
     """Generate compliance report for matter."""
     from app.analysis.legal_compliance import generate_compliance_report
     return generate_compliance_report(matter_id)
@@ -2184,7 +2189,8 @@ def compliance_risk_heatmap():
 
 
 @app.post("/compliance/scan")
-def compliance_scan(hours: int = 24):
+@limiter.limit("5/minute")
+def compliance_scan(request: Request, hours: int = 24):
     """Scan recent chunks for regulatory changes."""
     from app.analysis.legal.regulatory_scanner import scan_for_regulatory_changes
     return scan_for_regulatory_changes(hours=hours)
@@ -2700,7 +2706,8 @@ def create_scenario_endpoint(title: str, description: str = "", scenario_type: s
     return create_scenario(title=title, description=description, scenario_type=scenario_type)
 
 @app.post("/scenarios/{scenario_id}/analyze")
-def analyze_scenario_endpoint(scenario_id: int):
+@limiter.limit("5/minute")
+def analyze_scenario_endpoint(request: Request, scenario_id: int):
     from app.analysis.scenario_analyzer import analyze_scenario
     return analyze_scenario(scenario_id=scenario_id)
 
@@ -2712,7 +2719,8 @@ def compare_scenarios_endpoint(ids: str = ""):
     return compare_scenarios(scenario_ids=id_list)
 
 @app.post("/scenarios/auto-scan")
-def auto_scenario_scan():
+@limiter.limit("5/minute")
+def auto_scenario_scan(request: Request):
     from app.analysis.scenario_analyzer import run_auto_scenarios
     return run_auto_scenarios()
 
@@ -2727,7 +2735,8 @@ def market_dashboard(days: int = 7):
     return get_market_dashboard(days=days)
 
 @app.post("/market/scan")
-def market_scan():
+@limiter.limit("5/minute")
+def market_scan(request: Request):
     from app.analysis.market_intelligence import run_market_scan
     return run_market_scan()
 
@@ -2762,7 +2771,8 @@ def add_competitor_endpoint(name: str, krs_number: str | None = None, industry: 
     return add_competitor(name=name, krs_number=krs_number, industry=industry, watch_level=watch_level)
 
 @app.post("/competitors/scan")
-def competitor_scan():
+@limiter.limit("5/minute")
+def competitor_scan(request: Request):
     from app.analysis.competitor_intelligence import run_competitor_scan
     return run_competitor_scan()
 
@@ -2809,7 +2819,8 @@ def business_lines_endpoint():
     return get_business_lines()
 
 @app.post("/process-intel/discover")
-def discover_business_lines_endpoint():
+@limiter.limit("5/minute")
+def discover_business_lines_endpoint(request: Request):
     from app.analysis.business_lines import discover_business_lines
     return discover_business_lines(force=True)
 
@@ -2819,7 +2830,8 @@ def discovered_processes(process_type: str | None = None):
     return get_processes(process_type=process_type)
 
 @app.post("/process-intel/mine")
-def mine_processes_endpoint():
+@limiter.limit("5/minute")
+def mine_processes_endpoint(request: Request):
     from app.analysis.process_mining import mine_processes
     return mine_processes(force=True)
 
@@ -2829,7 +2841,8 @@ def app_inventory_endpoint():
     return get_app_inventory()
 
 @app.post("/process-intel/scan-apps")
-def scan_apps_endpoint():
+@limiter.limit("5/minute")
+def scan_apps_endpoint(request: Request):
     from app.analysis.app_inventory import scan_applications
     return scan_applications()
 
@@ -2839,7 +2852,8 @@ def data_flows_endpoint():
     return get_data_flows()
 
 @app.post("/process-intel/map-flows")
-def map_flows_endpoint():
+@limiter.limit("5/minute")
+def map_flows_endpoint(request: Request):
     from app.analysis.data_flow_mapper import map_data_flows
     return map_data_flows()
 
@@ -2849,14 +2863,16 @@ def optimizations_endpoint():
     return get_optimization_dashboard()
 
 @app.post("/process-intel/plan")
-def generate_plans_endpoint():
+@limiter.limit("5/minute")
+def generate_plans_endpoint(request: Request):
     from app.analysis.optimization_planner import generate_plans
     return generate_plans()
 
 
 # F1: Deep App Analysis
 @app.post("/process-intel/scan-apps-deep")
-def scan_apps_deep_endpoint():
+@limiter.limit("5/minute")
+def scan_apps_deep_endpoint(request: Request):
     from app.analysis.app_inventory import scan_applications_deep
     return scan_applications_deep()
 
@@ -2871,7 +2887,8 @@ def app_analysis_detail_endpoint(app_id: int):
     return get_app_deep_analysis(app_id=app_id)
 
 @app.post("/process-intel/app-costs")
-def app_costs_endpoint():
+@limiter.limit("5/minute")
+def app_costs_endpoint(request: Request):
     from app.analysis.app_inventory import analyze_app_costs
     return analyze_app_costs()
 
@@ -2883,12 +2900,14 @@ def app_replacement_ranking_endpoint():
 
 # F2: Employee Automation Analysis (CEO-only)
 @app.post("/process-intel/analyze-employee/{person_slug}")
-def analyze_employee_endpoint(person_slug: str):
+@limiter.limit("5/minute")
+def analyze_employee_endpoint(request: Request, person_slug: str):
     from app.analysis.employee_automation import analyze_work_profile
     return analyze_work_profile(person_slug)
 
 @app.post("/process-intel/analyze-all-employees")
-def analyze_all_employees_endpoint(organization: str | None = None):
+@limiter.limit("5/minute")
+def analyze_all_employees_endpoint(request: Request, organization: str | None = None):
     from app.analysis.employee_automation import analyze_all_employees
     return analyze_all_employees(organization=organization)
 
@@ -2910,7 +2929,8 @@ def automation_roadmap_endpoint():
 
 # F3: Tech Radar
 @app.post("/process-intel/discover-tech")
-def discover_tech_endpoint():
+@limiter.limit("5/minute")
+def discover_tech_endpoint(request: Request):
     from app.analysis.tech_radar import discover_solutions
     return discover_solutions(force=True)
 
@@ -2958,7 +2978,8 @@ def _run_in_background(job_id: str, fn, *args, **kwargs):
     t.start()
 
 @app.post("/process-intel/discover-bg")
-def discover_business_lines_bg():
+@limiter.limit("5/minute")
+def discover_business_lines_bg(request: Request):
     """Odkrywanie linii biznesowych w tle — zwraca job_id natychmiast."""
     from app.analysis.business_lines import discover_business_lines
     job_id = str(_uuid.uuid4())[:8]
@@ -2966,7 +2987,8 @@ def discover_business_lines_bg():
     return {"job_id": job_id, "status": "queued", "message": "Odkrywanie uruchomione w tle"}
 
 @app.post("/process-intel/mine-bg")
-def mine_processes_bg():
+@limiter.limit("5/minute")
+def mine_processes_bg(request: Request):
     """Wydobywanie procesów w tle — zwraca job_id natychmiast."""
     from app.analysis.process_mining import mine_processes
     job_id = str(_uuid.uuid4())[:8]
@@ -2974,7 +2996,8 @@ def mine_processes_bg():
     return {"job_id": job_id, "status": "queued", "message": "Wydobywanie uruchomione w tle"}
 
 @app.post("/process-intel/optimize-bg")
-def optimize_processes_bg():
+@limiter.limit("5/minute")
+def optimize_processes_bg(request: Request):
     """Generowanie optymalizacji w tle — zwraca job_id natychmiast."""
     from app.analysis.process_mining import generate_optimizations
     job_id = str(_uuid.uuid4())[:8]
