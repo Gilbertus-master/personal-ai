@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 
 import psycopg
 from psycopg_pool import ConnectionPool
@@ -10,7 +11,7 @@ load_dotenv()
 
 _conninfo = psycopg.conninfo.make_conninfo(
     host=os.getenv("POSTGRES_HOST", "127.0.0.1"),
-    port=int(os.getenv("PGBOUNCER_PORT", os.getenv("POSTGRES_PORT", "5433"))),
+    port=int(os.getenv("POSTGRES_PORT", "5432")),
     dbname=os.getenv("POSTGRES_DB", "gilbertus"),
     user=os.getenv("POSTGRES_USER", "gilbertus"),
     password=os.getenv("POSTGRES_PASSWORD", "gilbertus"),
@@ -24,7 +25,7 @@ _pool = ConnectionPool(
 )
 
 
-def get_pg_connection():
+def get_pg_connection() -> Iterator[psycopg.Connection]:
     """Return a connection from the pool. Use as context manager:
         with get_pg_connection() as conn:
             ...
