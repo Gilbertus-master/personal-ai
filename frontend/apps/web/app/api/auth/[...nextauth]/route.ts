@@ -1,5 +1,5 @@
-// Auth route stub — works for both dev (no Azure AD configured) and Tauri builds.
-// Returns minimal valid JSON responses so NextAuth client doesn't crash.
+// Auth route stub — works for dev (no Azure AD configured).
+// Returns proper NextAuth v5 responses so SessionProvider resolves correctly.
 export const dynamic = 'force-dynamic';
 
 export function generateStaticParams() {
@@ -11,7 +11,14 @@ export async function GET(req: Request): Promise<Response> {
   const path = url.pathname;
 
   if (path.endsWith('/session')) {
-    return Response.json(null); // no session = not authenticated
+    // NextAuth v5 SessionProvider expects this exact shape for "no session"
+    return new Response(JSON.stringify({ user: null, expires: '' }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
+    });
   }
   if (path.endsWith('/csrf')) {
     return Response.json({ csrfToken: 'dev-stub' });
