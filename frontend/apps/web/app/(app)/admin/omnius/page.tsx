@@ -23,7 +23,7 @@ import {
 export default function OmniusBridgePage() {
   return (
     <RbacGate
-      roles={['gilbertus_admin']}
+      roles={['owner', 'gilbertus_admin']}
       fallback={<p className="p-6 text-[var(--text-secondary)]">Brak dostępu</p>}
     >
       <OmniusBridgeContent />

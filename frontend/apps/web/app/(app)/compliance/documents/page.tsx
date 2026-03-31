@@ -25,11 +25,11 @@ export default function DocumentsPage() {
   const store = useComplianceStore();
 
   return (
-    <RbacGate roles={['ceo', 'board', 'director', 'gilbertus_admin']}>
+    <RbacGate roles={['owner', 'ceo', 'board', 'director', 'gilbertus_admin']}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-[var(--text)]">Dokumenty compliance</h1>
-          <RbacGate roles={['ceo', 'gilbertus_admin']}>
+          <RbacGate roles={['owner', 'ceo', 'gilbertus_admin']}>
             <button
               onClick={() => setShowGenerate(true)}
               className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-white transition-colors"
@@ -54,7 +54,7 @@ export default function DocumentsPage() {
           onStatusChange={store.setDocStatus}
           onStaleToggle={store.setShowStaleOnly}
           renderActions={(doc) => (
-            <RbacGate roles={['ceo', 'gilbertus_admin']}>
+            <RbacGate roles={['owner', 'ceo', 'gilbertus_admin']}>
               <DocumentActions
                 documentId={doc.id}
                 currentStatus={doc.status}

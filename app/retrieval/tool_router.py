@@ -23,8 +23,10 @@ SOURCE_GROUPS: dict[str, list[str]] = {
     "business_comms": ["email", "teams", "audio_transcript", "calendar"],
     "trading": ["document", "spreadsheet", "email", "pdf"],
     "knowledge": ["document", "chatgpt", "audio_transcript", "pdf"],
-    "all": [],  # empty = no filter
 }
+
+# Groups that return no filter (query all sources)
+_NO_FILTER_GROUPS = {"all"}
 
 # ---------------------------------------------------------------------------
 # Keyword patterns → group mapping
@@ -72,12 +74,12 @@ def route_tools(
     if not matched_group:
         matched_group = _QUESTION_TYPE_DEFAULTS.get(question_type or "", "all")
 
-    sources = SOURCE_GROUPS.get(matched_group, [])
-
-    if not sources:
+    # Check if matched group means "no filter"
+    if matched_group in _NO_FILTER_GROUPS:
         log.info("tool_router_all", group=matched_group, query=query[:80])
         return None  # no filter
 
+    sources = SOURCE_GROUPS.get(matched_group, [])
     log.info("tool_router_matched", group=matched_group, sources=sources, query=query[:80])
     return sources
 

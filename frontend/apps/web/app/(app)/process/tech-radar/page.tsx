@@ -100,7 +100,7 @@ export default function TechRadarPage() {
 
   return (
     <RbacGate
-      roles={['board', 'ceo']}
+      roles={['owner', 'board', 'ceo']}
       permission="config:write:system"
       fallback={
         <div className="flex items-center justify-center h-64 text-[var(--text-secondary)]">

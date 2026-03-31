@@ -63,7 +63,7 @@ export default function DashboardPage() {
     }
   };
 
-  const isFullAccess = role === 'gilbertus_admin' || role === 'ceo';
+  const isFullAccess = role === 'gilbertus_admin' || role === 'ceo' || role === 'owner';
   const isBoardAccess = isFullAccess || role === 'board';
   const isOperator = role === 'operator';
   const isSpecialist = role === 'specialist';

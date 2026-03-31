@@ -40,7 +40,7 @@ const BASE_TABS: { id: IntelTab; label: string }[] = [
 function IntelligenceContent() {
   const { role } = useRole();
   const store = useIntelligenceStore();
-  const isCeo = role === 'ceo' || role === 'gilbertus_admin';
+  const isCeo = role === 'ceo' || role === 'gilbertus_admin' || role === 'owner';
 
   const orgHealth = useOrgHealth();
   const assessMutation = useAssessOrgHealth();
@@ -171,7 +171,7 @@ function IntelligenceContent() {
 export default function IntelligencePage() {
   return (
     <RbacGate
-      roles={['ceo', 'board', 'gilbertus_admin']}
+      roles={['owner', 'ceo', 'board', 'gilbertus_admin']}
       fallback={
         <div className="flex items-center justify-center h-full">
           <p className="text-[var(--text-secondary)]">Brak dostepu do wywiadu biznesowego</p>

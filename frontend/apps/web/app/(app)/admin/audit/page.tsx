@@ -6,7 +6,7 @@ import { useAdminStore } from '@/lib/stores/admin-store';
 
 export default function AuditPage() {
   return (
-    <RbacGate roles={['gilbertus_admin']} fallback={<p className="p-6 text-[var(--text-secondary)]">Brak dostępu</p>}>
+    <RbacGate roles={['owner', 'gilbertus_admin']} fallback={<p className="p-6 text-[var(--text-secondary)]">Brak dostępu</p>}>
       <AuditPageContent />
     </RbacGate>
   );

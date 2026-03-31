@@ -35,6 +35,7 @@ from app.analysis.opportunity_detector import run_opportunity_scan
 from app.evaluation.data_collector import collect_person_data
 from app.evaluation.evaluator import evaluate_person
 from app.retrieval.alerts import get_alerts, run_alerts_check
+from app.retrieval.tool_router import route_tools
 from app.api.plaud_webhook import router as plaud_router
 from app.api.voice import router as voice_router
 from app.api.decisions import router as decisions_router
@@ -1188,7 +1189,6 @@ def ask(body: AskRequest, request: Request) -> AskResponse:
 
     # Tool routing: smart source group inference when source_types not explicit
     if _ENV_FLAGS.get("ENABLE_TOOL_ROUTING", "false").lower() == "true":
-        from app.retrieval.tool_router import route_tools
         routed_sources = route_tools(
             query=ask_req.query,
             question_type=interpreted.question_type,

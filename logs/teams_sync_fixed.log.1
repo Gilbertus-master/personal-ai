@@ -1,0 +1,50 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/sebastian/personal-ai/app/ingestion/graph_api/teams_sync.py", line 248, in <module>
+    main()
+  File "/home/sebastian/personal-ai/app/ingestion/graph_api/teams_sync.py", line 244, in main
+    sync_all_chats(source_name=source_name, limit_per_chat=limit)
+  File "/home/sebastian/personal-ai/app/ingestion/graph_api/teams_sync.py", line 205, in sync_all_chats
+    imported, chunks = sync_chat_messages(
+                       ^^^^^^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/app/ingestion/graph_api/teams_sync.py", line 135, in sync_chat_messages
+    sender_name = sender.get("user", {}).get("displayName") if sender else None
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'get'
+Found 1069 Teams chats
+  Syncing: group (group)
+    → 34 messages, 34 chunks
+  Syncing: HANDEL WŁASNY (group)
+    → 36 messages, 36 chunks
+  Syncing: EFETY (group)
+    → 46 messages, 46 chunks
+  Syncing: oneOnOne (oneOnOne)
+    → 42 messages, 42 chunks
+  Syncing: oneOnOne (oneOnOne)
+    → 29 messages, 29 chunks
+  Syncing: group (group)
+    → 34 messages, 34 chunks
+  Syncing: oneOnOne (oneOnOne)
+    → 41 messages, 41 chunks
+  Syncing: oneOnOne (oneOnOne)
+    → 20 messages, 20 chunks
+  Syncing: UZGADNIANIE KSIĄŻEK (group)
+    → 27 messages, 27 chunks
+  Syncing: oneOnOne (oneOnOne)
+    → 32 messages, 32 chunks
+  Syncing: oneOnOne (oneOnOne)
+    → 3 messages, 3 chunks
+  Syncing: EEX (group)
+  Error syncing chat EEX: 400 Client Error: Bad Request for url: https://graph.microsoft.com/v1.0/me/chats/19:6022212e40d44665be771ac5071d38e0@thread.v2/messages?$top=50&$skiptoken=U291cmNlPU1lc3NhZ2luZ0Zyb250RW5kIyNUeXBlPVN5bmNTdGF0ZSMjQ29udGludWF0aW9uVG9rZW49M2UyZDAwMDAwMDMxMzkzYTM2MzAzMjMyMzIzMTMyNjUzNDMwNjQzNDM0MzYzNjM1NjI2NTM3MzczMTYxNjMzNTMwMzczMTY0MzMzODY1MzA0MDc0Njg3MjY1NjE2NDJlNzYzMjAxMzFkMTA4ZDU5YjAxMDAwMDY1NzdhMTFlOWQwMTAwMDA%3D&%24top=50
+    → 2 messages, 2 chunks
+  Syncing: VAT w grupie (group)
+    → 34 messages, 34 chunks
+  Syncing: oneOnOne (oneOnOne)
+    → 30 messages, 30 chunks
+  Syncing: Asset Optimazation Commercial Pipeline and Implementation Review (meeting)
+  Error syncing chat Asset Optimazation Commercial Pipeline and Implementation Review: 400 Client Error: Bad Request for url: https://graph.microsoft.com/v1.0/me/chats/19:meeting_NWRiMjQ4YzUtNWJlNi00ODMzLTlmYmItMjYzODM5OWUwYTRk@thread.v2/messages?$top=50&$skiptoken=U291cmNlPU1lc3NhZ2luZ0Zyb250RW5kIyNUeXBlPVN5bmNTdGF0ZSMjQ29udGludWF0aW9uVG9rZW49M2U0NTAwMDAwMDMxMzkzYTZkNjU2NTc0Njk2ZTY3NWY0ZTU3NTI2OTRkNmE1MTM0NTk3YTU1NzQ0ZTU3NGE2YzRlNjkzMDMwNGY0NDRkN2E0YzU0NmM2ZDU5NmQ0OTc0NGQ2YTU5N2E0ZjQ0NGQzNTRmNTc1NTc3NTk1NDUyNmI0MDc0Njg3MjY1NjE2NDJlNzYzMjAxZDJiNDRmMjI5YjAxMDAwMGIxNDkzZDFiOWQwMTAwMDA%3D&%24top=50
+    → 19 messages, 19 chunks
+  Syncing: oneOnOne (oneOnOne)
+    → 42 messages, 42 chunks
+  Syncing: oneOnOne (oneOnOne)

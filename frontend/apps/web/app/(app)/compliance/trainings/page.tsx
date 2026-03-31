@@ -14,12 +14,12 @@ export default function TrainingsPage() {
   const store = useComplianceStore();
 
   return (
-    <RbacGate roles={['ceo', 'board', 'director', 'gilbertus_admin']}>
+    <RbacGate roles={['owner', 'ceo', 'board', 'director', 'gilbertus_admin']}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-[var(--text)]">Szkolenia compliance</h1>
-          <RbacGate roles={['ceo', 'board', 'gilbertus_admin']}>
+          <RbacGate roles={['owner', 'ceo', 'board', 'gilbertus_admin']}>
             <button
               onClick={() => setShowCreate(true)}
               className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-white transition-colors"

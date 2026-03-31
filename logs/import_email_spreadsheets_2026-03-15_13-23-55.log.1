@@ -1,0 +1,112 @@
+==> KATALOG PROJEKTU
+/home/sebastian/personal-ai
+==> STATUS KONTENERÓW
+NAME                 IMAGE                  COMMAND                  SERVICE    CREATED      STATUS                  PORTS
+gilbertus-postgres   postgres:16            "docker-entrypoint.s…"   postgres   6 days ago   Up 24 hours (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+gilbertus-qdrant     qdrant/qdrant:latest   "./entrypoint.sh"        qdrant     6 days ago   Up 24 hours             0.0.0.0:6333-6334->6333-6334/tcp, [::]:6333-6334->6333-6334/tcp
+==> BACKUP PRZED IMPORTEM
+==> Tworze backup w: backups/db/2026-03-15_13-23-55
+==> Backup gotowy
+total 7.3M
+-rw-r--r-- 1 sebastian sebastian  266 Mar 15 13:23 manifest.json
+-rw-r--r-- 1 sebastian sebastian 7.3M Mar 15 13:23 postgres.dump
+-rw-r--r-- 1 sebastian sebastian  392 Mar 15 13:23 qdrant.tar.zst
+==> IMPORT
+
+[1] Processing: data/raw/email/Items.1.001.SJab/SharePoint/TematyHRdlaZarzdu/Shared Documents/Budżet zatrudnienia/2024/Wersje nieaktualne/20231219_People Budget 2024_weryfikacja Zarządu_v4.xlsx
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/sebastian/personal-ai/app/ingestion/spreadsheets/importer.py", line 103, in <module>
+    main()
+  File "/home/sebastian/personal-ai/app/ingestion/spreadsheets/importer.py", line 99, in main
+    import_one_spreadsheet(sys.argv[1])
+  File "/home/sebastian/personal-ai/app/ingestion/spreadsheets/importer.py", line 49, in import_one_spreadsheet
+    parsed = parse_spreadsheet_file(file_path)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/app/ingestion/spreadsheets/parser.py", line 77, in parse_spreadsheet_file
+    text = read_xlsx(path)
+           ^^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/app/ingestion/spreadsheets/parser.py", line 46, in read_xlsx
+    wb = load_workbook(filename=str(path), data_only=True, read_only=True)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/openpyxl/reader/excel.py", line 346, in load_workbook
+    reader = ExcelReader(filename, read_only, keep_vba,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/openpyxl/reader/excel.py", line 123, in __init__
+    self.archive = _validate_archive(fn)
+                   ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/openpyxl/reader/excel.py", line 95, in _validate_archive
+    archive = ZipFile(filename, 'r')
+              ^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/zipfile/__init__.py", line 1365, in __init__
+    self._RealGetContents()
+  File "/usr/lib/python3.12/zipfile/__init__.py", line 1432, in _RealGetContents
+    raise BadZipFile("File is not a zip file")
+zipfile.BadZipFile: File is not a zip file
+
+[2] Processing: data/raw/email/Items.1.001.SJab/SharePoint/tomasz_dominiak_respect_energy/Documents/Pulpit/praca/pliki i zadania/2025-07/PM_1068/PM_1068_NEW_PRICES/sebastian/DUB_ALONE_PM_1068_BESS_200_100_2_PV_100_WIND_100_v4.1_BASE_S.xlsx
+Imported spreadsheet: data/raw/email/Items.1.001.SJab/SharePoint/tomasz_dominiak_respect_energy/Documents/Pulpit/praca/pliki i zadania/2025-07/PM_1068/PM_1068_NEW_PRICES/sebastian/DUB_ALONE_PM_1068_BESS_200_100_2_PV_100_WIND_100_v4.1_BASE_S.xlsx
+Type: xlsx
+Title: DUB_ALONE_PM_1068_BESS_200_100_2_PV_100_WIND_100_v4.1_BASE_S.xlsx
+Chars: 153727
+Chunks: 35
+
+[3] Processing: data/raw/email/Items.1.001.SJab/SharePoint/tomasz_dominiak_respect_energy/Documents/Pulpit/praca/pliki i zadania/2025-07/PM_1068/PM_1068_NEW_PRICES/sebastian/DUB_ALONE_PM_1068_BESS_200_100_2_PV_100_WIND_100_v4.1_BASE_S_1.xlsx
+Imported spreadsheet: data/raw/email/Items.1.001.SJab/SharePoint/tomasz_dominiak_respect_energy/Documents/Pulpit/praca/pliki i zadania/2025-07/PM_1068/PM_1068_NEW_PRICES/sebastian/DUB_ALONE_PM_1068_BESS_200_100_2_PV_100_WIND_100_v4.1_BASE_S_1.xlsx
+Type: xlsx
+Title: DUB_ALONE_PM_1068_BESS_200_100_2_PV_100_WIND_100_v4.1_BASE_S_1.xlsx
+Chars: 153727
+Chunks: 35
+
+[4] Processing: data/raw/email/Items.1.001.SJab/SharePoint/tomasz_dominiak_respect_energy/Documents/Pulpit/praca/pliki i zadania/2025-07/PM_1068/PM_1068_NEW_PRICES/sebastian/DUB_ALONE_PM_1068_BESS_400_100_2_PV_100_WIND_100_v4.1_BASE_S.xlsx
+Imported spreadsheet: data/raw/email/Items.1.001.SJab/SharePoint/tomasz_dominiak_respect_energy/Documents/Pulpit/praca/pliki i zadania/2025-07/PM_1068/PM_1068_NEW_PRICES/sebastian/DUB_ALONE_PM_1068_BESS_400_100_2_PV_100_WIND_100_v4.1_BASE_S.xlsx
+Type: xlsx
+Title: DUB_ALONE_PM_1068_BESS_400_100_2_PV_100_WIND_100_v4.1_BASE_S.xlsx
+Chars: 153672
+Chunks: 35
+
+[5] Processing: data/raw/email/Items.1.001.SJab/SharePoint/tomasz_dominiak_respect_energy/Documents/Pulpit/praca/pliki i zadania/2025-07/PM_1068/PM_1068_NEW_PRICES/sebastian/DUB_ALONE_PM_1068_BESS_400_100_2_PV_100_WIND_100_v4.1_BASE_S_1.xlsx
+Imported spreadsheet: data/raw/email/Items.1.001.SJab/SharePoint/tomasz_dominiak_respect_energy/Documents/Pulpit/praca/pliki i zadania/2025-07/PM_1068/PM_1068_NEW_PRICES/sebastian/DUB_ALONE_PM_1068_BESS_400_100_2_PV_100_WIND_100_v4.1_BASE_S_1.xlsx
+Type: xlsx
+Title: DUB_ALONE_PM_1068_BESS_400_100_2_PV_100_WIND_100_v4.1_BASE_S_1.xlsx
+Chars: 153672
+Chunks: 35
+
+[6] Processing: data/raw/email/Items.1.001.SJab/SharePoint/sebastian_jablonski_respect_energy/Documents/Dokumenty/wynagrodzenia czlonkow zarzadu.xlsx
+Imported spreadsheet: data/raw/email/Items.1.001.SJab/SharePoint/sebastian_jablonski_respect_energy/Documents/Dokumenty/wynagrodzenia czlonkow zarzadu.xlsx
+Type: xlsx
+Title: wynagrodzenia czlonkow zarzadu.xlsx
+Chars: 4829
+Chunks: 1
+
+Email spreadsheets import finished.
+Processed: 6
+Imported/attempted OK: 5
+Failed: 1
+==> WALIDACJA POST-IMPORT
+ total_sources 
+---------------
+          1215
+(1 row)
+
+ total_documents 
+-----------------
+            1215
+(1 row)
+
+ total_chunks 
+--------------
+         4922
+(1 row)
+
+==> ROZMIAR QDRANT
+20K	data/processed/qdrant
+==> BACKUP PO IMPORCIE
+==> Tworze backup w: backups/db/2026-03-15_13-24-15
+==> Backup gotowy
+total 7.5M
+-rw-r--r-- 1 sebastian sebastian  266 Mar 15 13:24 manifest.json
+-rw-r--r-- 1 sebastian sebastian 7.5M Mar 15 13:24 postgres.dump
+-rw-r--r-- 1 sebastian sebastian  392 Mar 15 13:24 qdrant.tar.zst
+==> GOTOWE

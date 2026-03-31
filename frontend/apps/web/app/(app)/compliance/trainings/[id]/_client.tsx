@@ -15,10 +15,10 @@ export function PageClient() {
   const completeTraining = useCompleteTraining();
   const { role } = useRole();
 
-  const canComplete = ['ceo', 'board', 'director', 'gilbertus_admin'].includes(role);
+  const canComplete = ['ceo', 'board', 'director', 'gilbertus_admin', 'owner'].includes(role);
 
   return (
-    <RbacGate roles={['ceo', 'board', 'director', 'gilbertus_admin']}>
+    <RbacGate roles={['owner', 'ceo', 'board', 'director', 'gilbertus_admin']}>
       <div className="space-y-6">
         {/* Back link */}
         <Link

@@ -1,0 +1,270 @@
+bash: scripts/morning_brief.sh: No such file or directory
+bash: scripts/morning_brief.sh: No such file or directory
+=== Morning Brief — 2026-03-27 07:00:01 ===
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/sebastian/personal-ai/app/retrieval/morning_brief.py", line 785, in <module>
+    main()
+  File "/home/sebastian/personal-ai/app/retrieval/morning_brief.py", line 763, in main
+    result = generate_morning_brief(
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/app/retrieval/morning_brief.py", line 642, in generate_morning_brief
+    existing = get_todays_brief(date)
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/app/retrieval/morning_brief.py", line 598, in get_todays_brief
+    row = cur.fetchone()
+          ^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/psycopg/cursor.py", line 191, in fetchone
+    record = self._tx.load_row(self._pos, self._make_row)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "psycopg_binary/_psycopg/transform.pyx", line 492, in psycopg_binary._psycopg.Transformer.load_row
+psycopg.InterfaceError: row must be included between 0 and 0
+=== Morning Brief — 2026-03-29 07:00:01 ===
+2026-03-29 07:00:02,542 [INFO] __main__: Generating morning brief for 2026-03-29 (lookback: 2026-03-15 - 2026-03-30)
+2026-03-29 07:00:02,542 [INFO] app.retrieval.alerts: Running alerts check for reference date: 2026-03-29
+2026-03-29 07:00:03,759 [INFO] app.retrieval.alerts: Detector decision_no_followup found 20 alerts
+2026-03-29 07:00:03,769 [INFO] app.retrieval.alerts: Detector conflict_spike found 4 alerts
+2026-03-29 07:00:03,990 [INFO] app.retrieval.alerts: Detector missing_communication found 15 alerts
+2026-03-29 07:00:04,003 [INFO] app.retrieval.alerts: Detector health_clustering found 4 alerts
+2026-03-29 07:00:04,021 [INFO] app.retrieval.alerts: Alerts check complete: 43 detected, 0 new saved
+2026-03-29 07:00:04,022 [INFO] __main__: Alerts check: 43 detected, 0 new
+2026-03-29 07:00:06 [debug    ] compliance_tables_ensured
+2026-03-29 07:00:06 [debug    ] compliance_areas_seeded        count=9
+=== Morning Brief — 2026-03-30 07:00:01 ===
+2026-03-30 07:00:04,027 [INFO] __main__: Generating morning brief for 2026-03-30 (lookback: 2026-03-16 - 2026-03-31)
+2026-03-30 07:00:04,027 [INFO] app.retrieval.alerts: Running alerts check for reference date: 2026-03-30
+2026-03-30 07:00:05,725 [INFO] app.retrieval.alerts: Detector decision_no_followup found 20 alerts
+2026-03-30 07:00:05,744 [INFO] app.retrieval.alerts: Detector conflict_spike found 4 alerts
+2026-03-30 07:00:05,943 [INFO] app.retrieval.alerts: Detector missing_communication found 15 alerts
+2026-03-30 07:00:05,964 [INFO] app.retrieval.alerts: Detector health_clustering found 4 alerts
+2026-03-30 07:00:05,996 [INFO] app.retrieval.alerts: Alerts check complete: 43 detected, 0 new saved
+2026-03-30 07:00:05,996 [INFO] __main__: Alerts check: 43 detected, 0 new
+2026-03-30 07:00:10 [debug    ] compliance_tables_ensured
+2026-03-30 07:00:10 [debug    ] compliance_areas_seeded        count=9
+2026-03-30 07:01:18,351 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-30 07:01:18,376 [INFO] __main__: Morning brief generated: id=85, events=200, open_loops=50, entities=30, calendar=9
+# Poranny Brief — Gilbertus Albans
+**Poniedziałek, 30 marca 2026**
+
+---
+
+## Rynek i konkurencja
+
+**TGE — ograniczenia wolumenów (weszły w życie dziś)**
+Od 30.03.2026 obowiązuje ograniczenie maksymalnej wielkości wolumenu w pojedynczych zleceniach na instrumentach energetycznych TGE. Zlecenia przekraczające limit są usuwane przed rozpoczęciem notowań. Decyzja potwierdzona dziś rano. Zespół tradingowy REH/REF musi mieć zaktualizowane parametry — weryfikacja z Krzysztofem Kuźmińskim na 1on1 o 10:00 jest naturalnym miejscem do potwierdzenia.
+
+**NTC Week 14 (30.03–05.04) — kongestia na granicach**
+JAO opublikował prognozy NTC i planowane prace utrzymaniowe na tydzień 14. Kluczowe ryzyka: kongestia na linii Levice-God i granicach węgierskich (IVA wprowadzone przez węgierskiego operatora w marcu 2026 na liniach Levice-God i Martonvasar-Dunamenti). Wpływ na pozycje cross-border REH/REF — szczególnie istotne dla strategii SEE.
+
+**Transmisja dzienna — aktywne korytarze**
+Dziś opublikowane alokacje: CH-IT (85 MAW), HR-IT (50 MAW), CH-AT (140 MAW godz. 1–7, 0 MAW godz. 8–9), FR-CH (223–224 MW), DE-CH (61 MAW). Korytarz UA-SK: zero alokacji na 30.03.
+
+**Strategia SEE maj 2026 (Balkan Energy AG / Respect Energy)**
+Opracowana strategia month-ahead: oczekiwany spadek konsumpcji ~2500 MW w regionie HU+SEE (kwiecień→maj), węgierskie jednostki gazowe nie uruchomią się dla większości maja (ceny ~110 EUR/MWh powyżej futures), wzrost importu, hydro bliskie średniej (+1500 MW vs maj 2025). Lignit w Bułgarii — skromny wzrost. Solary +50% vs baseline ENTSO-E.
+
+**Brak sygnałów o ruchach Tauron/PGE/Enea/Energa/Orlen/Polenergia** w dostarczonych danych za ostatnie 48h.
+
+---
+
+## Kalendarz dzis
+
+### 06:00–07:00 | Zajęte
+Brak szczegółów.
+
+### 08:00–08:30 | Zajęte
+Brak szczegółów.
+
+### 09:00–10:00 | Tkaczów
+- **Uczestnicy:** Brak danych o uczestnikach poza Sebastianem.
+- **Kontekst:** Brak historii relacji w dostarczonych danych — prawdopodobnie nazwisko osoby lub nazwa projektu.
+- **Przygotowanie:** Brak danych do sugestii.
+
+### 09:30–10:00 | Zajęte
+Nakłada się z Tkaczowem. Potencjalny konflikt w kalendarzu — do weryfikacji.
+
+### 10:00–11:00 | Krzysiek/Sebastian 1on1
+- **Uczestnik:** Krzysztof Kuźmiński — Head of Trading, Respect Energy Holding. 4424 wzmianki, sentiment neutralny. Kluczowa osoba operacyjna.
+- **Kontekst relacji:** Regularne 1on1, wysoka częstotliwość interakcji. Brak sygnałów napięć.
+- **Open loopy:** Decyzja z 10.03 ws. podziału kosztów GRU (łącznie 1,574,246 PLN — BKL 377k, ST 636k, ID 292k, KK 155k, IC 113k) bez follow-upu od 19 dni. Pozycja KK (155k) — czy Kuźmiński jest świadomy swojej alokacji?
+- **Sugerowane przygotowanie:**
+  - Potwierdzić dostosowanie parametrów zleceń do nowych limitów TGE (weszły w życie dziś).
+  - Omówić kongestię WK14 i ekspozycję na granicach węgierskich.
+  - Zamknąć temat podziału kosztów GRU — decyzja z 10.03 wisi bez akcji.
+  - Sprawdzić status strategii SEE maj 2026 i pozycji Balkan Energy.
+
+### 12:00–17:30 | Zajęte (blok)
+Długi blok — brak szczegółów.
+
+### 13:20–14:05 | Thames-Creative Workshop | Wojtuś i Adaś
+- **Uczestnicy:** Agata Morska (Asystentka/Admin, SJ Sp.k.), Sebastian Jabłoński, Piotr Dąbrowski. Lokalizacja: Thames Campus Mokotów.
+- **Kontekst:** Wydarzenie o charakterze rodzinnym/edukacyjnym (Wojtuś i Adaś — dzieci Sebastiana). Agata Morska koordynuje logistykę.
+- **Open loopy:** Agata czeka na podpisanie Pełnomocnictwa dla Weroniki Urbszys — status nieznany po NZW 27.03.
+- **Przygotowanie:** Brak przygotowania merytorycznego wymaganego. Upewnić się, że Agata ma wszystkie dokumenty do podpisania przy okazji spotkania.
+
+### 14:10–14:55 | Hobby Horsing — Adaś i Wojtuś
+- **Uczestnicy:** Agata Morska, Sebastian Jabłoński, Piotr Dąbrowski. Lokalizacja: Thames Campus Mokotów.
+- **Kontekst:** Kontynuacja bloku rodzinnego na Thames Campus. Dwa spotkania pod rząd w tym samym miejscu.
+- **Przygotowanie:** Brak.
+
+### 17:30–19:30 | Zajęte
+Brak szczegółów.
+
+---
+
+## Focus dzis
+
+**1. Limity wolumenów TGE — weryfikacja operacyjna (DEADLINE: dziś)**
+Ograniczenia weszły w życie dziś rano. Zlecenia powyżej limitu są usuwane automatycznie przed notowaniami. Jeśli systemy tradingowe REH/REF nie zostały zaktualizowane w piątek, istnieje ryzyko utraty pozycji lub niewykonania zleceń w trakcie dzisiejszej sesji.
+→ **Akcja:** Potwierdzić z Krzysztofem Kuźmińskim na 1on1 o 10:00, że parametry zostały zaktualizowane i nie ma incydentów z porannej sesji.
+
+**2. Podział kosztów GRU — decyzja bez follow-upu od 19 dni (HIGH)**
+Decyzja z 10.03 o alokacji 1,574,246 PLN między BKL/ST/ID/KK/IC nie ma żadnego powiązanego działania. Przy alokacji 155k na KK (Kuźmiński?) — dziś jest naturalna okazja do zamknięcia tematu.
+→ **Akcja:** Poruszyć na 1on1 z Kuźmińskim. Ustalić kto odpowiada za wykonanie przelewów/księgowań i do kiedy.
+
+**3. Pełnomocnictwo dla Weroniki Urbszys — status po NZW**
+Agata Morska wielokrotnie prosiła o podpisanie PoA dla Weroniki Urbszys przed NZW REF (27.03). NZW się odbyło — nie wiadomo czy dokument został podpisany i czy jest jeszcze potrzebny w nowej formie (np. do rejestracji KRS).
+→ **Akcja:** Zapytać Agatę Morską przy okazji Thames Campus (13:20) o status dokumentu i kolejne kroki rejestracji KRS po NZW.
+
+---
+
+## Otwarte petle
+
+| Sprawa | Data | Kto | Następny krok |
+|---|---|---|---|
+| **GPT jednorazowe importy** — scheduled 15.03, brak wykonania | 2026-03-15 | Nieznany wykonawca | Ustalić czy zadanie zostało wykonane; jeśli nie — przypisać odpowiedzialność |
+| **Podział kosztów GRU** (1,574,246 PLN) | 2026-03-10 | Kuźmiński (KK), zespół finansowy | Omówić na 1on1 dziś; wyznaczyć osobę odpowiedzialną za realizację |
+| **Wind capacity 220 MW** — finalizacja po rozmowie z TOPSOE | 2026-03-10 | Nieznany | Weryfikacja statusu projektu wiatrowego |
+| **Stage 1 project deadline: 30 kwietnia** | 2026-03-10 | Nieznany | Sprawdzić postęp — zostały 31 dni |
+| **RPI-240** — brak decyzji biznesowej, braki kart | 2026-03-10 | Nieznany | Podjąć decyzję biznesową lub eskalować |
+| **Inicjatywy bez decyzji** (splitting odczytów, cena z akcyzą, TXT, Alior Bank) | 2026-03-10 | Nieznany | Przegląd backlogu decyzji — wybrać priorytety lub zamknąć |
+| **Jędrzej Wicha** — planował wysłać zapytanie o status/szczegóły/limity w poniedziałek | 2026-03-20 | Jędrzej Wicha | Dziś jest poniedziałek — sprawdzić czy zapytanie wpłynęło; jeśli nie, zainicjować kontakt |
+| **Tomasz Gackowski** — zobowiązał się do przygotowania update + slajdu | 2026-03-16 | Tomasz Gackowski | Follow-up — czy update został przygotowany? |
+| **Karol Wolański** — potwierdził: brak opłaty wstępnej, termin wdrożenia do 48 tygodni | 2026-03-16 | Karol Wolański | Weryfikacja czy umowa/zlecenie zostało sformalizowane |
+| **Notyfikacja KNF** — zmiana udziału w LESS S.A. (pełnomocnik: Kacper Leśniak) | 2026-03-26 | Kacper Leśniak | Potwierdzić złożenie notyfikacji |
+| **Rejestracja KRS po NZW REF** — umorzenie udziałów Bliźniaka, zmiany struktury | 2026-03-27 | Diana Skotnicka / Weronika Urbszys | Monitoring statusu; decyzja o trybie sprzedaży udziałów (umowa po rejestracji vs. przedwstępna) |
+
+---
+
+## Ludzie
+=== Done — 2026-03-30 07:01:18 ===
+=== Morning Brief — 2026-03-31 07:00:01 ===
+2026-03-31 07:00:04,797 [INFO] __main__: Generating morning brief for 2026-03-31 (lookback: 2026-03-17 - 2026-04-01)
+2026-03-31 07:00:04,797 [INFO] app.retrieval.alerts: Running alerts check for reference date: 2026-03-31
+2026-03-31 07:00:05,835 [INFO] app.retrieval.alerts: Detector decision_no_followup found 20 alerts
+2026-03-31 07:00:05,869 [INFO] app.retrieval.alerts: Detector conflict_spike found 4 alerts
+2026-03-31 07:00:06,170 [INFO] app.retrieval.alerts: Detector missing_communication found 15 alerts
+2026-03-31 07:00:06,198 [INFO] app.retrieval.alerts: Detector health_clustering found 3 alerts
+2026-03-31 07:00:06,251 [INFO] app.retrieval.alerts: Alerts check complete: 42 detected, 0 new saved
+2026-03-31 07:00:06,251 [INFO] __main__: Alerts check: 42 detected, 0 new
+2026-03-31 07:00:06 [debug    ] compliance_tables_ensured
+2026-03-31 07:00:06 [debug    ] compliance_areas_seeded        count=9
+2026-03-31 07:01:22,311 [INFO] httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-03-31 07:01:22,340 [INFO] __main__: Morning brief generated: id=86, events=200, open_loops=50, entities=30, calendar=8
+# Poranny Brief — Gilbertus Albans dla Sebastiana Jabłońskiego
+**Wtorek, 31 marca 2026**
+
+---
+
+## Rynek i konkurencja
+
+**TGE / IRGiT — nowy model zabezpieczeń SPOT (wchodzi w życie dziś)**
+Od dziś obowiązuje nowy model depozytowy IRGiT dla rynków SPOT. Kluczowe zmiany operacyjne:
+- Prewalidacja zleceń w systemach XTR i M7 **wyłączona** (wyłączenie M7 nastąpiło dziś rano)
+- Weryfikacja zabezpieczeń codziennie do **18:30** po sesji clearingowej
+- TGE wprowadza ograniczenia maksymalnych wolumenów zleceń (§ 67 Regulaminu) — dotyczy instrumentów energetycznych i gazowych
+- Środowiska testowe M7 CUTE i PCCP3 TEST **niedostępne** z przyczyn technicznych
+
+→ **Wpływ na REH/REF:** Zespół tradingowy musi działać bez prewalidacji — wyższe ryzyko błędów zleceń. Nowe szablony RWZ obowiązują. Wymagana weryfikacja limitów kolateralnych przed sesją.
+
+**XBID — przerwa techniczna 11:00–11:05**
+Deaktywacja kontraktów 15-minutowych w SIDC. Kontrakty 60-minutowe bez zmian. Okno krótkie, ale trading intraday wymaga świadomości.
+
+**Rynek bałkański — outage'e mocy**
+Znaczące wyłączenia planowane i nieplanowane: P. Brazi RO (832 MW), Dunamenti HU (360 MW), Turceni (263 MW), Mochovce SK (470 MW). HUPX forecast na dziś: **HU Base 147.8 EUR/MWh, HU Peak 167.7 EUR/MWh**, DE Base 113.1 EUR/MWh. Wysoka cena na Węgrzech — relevantne dla Balkan Energy AG.
+
+**ES-FR border — curtailment 1830 MW** (08:00–18:00)
+RTE i REE ograniczyły przepustowość na granicy Hiszpania-Francja. Wpływ na pozycje cross-border jeśli REH/REF ma ekspozycję na tym korytarzu.
+
+**Definicja 'local content'** — PSEW ma zaprezentować definicję krajowego komponentu w strategicznych inwestycjach na przełomie marca/kwietnia (Tom Ellison, Wojciech Balczun). Relevantne dla projektów OZE REH.
+
+---
+
+## Kalendarz dzis
+
+**09:30–10:30 — Trening**
+Bez kontekstu biznesowego.
+
+**11:00–12:00 — Roch/Sebastian (MS Teams)**
+- **Uczestnik:** Roch Baranowski, CEO REH @ Respect Energy Holding (1077 wzmianek, sentiment: pozytywny)
+- **Kontekst relacji:** Kluczowy partner operacyjny, wysoka częstotliwość kontaktu, relacja robocza i strategiczna
+- **Open loopy:**
+  - 🔴 **Buyback akcji od Darka Bliźniaka** — Roch odpowiedzialny. Status nieznany. NZW zatwierdziło umorzenie za 6 mln PLN — czy procedura sprzedaży/rejestracja KRS postępuje?
+  - 🟡 **GoldenPeaks bank guarantee** — update wymagany do **7 kwietnia**. Zostało 7 dni.
+- **Agenda spotkania (z danych):** Kontrakty hybrydowe w Rumunii, FW Łubień, zakup energii i gazu, BESS Siedlce, PV Resko
+- **Sugerowane przygotowanie:**
+  - Zapytaj o status buybacku Bliźniaka i rejestrację KRS
+  - Poproś o update GoldenPeaks przed 7 kwietnia — nie zostawiaj na ostatnią chwilę
+  - Miej pod ręką dane HUPX (147.8 EUR/MWh) dla kontekstu kontraktów rumuńskich
+  - Sprawdź czy nowy model IRGiT wpływa na pozycje kolateralne REH
+
+**13:30–14:15 — Thames Tennis (Adaś, beginners)**
+- **Uczestnicy:** Agata Morska, Piotr Dąbrowski, Sebastian
+- **Kontekst:** Lekcja tenisa dla Adasia na Thames Campus Mokotów. Ostatni dzień szkoły przed feriami wielkanocnymi (Thames British School).
+- **Uwaga:** Ferie Thames 1–9 kwietnia — Agata Morska zaangażowana w organizację.
+
+**15:00–19:00 — zajęte**
+Brak szczegółów.
+
+---
+
+## Focus dzis
+
+**1. 🔴 Spotkanie z Rochem — GoldenPeaks bank guarantee (deadline 7 kwietnia)**
+Zostało 7 dni. Spotkanie dziś o 11:00 to idealna okazja do wymuszenia konkretnego update'u. Jeśli Roch nie ma gotowej odpowiedzi, ustal pisemny termin odpowiedzi (np. czwartek 2 kwietnia). Nie wychodź ze spotkania bez statusu.
+
+**2. 🔴 Nowy model IRGiT/TGE — weryfikacja operacyjna**
+Dziś wchodzi w życie nowy system depozytowy. Prewalidacja wyłączona, nowe szablony RWZ, weryfikacja kolateralna do 18:30. Upewnij się, że zespół tradingowy REH/REF jest świadomy zmian i działa zgodnie z nowymi procedurami. Ryzyko błędów zleceń bez prewalidacji jest realne.
+
+**3. 🟡 Migracja do VPS — zobowiązanie z wczoraj**
+Sebastian zobowiązał się wczoraj wieczorem (30.03) do wykonania migracji do VPS "jutro" (czyli dziś). Grzegorz Szyło wydał konkretne zalecenia bezpieczeństwa: IP whitelist dla SSH, wyłączenie Caddy Admin API lub ograniczenie do localhost, ograniczenie dostępu API do Polski (Hetzner). Jeśli migracja nie zostanie wykonana dziś, przesuwa się na czas po feriach — co może blokować inne projekty IT.
+
+---
+
+## Otwarte petle
+
+| Sprawa | Data | Kto | Następny krok |
+|---|---|---|---|
+| **Buyback akcji Dariusz Bliźniak** | Tydzień 23–30.03 | Roch Baranowski (odpowiedzialny) | Status na dzisiejszym spotkaniu 11:00 |
+| **GoldenPeaks bank guarantee** | Ongoing | Roch Baranowski | Update wymagany do 7 kwietnia — potwierdzić dziś |
+| **Pełnomocnictwo dla Weroniki Urbszys (NZW REF)** | ~26.03 | Agata Morska, Sebastian | Sprawdzić czy podpisane i odesłane |
+| **Notyfikacja KNF — zmiana udziału w LESS S.A.** | 26.03 | Kacper Leśniak (pełnomocnik) | Weryfikacja czy złożona |
+| **Rejestracja KRS po NZW REF** | 27.03 | Diana Skotnicka / prawnicy | Monitoring statusu; dwie opcje procedury sprzedaży udziałów |
+| **Migracja do VPS** | 30.03 | Sebastian + Grzegorz Szyło | Wykonać dziś zgodnie z wytycznymi bezpieczeństwa Szyły |
+| **Jędrzej Wicha — zapytanie o status/szczegóły/limity** | 20.03 | Jędrzej Wicha | Brak follow-upu od 10 dni — sprawdzić |
+| **Tomasz Gackowski — update i slajd** | 16.03 | Tomasz Gackowski | Brak follow-upu od 14 dni — sprawdzić czy dostarczył |
+| **Karol Wolański — wdrożenie do 48 tygodni, brak opłaty wstępnej** | 16.03 | Karol Wolański | Brak follow-upu od 14 dni — potwierdzić warunki |
+| **GPT jednorazowe importy** | 15.03 (deadline) | Nieznany | Deadline minął 16 dni temu — sprawdzić status |
+| **GRU cost division** | 10.03 | BKL/ST/ID/KK/IC | Decyzja bez follow-upu od 20 dni |
+| **Stage 1 project deadline: 30 kwietnia** | 10.03 | Nieznany | Sprawdzić postęp — deadline za 30 dni |
+| **Lunch Thai Thai** | 31.03 | Sebastian | Dziś lub jutro (1.04) o 12:00 — potwierdzić z kim |
+| **Oskar Skrzypiński — zestawienie** | 30.03 | Oskar Skrzypiński | Zobowiązał się przygotować — oczekiwać dostarczenia |
+
+---
+
+## Ludzie
+
+**Roch Baranowski** (CEO REH) — spotkanie dziś 11:00. Wysoka aktywność, sentiment pozytywny. Dwa otwarte loopy wymagają zamknięcia (buyback, GoldenPeaks). Kluczowa relacja.
+
+**Agata Morska** (Asystentka/Admin, SJ Sp.k.) — aktywna: tenis dziś 13:30, ferie Thames 1–9.04. Pending: pełnomocnictwo dla Weroniki Urbszys, zgoda na kontakt z EJ ws. Bytomskiej (prawnik Piotr Klapo-Malczyk przygotował projekt umowy). Wymaga decyzji Sebastiana.
+
+**Grzegorz Szyło** — aktywny wczoraj ws. bezpieczeństwa VPS. Wydał konkretne zalecenia (SSH whitelist, Caddy Admin API, ograniczenie IP). Oczekuje na wykonanie migracji przez Sebastiana.
+
+**Arkadiusz Blacha-Jabłoński** — wczoraj zdecydował, że prawdopodobnie sprzeda po obecnych limitach, ale nie w ciągu jednego miesiąca. Pracuje nad projektem 5MW base_q4 z Tauronem. Oczekiwana wycena OTC od AXPO via email.
+
+**Tomasz Kania** — przesłał grafik FW Łańcut na dziś (31.03). Regularna aktywność operacyjna.
+
+**Natalka Jastrzębska** — kontekst osobisty. Aktywna w ostatnim tygodniu. Problemy z kręgosłupem.
+
+**Weronika Urbszys** — rola w NZW REF. Pending: status pełnomocnictwa i reje
+=== Done — 2026-03-31 07:01:22 ===

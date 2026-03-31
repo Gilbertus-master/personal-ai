@@ -117,7 +117,7 @@ export default function AdminAlertsPage() {
   );
 
   return (
-    <RbacGate roles={['gilbertus_admin', 'ceo', 'operator']} fallback={<p className="text-[var(--text-secondary)]">Brak dostepu</p>}>
+    <RbacGate roles={['owner', 'gilbertus_admin', 'ceo', 'operator']} fallback={<p className="text-[var(--text-secondary)]">Brak dostepu</p>}>
       <div className="space-y-6">
         {/* Header */}
         <div>

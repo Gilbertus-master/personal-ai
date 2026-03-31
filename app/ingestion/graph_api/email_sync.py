@@ -216,7 +216,6 @@ def _download_and_import_attachments(
             pass
 
     att_source_id = insert_source(
-        conn=None,
         source_type="email_attachment",
         source_name="email_attachments",
     )
@@ -276,7 +275,6 @@ def _download_and_import_attachments(
 
         # --- Step 6 & 7: Import as document + chunks ---
         document_id = insert_document(
-            conn=None,
             source_id=att_source_id,
             title=f"[ATT] {att_name} — {subject[:40]}",
             created_at=received,
@@ -288,7 +286,6 @@ def _download_and_import_attachments(
         chunks = chunk_text(full_text)
         for chunk_index, chunk in enumerate(chunks):
             insert_chunk(
-                conn=None,
                 document_id=document_id,
                 chunk_index=chunk_index,
                 text=chunk,
@@ -451,7 +448,6 @@ def sync_folder(
             sender_addr = msg.get("from", {}).get("emailAddress", {}).get("address")
 
             document_id = insert_document(
-                conn=None,
                 source_id=source_id,
                 title=msg.get("subject") or "(no subject)",
                 created_at=received,
@@ -462,7 +458,6 @@ def sync_folder(
 
             for chunk_index, chunk in enumerate(chunks):
                 insert_chunk(
-                    conn=None,
                     document_id=document_id,
                     chunk_index=chunk_index,
                     text=chunk,

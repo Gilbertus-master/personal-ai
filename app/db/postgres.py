@@ -10,7 +10,7 @@ load_dotenv()
 
 _conninfo = psycopg.conninfo.make_conninfo(
     host=os.getenv("POSTGRES_HOST", "127.0.0.1"),
-    port=int(os.getenv("POSTGRES_PORT", "5432")),
+    port=int(os.getenv("PGBOUNCER_PORT", os.getenv("POSTGRES_PORT", "5433"))),
     dbname=os.getenv("POSTGRES_DB", "gilbertus"),
     user=os.getenv("POSTGRES_USER", "gilbertus"),
     password=os.getenv("POSTGRES_PASSWORD", "gilbertus"),

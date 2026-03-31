@@ -14,7 +14,7 @@ export default function PeoplePage() {
 
   return (
     <RbacGate
-      roles={['ceo', 'board', 'director']}
+      roles={['owner', 'ceo', 'board', 'director']}
       fallback={
         <div className="flex items-center justify-center h-64 text-[var(--text-secondary)]">
           Brak dostępu do modułu Ludzie
@@ -31,7 +31,7 @@ export default function PeoplePage() {
               </span>
             )}
           </div>
-          {role === 'ceo' && (
+          {(role === 'ceo' || role === 'owner') && (
             <button className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity">
               Dodaj osobę
             </button>

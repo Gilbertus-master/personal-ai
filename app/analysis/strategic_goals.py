@@ -15,12 +15,10 @@ Integrates with: morning brief, weekly synthesis, financial framework
 """
 from __future__ import annotations
 
-import structlog
-
-log = structlog.get_logger(__name__)
-
 import json
 import os
+import re
+import structlog
 from datetime import datetime, timezone
 from typing import Any
 
@@ -29,6 +27,8 @@ from dotenv import load_dotenv
 
 from app.db.postgres import get_pg_connection
 from app.db.cost_tracker import log_anthropic_cost
+
+log = structlog.get_logger(__name__)
 
 load_dotenv()
 
@@ -618,6 +618,16 @@ Zidentyfikuj 1-3 kluczowe ryzyka."""
                 r["source"] = "llm"
             return risks
     except (json.JSONDecodeError, ValueError):
+        match = re.search(r'\[\s*\{.*?\}\s*\]', text, re.DOTALL)
+        if match:
+            try:
+                risks = json.loads(match.group(0))
+                if isinstance(risks, list):
+                    for r in risks:
+                        r["source"] = "llm"
+                    return risks
+            except (json.JSONDecodeError, ValueError):
+                pass
         log.warning("goal_risk.llm_parse_failed", goal_id=goal_id, response=text[:200])
     return []
 

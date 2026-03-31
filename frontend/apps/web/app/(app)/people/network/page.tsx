@@ -9,7 +9,7 @@ export default function NetworkPage() {
   const router = useRouter();
 
   return (
-    <RbacGate roles={['ceo', 'board']}>
+    <RbacGate roles={['owner', 'ceo', 'board']}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>

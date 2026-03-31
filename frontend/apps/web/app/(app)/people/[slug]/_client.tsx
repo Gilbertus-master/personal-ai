@@ -44,7 +44,7 @@ export function PageClient() {
   const { role } = useRole();
   const store = usePeopleStore();
 
-  const isCeo = role === 'ceo' || role === 'gilbertus_admin';
+  const isCeo = role === 'ceo' || role === 'gilbertus_admin' || role === 'owner';
   const isBoardPlus = isCeo || role === 'board';
 
   const person = usePerson(slug);
@@ -94,7 +94,7 @@ export function PageClient() {
 
   return (
     <RbacGate
-      roles={['gilbertus_admin', 'ceo', 'board', 'director']}
+      roles={['owner', 'gilbertus_admin', 'ceo', 'board', 'director']}
       fallback={
         <div className="text-sm text-[var(--text-muted)]">Brak dost\u0119pu do tego profilu.</div>
       }

@@ -13,7 +13,7 @@ export default function MarketAlertsPage() {
 
   return (
     <RbacGate
-      roles={['director', 'board', 'ceo']}
+      roles={['owner', 'director', 'board', 'ceo']}
       permission="data:read:department"
       fallback={
         <div className="flex items-center justify-center h-64 text-[var(--text-secondary)]">

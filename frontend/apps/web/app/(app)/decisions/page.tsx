@@ -108,7 +108,7 @@ export default function DecisionsPage() {
   );
 
   return (
-    <RbacGate roles={['ceo', 'board', 'director', 'gilbertus_admin']}>
+    <RbacGate roles={['owner', 'ceo', 'board', 'director', 'gilbertus_admin']}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

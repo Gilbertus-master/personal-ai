@@ -1,0 +1,89 @@
+"""
+Data Flow Mapper — map information flows across the organization.
+
+Who sends what to whom, via which channel, how often.
+Identifies bottlenecks, single points of failure, manual handoffs.
+
+Cron: part of process_discovery (Sunday weekly)
+"""
+from __future__ import annotations
+
+import structlog
+import threading
+
+log = structlog.get_logger(__name__)
+
+from datetime import datetime, timezone
+from typing import Any
+
+from app.db.postgres import get_pg_connection
+
+# Bottleneck risk thresholds for entity communication hubs (event count)
+# These thresholds categorize how central a person is in organizational communication:
+# - >= HUB_HIGH_THRESHOLD (50): High bottleneck risk (person is critical dependency)
+# - >= HUB_MEDIUM_THRESHOLD (20) and < HUB_HIGH_THRESHOLD: Medium bottleneck risk
+# - < HUB_MEDIUM_THRESHOLD: Low bottleneck risk
+HUB_HIGH_THRESHOLD = 50
+HUB_MEDIUM_THRESHOLD = 20
+
+
+_ensure_lock = threading.Lock()
+_tables_ensured = False
+def _ensure_tables():
+    with _ensure_lock:
+            global _tables_ensured
+        if _tables_ensured:
+            return
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS data_flows (
+                        id BIGSERIAL PRIMARY KEY,
+                        flow_name TEXT NOT NULL,
+                        source_role TEXT,
+                        target_role TEXT,
+                        data_type TEXT,
+                        channel TEXT,
+                        frequency TEXT,
+                        volume_per_month INTEGER DEFAULT 0,
+                        business_line_id BIGINT REFERENCES business_lines(id) ON DELETE SET NULL,
+                        automation_status TEXT DEFAULT 'manual'
+                            CHECK (automation_status IN ('manual', 'semi_auto', 'automated', 'gilbertus')),
+                        bottleneck_risk TEXT DEFAULT 'low'
+                            CHECK (bottleneck_risk IN ('low', 'medium', 'high')),
+                        notes TEXT,
+                        discovered_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_df_channel ON data_flows(channel);
+                    CREATE INDEX IF NOT EXISTS idx_df_automation ON data_flows(automation_status);
+                """)
+                conn.commit()
+            _tables_ensured = True
+                """, (
+                    f"{f['source_role']} via {f['channel']}",
+                    f["source_role"],
+                    f["channel"],
+                    f["frequency"],
+                    f["volume"],
+                ))
+                stored += 1
+            conn.commit()
+
+    latency_ms = int((datetime.now(tz=timezone.utc) - started).total_seconds() * 1000)
+    log.info("data_flows_mapped", flows=stored, hubs=len(hubs), latency_ms=latency_ms)
+
+    return {
+        "flows_mapped": stored,
+        "channel_stats": channel_stats,
+        "communication_hubs": hubs,
+        "bottleneck_risks": [h for h in hubs if h["bottleneck_risk"] in ("medium", "high")],
+        "latency_ms": latency_ms,
+    }
+
+
+def get_data_flows() -> list[dict]:
+    _ensure_tables()
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT flow_name, source_role, channel, frequency, volume_per_month, automation_status, bottleneck_risk FROM data_flows ORDER BY volume_per_month DESC")
+            return [{"flow": r[0], "source": r[1], "channel": r[2], "frequency": r[3], "volume": r[4], "automation": r[5], "bottleneck": r[6]} for r in cur.fetchall()]

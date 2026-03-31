@@ -138,7 +138,7 @@ export default function CalendarPage() {
             >
               Dzis
             </button>
-            <RbacGate roles={['ceo']}>
+            <RbacGate roles={['owner', 'ceo']}>
               <button
                 type="button"
                 onClick={() => setDeepWorkOpen(true)}
@@ -196,7 +196,7 @@ export default function CalendarPage() {
 
         {/* Prep Tab */}
         {activeTab === 'prep' && (
-          <RbacGate roles={['ceo', 'board', 'director']}>
+          <RbacGate roles={['owner', 'ceo', 'board', 'director']}>
             <div className="space-y-4">
               {prep.isLoading && (
                 <div className="space-y-3 animate-pulse">

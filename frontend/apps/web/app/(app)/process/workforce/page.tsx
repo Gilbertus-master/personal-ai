@@ -88,7 +88,7 @@ export default function WorkforcePage() {
 
   return (
     <RbacGate
-      roles={['ceo']}
+      roles={['owner', 'ceo']}
       permission="evaluations:read:all"
       fallback={
         <div className="flex items-center justify-center h-64 text-[var(--text-secondary)]">

@@ -1,0 +1,33 @@
+=== Perf Improvement Run: 2026-03-30T02:00:01+02:00 ===
+2026-03-30 02:00:02 [info     ] perf_improvement_start         dry_run=False
+2026-03-30 02:00:02 [info     ] stats_fetched                  avg_ms=9593 bottleneck_answer_ms=5944 p95_ms=15886 total=4
+2026-03-30 02:00:02 [info     ] bottleneck_detected            detail='All metrics within thresholds (avg=9593ms, p95=15886ms)' severity=none type=none
+2026-03-30 02:00:02 [info     ] perf_improvement_done          reason='No bottleneck detected — avg=9593ms, p95=15886ms' status=ok
+{
+  "status": "ok",
+  "reason": "No bottleneck detected — avg=9593ms, p95=15886ms"
+}
+=== Done: 2026-03-30T02:00:02+02:00 ===
+=== Perf Improvement Run: 2026-03-31T02:00:01+02:00 ===
+2026-03-31 02:00:02 [info     ] perf_improvement_start         dry_run=False
+2026-03-31 02:00:02 [info     ] stats_fetched                  avg_ms=37886 bottleneck_answer_ms=14499 p95_ms=64548 total=17
+2026-03-31 02:00:02 [info     ] bottleneck_detected            kind=very_slow_query metric=64548 severity=high
+2026-03-31 02:00:02 [info     ] bottleneck_detected            detail='P95 latency 64548ms exceeds 30000ms' severity=high type=very_slow_query
+2026-03-31 02:00:02 [info     ] fix_planned                    action='Reduce max context chars from 80k to 60k' new=60000 old=80000 param=MAX_CONTEXT_CHARS
+2026-03-31 02:00:02 [info     ] applying_fix                   action='Reduce max context chars from 80k to 60k'
+2026-03-31 02:00:02 [info     ] env_changed                    param=MAX_CONTEXT_CHARS value=60000
+2026-03-31 02:00:02 [info     ] verifying_fix
+2026-03-31 02:00:05 [info     ] test_query                     latency_ms=3809 query='test latency short'
+2026-03-31 02:00:10 [info     ] test_query                     latency_ms=4707 query='co robił Sebastian wczoraj?'
+2026-03-31 02:00:32 [info     ] test_query                     latency_ms=21558 query='podsumuj ostatnie spotkania'
+2026-03-31 02:00:32 [info     ] verification_result            after=10024 before=37886 improvement_pct=73.5
+2026-03-31 02:00:32 [warning  ] git_commit_failed              error='The following paths are ignored by one of your .gitignore files:\n.env\nhint: Use -f if you really want to add them.\nhint: Turn this message off by running\nhint: "git config advice.addIgnoredFile false"\n'
+2026-03-31 02:00:32 [info     ] perf_improvement_done          after_ms=10024 before_ms=37886 committed=False improvement_pct=73.5 status=improved
+{
+  "status": "improved",
+  "improvement_pct": 73.5,
+  "before_ms": 37886,
+  "after_ms": 10024,
+  "committed": false
+}
+=== Done: 2026-03-31T02:00:32+02:00 ===

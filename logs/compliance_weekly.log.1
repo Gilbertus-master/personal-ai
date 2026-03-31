@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/home/sebastian/personal-ai/app/analysis/legal/compliance_reporter.py", line 110, in generate_weekly_report
+    cur.execute("""
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/psycopg/cursor.py", line 97, in execute
+    raise ex.with_traceback(None)
+psycopg.errors.UndefinedColumn: column d.updated_at does not exist
+LINE 17:                        AND d.updated_at > CURRENT_DATE - 7) ...
+                                    ^
+HINT:  Perhaps you meant to reference the column "a.updated_at".

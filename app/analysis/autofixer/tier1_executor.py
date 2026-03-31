@@ -237,31 +237,43 @@ def _mark_resolved(finding_ids: list[int]) -> None:
     """Mark multiple findings as resolved."""
     if not finding_ids:
         return
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
-            placeholders = ",".join(["%s"] * len(finding_ids))
-            cur.execute(f"""
-                UPDATE code_review_findings
-                SET resolved = TRUE, resolved_at = NOW()
-                WHERE id IN ({placeholders})
-            """, tuple(finding_ids))
-        conn.commit()
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                placeholders = ",".join(["%s"] * len(finding_ids))
+                cur.execute(f"""
+                    UPDATE code_review_findings
+                    SET resolved = TRUE, resolved_at = NOW()
+                    WHERE id IN ({placeholders})
+                """, tuple(finding_ids))
+                rowcount = cur.rowcount
+            conn.commit()
+            log.info("autofixer.tier1.mark_resolved", count=len(finding_ids), ids=finding_ids, rowcount=rowcount)
+    except Exception:
+        log.exception("autofixer.tier1.mark_resolved_failed", ids=finding_ids)
+        raise
 
 
 def _mark_attempted(finding_ids: list[int]) -> None:
     """Mark multiple findings as attempted."""
     if not finding_ids:
         return
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
-            placeholders = ",".join(["%s"] * len(finding_ids))
-            cur.execute(f"""
-                UPDATE code_review_findings
-                SET fix_attempted_at = NOW(),
-                    fix_attempt_count = fix_attempt_count + 1
-                WHERE id IN ({placeholders})
-            """, tuple(finding_ids))
-        conn.commit()
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                placeholders = ",".join(["%s"] * len(finding_ids))
+                cur.execute(f"""
+                    UPDATE code_review_findings
+                    SET fix_attempted_at = NOW(),
+                        fix_attempt_count = fix_attempt_count + 1
+                    WHERE id IN ({placeholders})
+                """, tuple(finding_ids))
+                rowcount = cur.rowcount
+            conn.commit()
+            log.info("autofixer.tier1.mark_attempted", count=len(finding_ids), rowcount=rowcount)
+    except Exception:
+        log.exception("autofixer.tier1.mark_attempted_failed", ids=finding_ids)
+        raise
 
 
 def execute_tier1(cluster: dict) -> dict:

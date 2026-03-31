@@ -180,7 +180,6 @@ def sync_chat_messages(
             text = f"{sender_name or 'Unknown'}: {content}"
 
             document_id = insert_document(
-                conn=None,
                 source_id=source_id,
                 title=title,
                 created_at=created,
@@ -191,7 +190,6 @@ def sync_chat_messages(
 
             # Single message = single chunk (Teams messages are usually short)
             insert_chunk(
-                conn=None,
                 document_id=document_id,
                 chunk_index=0,
                 text=text,

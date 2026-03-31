@@ -10,7 +10,7 @@ export default function CompliancePage() {
   const isLoading = dashboard.isLoading || areas.isLoading;
 
   return (
-    <RbacGate roles={['ceo', 'board', 'director', 'gilbertus_admin']}>
+    <RbacGate roles={['owner', 'ceo', 'board', 'director', 'gilbertus_admin']}>
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-[var(--text)]">Compliance</h1>
         <ComplianceDashboard

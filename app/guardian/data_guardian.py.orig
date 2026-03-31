@@ -1,0 +1,892 @@
+"""
+Data Guardian — self-healing data pipeline monitor.
+
+Runs every 15 minutes. For each data source:
+1. Check last import timestamp vs SLA threshold
+2. If STALE: diagnose why (log errors, token status, service health)
+3. Auto-remediation tier 1: retry import, refresh token, restart service
+4. If auto-fix fails: alert human via WhatsApp with diagnosis + fix instructions
+5. Log everything to ingestion_health table
+
+SLA Thresholds (hours):
+  email:            2   (critical business data)
+  teams:            2   (critical business data)
+  calendar:         4
+  whatsapp_live:    4
+  audio_transcript: 8   (Plaud sync less frequent)
+  document:         24  (manual uploads)
+  whatsapp:         24  (batch import)
+  spreadsheet:      7d  (rarely updated)
+  chatgpt:          disabled
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import time
+from datetime import date, datetime, timezone
+from pathlib import Path
+from typing import Any
+
+import structlog
+
+log = structlog.get_logger("data_guardian")
+
+from app.db.postgres import get_pg_connection
+
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+
+PROJECT_DIR = Path(__file__).resolve().parents[2]
+LOGS_DIR = PROJECT_DIR / "logs"
+
+SLA_THRESHOLDS: dict[str, float] = {
+    "email":            2.0,
+    "email_attachment":  4.0,
+    "teams":            2.0,
+    "calendar":         4.0,
+    "whatsapp_live":    4.0,
+    "audio_transcript": 8.0,
+    "document":        24.0,
+    "whatsapp":        24.0,
+    "spreadsheet":    168.0,  # 7 days
+    # chatgpt: disabled — not monitored
+}
+
+# Source → log file name mapping
+SOURCE_LOG_MAP: dict[str, str] = {
+    "email":            "email_sync_inbox.log",
+    "email_attachment":  "email_sync_inbox.log",
+    "teams":            "teams_sync.log",
+    "calendar":         "calendar_sync.log",
+    "whatsapp_live":    "live_ingest.log",
+    "audio_transcript": "plaud_sync.log",
+    "whatsapp":         "whatsapp_import.log",
+    "document":         "live_ingest.log",
+}
+
+# Source → cron sync command mapping (for restart)
+SOURCE_SYNC_CMD: dict[str, list[str]] = {
+    "email": [".venv/bin/python3", "-m", "app.ingestion.graph_api.email_sync"],
+    "email_attachment": [".venv/bin/python3", "-m", "app.ingestion.graph_api.email_sync"],
+    "teams": [".venv/bin/python3", "-m", "app.ingestion.graph_api.teams_sync"],
+    "calendar": [".venv/bin/python3", "-m", "app.ingestion.graph_api.calendar_sync"],
+    "whatsapp_live": [".venv/bin/python3", "-m", "app.ingestion.live_ingest"],
+    "audio_transcript": [".venv/bin/python3", "-m", "app.ingestion.plaud_sync"],
+}
+
+# Services that are SAFE to docker-restart (never postgres)
+SAFE_RESTART_CONTAINERS = {"gilbertus-whisper", "gilbertus-qdrant"}
+# Never restart these
+NEVER_RESTART = {"gilbertus-postgres"}
+
+# Alert dedup: max 1 alert per source per N hours
+ALERT_DEDUP_HOURS = 4
+
+# Max auto-remediation attempts before escalating to human
+MAX_AUTO_FIX_ATTEMPTS = 2
+
+# Error patterns for diagnosis
+ERROR_PATTERNS = {
+    "UniqueViolation": re.compile(r"UniqueViolation|duplicate key|unique.*constraint", re.I),
+    "token_expired": re.compile(r"token.*expir|401|InvalidAuthenticationToken|expired", re.I),
+    "connection_refused": re.compile(r"connection.*refused|connect.*fail|ECONNREFUSED", re.I),
+    "timeout": re.compile(r"timeout|timed?\s*out|deadline.*exceed", re.I),
+    "disk_full": re.compile(r"no space left|disk.*full|ENOSPC", re.I),
+    "permission_denied": re.compile(r"permission.*denied|403|Access.*Denied", re.I),
+    "service_down": re.compile(r"service.*unavailable|503|502|BadGateway", re.I),
+    "rate_limited": re.compile(r"rate.*limit|429|throttl", re.I),
+}
+
+
+# ---------------------------------------------------------------------------
+# 1. Source Freshness Check
+# ---------------------------------------------------------------------------
+
+def check_source_freshness() -> list[dict[str, Any]]:
+    """Check all sources against SLA thresholds. Return list with status for each."""
+    # now = datetime.now(timezone.utc)  # noqa: F841
+    results: list[dict[str, Any]] = []
+
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT source_type,
+                       MAX(imported_at) as last_import,
+                       EXTRACT(EPOCH FROM NOW() - MAX(imported_at))/3600 as hours_stale
+                FROM sources
+                GROUP BY source_type
+            """)
+            rows = cur.fetchall()
+
+    for source_type, last_import, hours_stale in rows:
+        sla = SLA_THRESHOLDS.get(source_type)
+        if sla is None:
+            continue  # chatgpt, claude_code_full etc. — not monitored
+
+        hours_stale = float(hours_stale) if hours_stale else 0.0
+        ratio = hours_stale / sla if sla > 0 else 0.0
+
+        if ratio <= 0.5:
+            status = "ok"
+        elif ratio <= 1.0:
+            status = "warning"
+        elif ratio <= 3.0:
+            status = "critical"
+        else:
+            status = "dead"
+
+        results.append({
+            "source_type": source_type,
+            "last_import": last_import,
+            "hours_stale": round(hours_stale, 2),
+            "sla_hours": sla,
+            "ratio": round(ratio, 2),
+            "status": status,
+        })
+
+    results.sort(key=lambda x: x["ratio"], reverse=True)
+    return results
+
+
+# ---------------------------------------------------------------------------
+# 2. Diagnosis Engine
+# ---------------------------------------------------------------------------
+
+def _read_log_tail(source_type: str, lines: int = 30) -> str:
+    """Read last N lines of the sync log for a source."""
+    log_file = SOURCE_LOG_MAP.get(source_type)
+    if not log_file:
+        return ""
+    log_path = LOGS_DIR / log_file
+    if not log_path.exists():
+        return f"[log file not found: {log_path}]"
+    try:
+        result = subprocess.run(
+            ["tail", f"-{lines}", str(log_path)],
+            capture_output=True, text=True, timeout=10,
+        )
+        return result.stdout
+    except Exception as e:
+        return f"[error reading log: {e}]"
+
+
+def _check_docker_container(name: str) -> dict[str, Any]:
+    """Check if a Docker container is running."""
+    try:
+        result = subprocess.run(
+            ["docker", "inspect", "--format", "{{.State.Status}}", name],
+            capture_output=True, text=True, timeout=10,
+        )
+        status = result.stdout.strip()
+        return {"name": name, "running": status == "running", "status": status}
+    except Exception as e:
+        return {"name": name, "running": False, "status": f"error: {e}"}
+
+
+def _check_breaker_state(source_type: str) -> str | None:
+    """Check circuit breaker state for a source's service."""
+    source_to_breaker = {
+        "email": "graph_api",
+        "email_attachment": "graph_api",
+        "teams": "graph_api",
+        "calendar": "graph_api",
+        "audio_transcript": "plaud_api",
+        "whatsapp_live": "openclaw",
+    }
+    breaker_name = source_to_breaker.get(source_type)
+    if not breaker_name:
+        return None
+    try:
+        from app.core.resilience import BREAKERS
+        breaker = BREAKERS.get(breaker_name)
+        if breaker:
+            return breaker.state
+    except Exception as e:
+        log.warning("breaker_state_check_failed", source_type=source_type, error=str(e))
+    return None
+
+
+def _check_graph_token_health() -> dict[str, Any]:
+    """Check if Graph API token is valid."""
+    token_file = PROJECT_DIR / ".ms_graph_token.json"
+    if not token_file.exists():
+        return {"valid": False, "reason": "token_file_missing"}
+    try:
+        data = json.loads(token_file.read_text())
+        saved_at = data.get("saved_at", 0)
+        expires_in = data.get("expires_in", 3600)
+        expires_at = saved_at + expires_in
+        remaining = expires_at - time.time()
+        return {
+            "valid": remaining > 0,
+            "remaining_seconds": int(remaining),
+            "reason": "ok" if remaining > 0 else "token_expired",
+        }
+    except Exception as e:
+        return {"valid": False, "reason": f"token_read_error: {e}"}
+
+
+def diagnose_source(source: dict[str, Any]) -> dict[str, Any]:
+    """Diagnose why a source is stale. Returns diagnosis dict."""
+    source_type = source["source_type"]
+    diagnosis: dict[str, Any] = {
+        "source_type": source_type,
+        "checks": [],
+        "root_cause": "unknown",
+        "fix_tier": 0,  # 0=unknown, 1=auto-fixable, 2=needs human
+    }
+
+    # Check logs for error patterns
+    log_tail = _read_log_tail(source_type)
+    if log_tail:
+        for pattern_name, pattern in ERROR_PATTERNS.items():
+            if pattern.search(log_tail):
+                diagnosis["checks"].append(f"log_pattern:{pattern_name}")
+                diagnosis["root_cause"] = pattern_name
+                break
+        if diagnosis["root_cause"] == "unknown":
+            diagnosis["checks"].append("log:no_error_patterns_found")
+
+    # Check circuit breaker
+    breaker_state = _check_breaker_state(source_type)
+    if breaker_state:
+        diagnosis["checks"].append(f"breaker:{breaker_state}")
+        if breaker_state == "open":
+            diagnosis["root_cause"] = "circuit_breaker_open"
+
+    # Check Graph API token for MS sources
+    if source_type in ("email", "email_attachment", "teams", "calendar"):
+        token_health = _check_graph_token_health()
+        diagnosis["checks"].append(f"token:{token_health['reason']}")
+        if not token_health["valid"] and diagnosis["root_cause"] == "unknown":
+            diagnosis["root_cause"] = "token_expired"
+
+    # Check Docker services
+    for container in ["gilbertus-postgres", "gilbertus-qdrant"]:
+        info = _check_docker_container(container)
+        diagnosis["checks"].append(f"docker:{info['name']}={info['status']}")
+        if not info["running"] and diagnosis["root_cause"] == "unknown":
+            diagnosis["root_cause"] = "service_down"
+            diagnosis["service_down"] = info["name"]
+
+    # Determine fix tier
+    auto_fixable = {
+        "UniqueViolation", "token_expired", "timeout",
+        "circuit_breaker_open", "rate_limited", "service_down",
+    }
+    human_required = {"disk_full", "permission_denied"}
+
+    if diagnosis["root_cause"] in auto_fixable:
+        diagnosis["fix_tier"] = 1
+    elif diagnosis["root_cause"] in human_required:
+        diagnosis["fix_tier"] = 2
+    elif diagnosis["root_cause"] == "unknown":
+        diagnosis["fix_tier"] = 1  # try auto-fix first
+
+    return diagnosis
+
+
+# ---------------------------------------------------------------------------
+# 3. Auto-Remediation (Tier 1 — no human)
+# ---------------------------------------------------------------------------
+
+def _try_refresh_graph_token() -> bool:
+    """Attempt to refresh Graph API token via get_access_token() which auto-refreshes."""
+    try:
+        result = subprocess.run(
+            [".venv/bin/python3", "-c",
+             "from app.ingestion.graph_api.auth import get_access_token; "
+             "t = get_access_token(); "
+             "print('ok' if t else 'empty')"],
+            capture_output=True, text=True, timeout=30,
+            cwd=str(PROJECT_DIR),
+        )
+        success = result.returncode == 0 and "ok" in result.stdout
+        log.info("token_refresh_attempt", success=success,
+                 stdout=result.stdout[:100], stderr=result.stderr[:200] if result.stderr else "")
+        return success
+    except Exception as e:
+        log.error("token_refresh_failed", error=str(e))
+        return False
+
+
+def _try_restart_sync(source_type: str) -> bool:
+    """Try to run the sync command for a source."""
+    cmd = SOURCE_SYNC_CMD.get(source_type)
+    if not cmd:
+        log.warning("no_sync_cmd", source_type=source_type)
+        return False
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True, text=True, timeout=120,
+            cwd=str(PROJECT_DIR),
+        )
+        success = result.returncode == 0
+        log.info("sync_restart_attempt", source_type=source_type, success=success,
+                 stderr=result.stderr[:200] if result.stderr else "")
+        return success
+    except subprocess.TimeoutExpired:
+        log.warning("sync_restart_timeout", source_type=source_type)
+        return False
+    except Exception as e:
+        log.error("sync_restart_failed", source_type=source_type, error=str(e))
+        return False
+
+
+def _try_docker_restart(container: str) -> bool:
+    """Restart a Docker container (only safe ones)."""
+    if container in NEVER_RESTART:
+        log.error("docker_restart_blocked", container=container, reason="in NEVER_RESTART list")
+        return False
+    if container not in SAFE_RESTART_CONTAINERS:
+        log.warning("docker_restart_skipped", container=container, reason="not in SAFE_RESTART list")
+        return False
+    try:
+        result = subprocess.run(
+            ["docker", "restart", container],
+            capture_output=True, text=True, timeout=60,
+        )
+        success = result.returncode == 0
+        log.info("docker_restart_attempt", container=container, success=success)
+        return success
+    except Exception as e:
+        log.error("docker_restart_failed", container=container, error=str(e))
+        return False
+
+
+def _kill_zombie_processes(source_type: str) -> bool:
+    """Kill stalled sync workers for a source."""
+    pattern_map = {
+        "email": "email_sync",
+        "teams": "teams_sync",
+        "calendar": "calendar_sync",
+        "audio_transcript": "plaud_sync",
+    }
+    pattern = pattern_map.get(source_type)
+    if not pattern:
+        return False
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", pattern],
+            capture_output=True, text=True, timeout=10,
+        )
+        pids = result.stdout.strip().split("\n")
+        pids = [p for p in pids if p.strip()]
+        if not pids:
+            return True  # no zombies
+        for pid in pids:
+            subprocess.run(["kill", "-9", pid], capture_output=True, timeout=5)
+            log.warning("killed_zombie_process", pid=pid, pattern=pattern)
+        return True
+    except Exception as e:
+        log.error("kill_zombie_failed", source_type=source_type, error=str(e))
+        return False
+
+
+def auto_remediate_tier1(source: dict[str, Any], diagnosis: dict[str, Any]) -> bool:
+    """
+    Attempt auto-remediation based on diagnosis.
+    Returns True if fix was applied (doesn't guarantee it worked).
+    """
+    root_cause = diagnosis["root_cause"]
+    source_type = source["source_type"]
+
+    log.info("auto_remediate_start", source_type=source_type, root_cause=root_cause)
+
+    if root_cause == "token_expired":
+        if _try_refresh_graph_token():
+            return _try_restart_sync(source_type)
+        return False
+
+    if root_cause == "UniqueViolation":
+        # Should be handled by G01 dedup, but restart sync to clear state
+        return _try_restart_sync(source_type)
+
+    if root_cause == "connection_refused":
+        # Check & restart Docker containers
+        service_name = diagnosis.get("service_down")
+        if service_name:
+            _try_docker_restart(service_name)
+        return _try_restart_sync(source_type)
+
+    if root_cause == "circuit_breaker_open":
+        # Wait for cooldown — just log, don't force
+        log.info("breaker_open_waiting", source_type=source_type,
+                 msg="circuit breaker will auto-reset after cooldown")
+        return False
+
+    if root_cause == "timeout":
+        return _try_restart_sync(source_type)
+
+    if root_cause == "rate_limited":
+        log.info("rate_limited_waiting", source_type=source_type,
+                 msg="waiting for rate limit to clear")
+        return False
+
+    if root_cause == "service_down":
+        service_name = diagnosis.get("service_down")
+        if service_name:
+            return _try_docker_restart(service_name)
+        return _try_restart_sync(source_type)
+
+    if root_cause == "unknown":
+        # Best effort: kill zombies + restart sync
+        _kill_zombie_processes(source_type)
+        return _try_restart_sync(source_type)
+
+    return False
+
+
+# ---------------------------------------------------------------------------
+# 4. Auto-Remediation (Tier 2 — notify human)
+# ---------------------------------------------------------------------------
+
+def _get_fix_instructions(source: dict[str, Any], diagnosis: dict[str, Any]) -> tuple[str, str]:
+    """Return (instructions, fix_command) for human escalation."""
+    root_cause = diagnosis["root_cause"]
+    source_type = source["source_type"]
+
+    instructions_map: dict[str, tuple[str, str]] = {
+        "token_expired": (
+            "Graph API token expired and auto-refresh failed. "
+            "Re-authenticate manually via browser.",
+            "cd /home/sebastian/personal-ai && .venv/bin/python3 -m app.ingestion.graph_api.auth --interactive",
+        ),
+        "disk_full": (
+            "Disk is full. Free up space before any sync can resume. "
+            "Check large files: du -sh /home/sebastian/personal-ai/logs/*",
+            "df -h && du -sh /home/sebastian/personal-ai/logs/* | sort -rh | head -10",
+        ),
+        "permission_denied": (
+            "Permission denied accessing API. Check API credentials and permissions in Azure portal.",
+            "cd /home/sebastian/personal-ai && cat .ms_graph_token.json | python3 -m json.tool",
+        ),
+        "connection_refused": (
+            "Service connection failing after docker restart attempt. "
+            "Check if Docker daemon is running and container health.",
+            "docker ps -a && docker logs gilbertus-postgres --tail 20",
+        ),
+        "service_down": (
+            "Required service container is down and auto-restart failed.",
+            "docker ps -a && docker compose up -d",
+        ),
+        "circuit_breaker_open": (
+            "Circuit breaker tripped due to repeated failures. "
+            "Check underlying service health before resetting.",
+            "cd /home/sebastian/personal-ai && .venv/bin/python3 -c \"from app.core.resilience import BREAKERS; [print(f'{k}: {v.state} ({v.failure_count} failures)') for k,v in BREAKERS.items()]\"",
+        ),
+        "unknown": (
+            f"Source '{source_type}' is stale with no clear error pattern. "
+            f"Check sync logs and try manual sync.",
+            f"cd /home/sebastian/personal-ai && tail -50 logs/{SOURCE_LOG_MAP.get(source_type, 'live_ingest.log')}",
+        ),
+    }
+
+    instructions, cmd = instructions_map.get(root_cause, instructions_map["unknown"])
+    return instructions, cmd
+
+
+def _should_send_alert(source_type: str) -> bool:
+    """Check alert dedup: max 1 alert per source per ALERT_DEDUP_HOURS."""
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT id FROM alerts
+                    WHERE alert_type = 'data_guardian'
+                      AND title LIKE %s
+                      AND created_at > NOW() - make_interval(hours => %s)
+                    LIMIT 1
+                """, (f"%{source_type}%", ALERT_DEDUP_HOURS))
+                return not cur.fetchall()
+    except Exception as e:
+        log.warning("alert_dedup_check_failed", source_type=source_type, error=str(e))
+        return True  # if DB check fails, send alert anyway
+
+
+def escalate_to_human(source: dict[str, Any], diagnosis: dict[str, Any],
+                      auto_fix_attempts: int) -> None:
+    """Send WhatsApp alert + save to alerts table."""
+    source_type = source["source_type"]
+
+    if not _should_send_alert(source_type):
+        log.info("alert_deduped", source_type=source_type,
+                 msg=f"alert suppressed (dedup {ALERT_DEDUP_HOURS}h)")
+        return
+
+    instructions, fix_cmd = _get_fix_instructions(source, diagnosis)
+
+    alert_msg = (
+        f"\U0001f534 Data Guardian Alert\n"
+        f"Source: {source_type}\n"
+        f"Status: {source['status'].upper()} — {source['hours_stale']}h stale (SLA: {source['sla_hours']}h)\n"
+        f"Diagnosis: {diagnosis['root_cause']}\n"
+        f"Auto-fix attempted: {auto_fix_attempts} times, FAILED\n\n"
+        f"Recommended action:\n{instructions}\n\n"
+        f"Run: {fix_cmd}"
+    )
+
+    # Save to alerts table
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO alerts (alert_type, severity, title, description, evidence, is_active)
+                    VALUES (%s, %s, %s, %s, %s, TRUE)
+                """, (
+                    "data_guardian",
+                    "high" if source["status"] in ("critical", "dead") else "medium",
+                    f"Data Guardian: {source_type} — {source['status']} ({source['hours_stale']}h stale)",
+                    alert_msg,
+                    json.dumps({
+                        "source_type": source_type,
+                        "hours_stale": source["hours_stale"],
+                        "sla_hours": source["sla_hours"],
+                        "root_cause": diagnosis["root_cause"],
+                        "checks": diagnosis["checks"],
+                    }),
+                ))
+            conn.commit()
+        log.info("alert_saved", source_type=source_type)
+    except Exception as e:
+        log.error("alert_save_failed", source_type=source_type, error=str(e))
+
+    # Send WhatsApp
+    wa_target = os.getenv("WA_TARGET")
+    if not wa_target:
+        log.error("WA_TARGET_not_set", msg="Cannot send WhatsApp alert")
+        return
+    try:
+        subprocess.run(
+            ["openclaw", "message", "send",
+             "--channel", "whatsapp",
+             "--target", wa_target,
+             "--message", alert_msg],
+            capture_output=True, text=True, timeout=30,
+        )
+        log.info("whatsapp_alert_sent", source_type=source_type)
+    except Exception as e:
+        log.error("whatsapp_alert_failed", source_type=source_type, error=str(e))
+
+
+# ---------------------------------------------------------------------------
+# 5. Ingestion Health Metrics
+# ---------------------------------------------------------------------------
+
+def save_health_metrics(sources: list[dict[str, Any]]) -> int:
+    """Save health metrics to ingestion_health table with upsert."""
+    today = date.today()
+    saved = 0
+
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            for src in sources:
+                # Count docs in last 24h and 7d avg
+                cur.execute("""
+                    SELECT
+                        COUNT(*) FILTER (WHERE d.created_at > NOW() - INTERVAL '24 hours') as docs_24h,
+                        COUNT(*)::numeric / GREATEST(
+                            EXTRACT(EPOCH FROM NOW() - MIN(d.created_at)) / 86400 / 7, 1
+                        ) as docs_7d_avg
+                    FROM sources s
+                    JOIN documents d ON d.source_id = s.id
+                    WHERE s.source_type = %s
+                      AND d.created_at > NOW() - INTERVAL '7 days'
+                """, (src["source_type"],))
+                row = cur.fetchone()
+                docs_24h = row[0] if row else 0
+                docs_7d_avg = round(float(row[1]), 1) if row and row[1] else 0.0
+
+                note = None
+                if src["status"] in ("critical", "dead"):
+                    note = f"Stale {src['hours_stale']}h (SLA {src['sla_hours']}h)"
+
+                # Trend: compare docs_24h vs docs_7d_avg
+                if docs_7d_avg > 0:
+                    ratio = docs_24h / docs_7d_avg
+                    if ratio >= 1.2:
+                        trend = "growing"
+                    elif ratio <= 0.5:
+                        trend = "declining"
+                    else:
+                        trend = "stable"
+                else:
+                    trend = "declining" if docs_24h == 0 else "growing"
+
+                cur.execute("""
+                    INSERT INTO ingestion_health (check_date, source_type, docs_24h, docs_7d_avg, status, note, trend)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (check_date, source_type) DO UPDATE SET
+                        docs_24h = EXCLUDED.docs_24h,
+                        docs_7d_avg = EXCLUDED.docs_7d_avg,
+                        status = EXCLUDED.status,
+                        note = EXCLUDED.note,
+                        trend = EXCLUDED.trend
+                """, (today, src["source_type"], docs_24h, docs_7d_avg, src["status"], note, trend))
+                saved += 1
+        conn.commit()
+
+    return saved
+
+
+# ---------------------------------------------------------------------------
+# 6. Embedding & Extraction Coverage
+# ---------------------------------------------------------------------------
+
+def check_processing_backlog() -> list[dict[str, Any]]:
+    """Check for chunks stuck without embeddings or extraction."""
+    issues: list[dict[str, Any]] = []
+
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            # Chunks without embeddings (join documents for created_at — chunks table has no created_at)
+            cur.execute("""
+                SELECT COUNT(*) FROM chunks c
+                JOIN documents d ON d.id = c.document_id
+                WHERE (c.embedding_id IS NULL OR c.embedding_id = '')
+                  AND c.embedding_status != 'error'
+                  AND d.created_at < NOW() - INTERVAL '2 hours'
+            """)
+            pending_embeddings = cur.fetchall()[0][0]
+            if pending_embeddings > 100:
+                issues.append({
+                    "type": "embedding_backlog",
+                    "count": pending_embeddings,
+                    "threshold": 100,
+                    "action": "restart_index_chunks",
+                })
+
+            # Chunks without entity extraction (via chunks_entity_checked marker table)
+            cur.execute("""
+                SELECT COUNT(*) FROM chunks c
+                JOIN documents d ON d.id = c.document_id
+                LEFT JOIN chunks_entity_checked cec ON cec.chunk_id = c.id
+                WHERE cec.chunk_id IS NULL
+                  AND d.created_at < NOW() - INTERVAL '4 hours'
+            """)
+            pending_entities = cur.fetchall()[0][0]
+            if pending_entities > 500:
+                issues.append({
+                    "type": "entity_backlog",
+                    "count": pending_entities,
+                    "threshold": 500,
+                    "action": "restart_entity_extraction",
+                })
+
+            # Chunks without event extraction (events.chunk_id exists)
+            cur.execute("""
+                SELECT COUNT(*) FROM chunks c
+                JOIN documents d ON d.id = c.document_id
+                LEFT JOIN events e ON e.chunk_id = c.id
+                WHERE e.id IS NULL
+                  AND d.created_at < NOW() - INTERVAL '4 hours'
+            """)
+            pending_events = cur.fetchall()[0][0]
+            if pending_events > 500:
+                issues.append({
+                    "type": "event_backlog",
+                    "count": pending_events,
+                    "threshold": 500,
+                    "action": "restart_event_extraction",
+                })
+
+    return issues
+
+
+def _is_process_running(pattern: str) -> bool:
+    """Check if a process matching the pattern is already running."""
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", pattern],
+            capture_output=True, text=True, timeout=10,
+        )
+        return result.returncode == 0
+    except Exception as e:
+        log.warning("process_check_failed", pattern=pattern, error=str(e))
+        return False
+
+
+def fix_processing_backlog(issues: list[dict[str, Any]]) -> None:
+    """Auto-restart stalled processing workers."""
+    for issue in issues:
+        action = issue["action"]
+        log.warning("processing_backlog_detected", type=issue["type"],
+                    count=issue["count"], action=action)
+
+        cmd: list[str] | None = None
+        check_pattern: str | None = None
+        if action == "restart_index_chunks":
+            cmd = [".venv/bin/python3", "-m", "app.retrieval.index_chunks", "--batch-size", "100"]
+            check_pattern = "app.retrieval.index_chunks"
+        elif action == "restart_entity_extraction":
+            cmd = [".venv/bin/python3", "-m", "app.extraction.entities", "200"]
+            check_pattern = "app.extraction.entities"
+        elif action == "restart_event_extraction":
+            cmd = [".venv/bin/python3", "-m", "app.extraction.events", "200"]
+            check_pattern = "app.extraction.events"
+
+        if cmd:
+            if check_pattern and _is_process_running(check_pattern):
+                log.info("processing_worker_already_running", action=action, pattern=check_pattern)
+                continue
+            try:
+                subprocess.Popen(
+                    cmd,
+                    cwd=str(PROJECT_DIR),
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                log.info("processing_worker_started", action=action)
+            except Exception as e:
+                log.error("processing_worker_start_failed", action=action, error=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Main orchestration
+# ---------------------------------------------------------------------------
+
+def run_guardian(verbose: bool = False) -> dict[str, Any]:
+    """Full Data Guardian check cycle."""
+    start = time.time()
+    result: dict[str, Any] = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "sources": [],
+        "remediations": [],
+        "escalations": [],
+        "processing_backlogs": [],
+    }
+
+    # 1. Check freshness
+    sources = check_source_freshness()
+    result["sources"] = sources
+
+    ok_count = sum(1 for s in sources if s["status"] == "ok")
+    warn_count = sum(1 for s in sources if s["status"] == "warning")
+    critical_count = sum(1 for s in sources if s["status"] in ("critical", "dead"))
+
+    log.info("freshness_check_complete",
+             total=len(sources), ok=ok_count, warning=warn_count, critical=critical_count)
+
+    if verbose:
+        for s in sources:
+            status_icon = {"ok": "+", "warning": "~", "critical": "!", "dead": "X"}
+            print(f"  [{status_icon.get(s['status'], '?')}] {s['source_type']:20s} "
+                  f"{s['hours_stale']:8.1f}h / {s['sla_hours']:.0f}h SLA  "
+                  f"({s['status']})")
+
+    # 2. Diagnose & remediate stale sources
+    stale_sources = [s for s in sources if s["status"] in ("critical", "dead")]
+
+    for source in stale_sources:
+        diagnosis = diagnose_source(source)
+        log.info("diagnosis_complete", source_type=source["source_type"],
+                 root_cause=diagnosis["root_cause"], checks=diagnosis["checks"])
+
+        if verbose:
+            print(f"\n  Diagnosis [{source['source_type']}]: {diagnosis['root_cause']}")
+            print(f"    Checks: {', '.join(diagnosis['checks'])}")
+
+        # Tier 1: auto-fix
+        if diagnosis["fix_tier"] <= 1:
+            fixed = False
+            for attempt in range(1, MAX_AUTO_FIX_ATTEMPTS + 1):
+                log.info("auto_fix_attempt", source_type=source["source_type"],
+                         attempt=attempt, max=MAX_AUTO_FIX_ATTEMPTS)
+                if auto_remediate_tier1(source, diagnosis):
+                    fixed = True
+                    result["remediations"].append({
+                        "source_type": source["source_type"],
+                        "root_cause": diagnosis["root_cause"],
+                        "attempt": attempt,
+                        "success": True,
+                    })
+                    break
+                if attempt < MAX_AUTO_FIX_ATTEMPTS:
+                    time.sleep(5)  # brief pause between attempts
+
+            if not fixed:
+                result["remediations"].append({
+                    "source_type": source["source_type"],
+                    "root_cause": diagnosis["root_cause"],
+                    "attempts": MAX_AUTO_FIX_ATTEMPTS,
+                    "success": False,
+                })
+                # Escalate to tier 2
+                escalate_to_human(source, diagnosis, MAX_AUTO_FIX_ATTEMPTS)
+                result["escalations"].append(source["source_type"])
+        else:
+            # Tier 2: straight to human (disk_full, permission_denied)
+            escalate_to_human(source, diagnosis, 0)
+            result["escalations"].append(source["source_type"])
+
+    # 3. Save health metrics
+    metrics_saved = save_health_metrics(sources)
+    result["metrics_saved"] = metrics_saved
+    log.info("health_metrics_saved", count=metrics_saved)
+
+    # 4. Check processing backlogs
+    backlogs = check_processing_backlog()
+    result["processing_backlogs"] = backlogs
+    if backlogs:
+        fix_processing_backlog(backlogs)
+        if verbose:
+            for b in backlogs:
+                print(f"  [BACKLOG] {b['type']}: {b['count']} pending (threshold: {b['threshold']})")
+
+    elapsed = round(time.time() - start, 2)
+    result["elapsed_seconds"] = elapsed
+
+    log.info("guardian_cycle_complete",
+             elapsed=elapsed, ok=ok_count, warning=warn_count,
+             critical=critical_count, remediations=len(result["remediations"]),
+             escalations=len(result["escalations"]),
+             backlogs=len(backlogs))
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Data Guardian — self-healing data pipeline monitor")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Print detailed output")
+    parser.add_argument("--check-only", action="store_true", help="Only check freshness, no remediation")
+    parser.add_argument("--json", action="store_true", help="Output JSON result")
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+
+    if args.check_only:
+        sources = check_source_freshness()
+        if args.json:
+            print(json.dumps(sources, default=str, indent=2))
+        else:
+            for s in sources:
+                icon = {"ok": "+", "warning": "~", "critical": "!", "dead": "X"}
+                print(f"[{icon.get(s['status'], '?')}] {s['source_type']:20s} "
+                      f"{s['hours_stale']:8.1f}h / {s['sla_hours']:.0f}h  ({s['status']})")
+        return
+
+    result = run_guardian(verbose=args.verbose)
+
+    if args.json:
+        print(json.dumps(result, default=str, indent=2))
+    elif args.verbose:
+        print(f"\nData Guardian complete in {result['elapsed_seconds']}s")
+        print(f"  Remediations: {len(result['remediations'])}")
+        print(f"  Escalations:  {len(result['escalations'])}")
+        print(f"  Backlogs:     {len(result['processing_backlogs'])}")
+
+
+if __name__ == "__main__":
+    main()

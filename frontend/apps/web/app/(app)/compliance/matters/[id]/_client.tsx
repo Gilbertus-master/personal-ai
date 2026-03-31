@@ -28,7 +28,7 @@ export function PageClient() {
   const store = useComplianceStore();
 
   return (
-    <RbacGate roles={['ceo', 'board', 'director', 'gilbertus_admin']}>
+    <RbacGate roles={['owner', 'ceo', 'board', 'director', 'gilbertus_admin']}>
       <div className="space-y-6">
         {/* Back link */}
         <Link

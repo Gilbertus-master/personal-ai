@@ -1,0 +1,18 @@
+Chunks to process: 5628
+{"chunk_id": 271, "entity_count": 2, "entity_names": ["Kategoria A1/A3", "Kategoria operacji otwarta"]}
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/sebastian/personal-ai/app/extraction/entities.py", line 340, in <module>
+    main()
+  File "/home/sebastian/personal-ai/app/extraction/entities.py", line 317, in main
+    entity_id = upsert_entity(entity)
+                ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/app/extraction/entities.py", line 247, in upsert_entity
+    row = cur.fetchone()
+          ^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/psycopg/cursor.py", line 191, in fetchone
+    record = self._tx.load_row(self._pos, self._make_row)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "psycopg_binary/_psycopg/transform.pyx", line 492, in psycopg_binary._psycopg.Transformer.load_row
+psycopg.InterfaceError: row must be included between 0 and 0

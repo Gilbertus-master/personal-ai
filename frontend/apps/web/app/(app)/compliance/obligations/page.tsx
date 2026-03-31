@@ -14,7 +14,7 @@ export default function ObligationsPage() {
   const store = useComplianceStore();
 
   return (
-    <RbacGate roles={['ceo', 'board', 'director', 'gilbertus_admin']}>
+    <RbacGate roles={['owner', 'ceo', 'board', 'director', 'gilbertus_admin']}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-[var(--text)]">Obowiązki compliance</h1>

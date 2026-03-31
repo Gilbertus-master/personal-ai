@@ -11,7 +11,7 @@ export default function DeadlinesPage() {
   const store = useComplianceStore();
 
   return (
-    <RbacGate roles={['ceo', 'board', 'director', 'gilbertus_admin']}>
+    <RbacGate roles={['owner', 'ceo', 'board', 'director', 'gilbertus_admin']}>
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-[var(--text)]">Terminy compliance</h1>
 

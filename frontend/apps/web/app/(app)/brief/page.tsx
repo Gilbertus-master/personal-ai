@@ -363,7 +363,7 @@ function BriefContent() {
 export default function BriefPage() {
   return (
     <RbacGate
-      roles={['ceo', 'board', 'gilbertus_admin']}
+      roles={['owner', 'ceo', 'board', 'gilbertus_admin']}
       fallback={
         <div className="flex items-center justify-center h-full">
           <p className="text-[var(--text-secondary)]">Brak dostępu do briefu</p>

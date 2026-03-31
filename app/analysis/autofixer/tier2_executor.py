@@ -194,38 +194,51 @@ def _mark_resolved(finding_ids: list[int]) -> None:
     """Mark findings as resolved."""
     if not finding_ids:
         return
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
-            placeholders = ",".join(["%s"] * len(finding_ids))
-            cur.execute(f"""
-                UPDATE code_review_findings
-                SET resolved = TRUE, resolved_at = NOW()
-                WHERE id IN ({placeholders})
-            """, tuple(finding_ids))
-        conn.commit()
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                placeholders = ",".join(["%s"] * len(finding_ids))
+                cur.execute(f"""
+                    UPDATE code_review_findings
+                    SET resolved = TRUE, resolved_at = NOW()
+                    WHERE id IN ({placeholders})
+                """, tuple(finding_ids))
+                rowcount = cur.rowcount
+            conn.commit()
+            log.info("autofixer.tier2.mark_resolved", count=len(finding_ids), ids=finding_ids, rowcount=rowcount)
+    except Exception:
+        log.exception("autofixer.tier2.mark_resolved_failed", ids=finding_ids)
+        raise
 
 
 def _mark_attempted(finding_ids: list[int]) -> None:
     """Increment attempt counter for findings."""
     if not finding_ids:
         return
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
-            placeholders = ",".join(["%s"] * len(finding_ids))
-            cur.execute(f"""
-                UPDATE code_review_findings
-                SET fix_attempted_at = NOW(),
-                    fix_attempt_count = fix_attempt_count + 1
-                WHERE id IN ({placeholders})
-            """, tuple(finding_ids))
-            # Check if any reached max attempts
-            cur.execute(f"""
-                UPDATE code_review_findings
-                SET manual_review = TRUE
-                WHERE id IN ({placeholders})
-                  AND fix_attempt_count >= 6
-            """, tuple(finding_ids))
-        conn.commit()
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                placeholders = ",".join(["%s"] * len(finding_ids))
+                cur.execute(f"""
+                    UPDATE code_review_findings
+                    SET fix_attempted_at = NOW(),
+                        fix_attempt_count = fix_attempt_count + 1
+                    WHERE id IN ({placeholders})
+                """, tuple(finding_ids))
+                rowcount1 = cur.rowcount
+                # Check if any reached max attempts
+                cur.execute(f"""
+                    UPDATE code_review_findings
+                    SET manual_review = TRUE
+                    WHERE id IN ({placeholders})
+                      AND fix_attempt_count >= 6
+                """, tuple(finding_ids))
+                rowcount2 = cur.rowcount
+            conn.commit()
+            log.info("autofixer.tier2.mark_attempted", count=len(finding_ids), rowcount_updated=rowcount1, rowcount_manual_review=rowcount2)
+    except Exception:
+        log.exception("autofixer.tier2.mark_attempted_failed", ids=finding_ids)
+        raise
 
 
 def execute_tier2(cluster: dict, context: dict, prompt: str) -> dict:

@@ -90,7 +90,7 @@ export default function DocumentsPage() {
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
             Dokumenty
           </h1>
-          <RbacGate roles={['ceo', 'board', 'director']}>
+          <RbacGate roles={['owner', 'ceo', 'board', 'director']}>
             <button
               onClick={() => setUploadOpen(true)}
               className="rounded-md px-4 py-1.5 text-sm font-medium transition-colors"

@@ -131,16 +131,28 @@
       "entity_backlog": 2371,
       "event_backlog": 2371,
       "embedding_backlog": 0
+    },
+    {
+      "ts": "2026-03-31T12:00:04.201031+00:00",
+      "entity_backlog": 2371,
+      "event_backlog": 2371,
+      "embedding_backlog": 0
+    },
+    {
+      "ts": "2026-03-31T12:30:03.257864+00:00",
+      "entity_backlog": 3091,
+      "event_backlog": 3091,
+      "embedding_backlog": 620
     }
   ],
-  "last_check": "2026-03-31 11:30 UTC",
+  "last_check": "2026-03-31 12:30 UTC",
   "last_backlogs": {
-    "entity_backlog": 2371,
-    "event_backlog": 2371,
-    "embedding_backlog": 0
+    "entity_backlog": 3091,
+    "event_backlog": 3091,
+    "embedding_backlog": 620
   },
   "last_workers": {
-    "entity": 0,
+    "entity": 6,
     "event": 0,
     "embedding": 2
   },

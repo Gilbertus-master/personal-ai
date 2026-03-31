@@ -21,6 +21,7 @@ echo "$LOG_PREFIX: starting"
 $VENV_PYTHON - << 'PYEOF'
 import sys, os, requests, json, subprocess, tempfile, time
 from datetime import datetime
+from zoneinfo import ZoneInfo
 sys.path.insert(0, '/home/sebastian/personal-ai')
 
 import structlog
@@ -31,6 +32,7 @@ from app.utils.network import ensure_wsl2_mtu
 log = structlog.get_logger()
 ensure_wsl2_mtu()
 
+_CET = ZoneInfo("Europe/Warsaw")
 WHISPER_URL = os.getenv("WHISPER_URL", "http://127.0.0.1:9090")
 PLAUD_API = "https://api.plaud.ai"
 MIN_AUDIO_SECONDS = 30
@@ -155,7 +157,7 @@ for r in [x for x in needs if x['id'] not in plaud_triggered_ids]:
     if start_time:
         ts = start_time / 1000 if start_time > 1e12 else start_time
         try:
-            recorded_at = datetime.fromtimestamp(ts)
+            recorded_at = datetime.fromtimestamp(ts, tz=_CET)
         except (OSError, ValueError, OverflowError) as e:
             log.warning('timestamp_parse_failed', recording_id=fid, ts=ts, error=str(e))
 

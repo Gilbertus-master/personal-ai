@@ -1,0 +1,1292 @@
+==> KATALOG PROJEKTU
+/home/sebastian/personal-ai
+==> STATUS KONTENERÓW
+NAME                 IMAGE                  COMMAND                  SERVICE    CREATED      STATUS                  PORTS
+gilbertus-postgres   postgres:16            "docker-entrypoint.s…"   postgres   6 days ago   Up 24 hours (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+gilbertus-qdrant     qdrant/qdrant:latest   "./entrypoint.sh"        qdrant     6 days ago   Up 24 hours             0.0.0.0:6333-6334->6333-6334/tcp, [::]:6333-6334->6333-6334/tcp
+==> BACKUP PRZED IMPORTEM
+==> Tworze backup w: backups/db/2026-03-15_13-04-16
+==> Backup gotowy
+total 28K
+-rw-r--r-- 1 sebastian sebastian 266 Mar 15 13:04 manifest.json
+-rw-r--r-- 1 sebastian sebastian 18K Mar 15 13:04 postgres.dump
+-rw-r--r-- 1 sebastian sebastian 392 Mar 15 13:04 qdrant.tar.zst
+==> IMPORT
+Importing file: data/raw/chatgpt/20260310/conversations-000.json
+Imported conversation: Decyzja o likwidacji spółki | messages=2 | chunks=1
+Imported conversation: Kampania Google Ads OZE. | messages=2 | chunks=1
+Imported conversation: Pancakes z jogurtem naturalnym | messages=4 | chunks=1
+Imported conversation: Prawo przystąpienia do związków | messages=2 | chunks=1
+Imported conversation: Translation Request: Summary. | messages=11 | chunks=3
+Imported conversation: BP GETEC Acquisition Details | messages=2 | chunks=1
+Imported conversation: Obszary CFO | messages=14 | chunks=4
+Imported conversation: VAT na statki powietrzne | messages=10 | chunks=1
+Imported conversation: Strategia HR-owa dla zarządu | messages=2 | chunks=1
+Imported conversation: Private Jets: How Many? | messages=6 | chunks=1
+Imported conversation: Zachowania w zespole Aspergera | messages=2 | chunks=1
+Imported conversation: Tworzenie Grup Roboczych z GPT | messages=10 | chunks=2
+Imported conversation: SP Words Given | messages=11 | chunks=2
+Imported conversation: Historia fryzjerstwa i techniki. | messages=22 | chunks=3
+Imported conversation: Libra & Scorpio Relationship Pros | messages=2 | chunks=1
+Imported conversation: Google Marketing Strategy Energy. | messages=4 | chunks=1
+Imported conversation: Survey for Tribal Leadership | messages=23 | chunks=14
+Imported conversation: Oprocentowanie pożyczek w Polsce | messages=10 | chunks=2
+Imported conversation: Regulacje Fotowoltaiczne W Niemczech | messages=6 | chunks=2
+Imported conversation: Różnica między życiem. | messages=2 | chunks=1
+Imported conversation: Pieczenie wołowiny medium rare | messages=16 | chunks=3
+Imported conversation: Wattstor Business Model: Onsite Renewables | messages=6 | chunks=1
+Imported conversation: Oprocentowanie pożyczek w Polsce | messages=15 | chunks=2
+Imported conversation: Bezpośrednie loty Warszawa | messages=6 | chunks=1
+Imported conversation: New chat | messages=2 | chunks=1
+Imported conversation: Dziurawiec a układ trawienny. | messages=8 | chunks=1
+Imported conversation: Piperyna przyspiesza metabolizm. | messages=10 | chunks=1
+Imported conversation: Partie wyborcze w Polsce | messages=2 | chunks=1
+Imported conversation: Respect Energy: Undefined Term | messages=8 | chunks=1
+Imported conversation: Profitability of Aquariums | messages=2 | chunks=1
+Imported conversation: Przymiotniki przedsiębiorcy | messages=2 | chunks=1
+Imported conversation: Gas Export Tax Debate | messages=10 | chunks=1
+Imported conversation: Poznaj ją lepiej: pytania. | messages=2 | chunks=1
+Imported conversation: Marta as Board Advisor | messages=4 | chunks=2
+Imported conversation: Niania Kinga - Wyjątkowa Opieka | messages=6 | chunks=2
+Imported conversation: Niekompetencja syna wspólnika. | messages=2 | chunks=1
+Imported conversation: Respect Energy SA. | messages=8 | chunks=1
+Imported conversation: 66ddf4d8-0ce4-800e-b931-4adc9e67e6d5 | messages=2 | chunks=1
+Imported conversation: Czas trwania sesji tatuażu | messages=2 | chunks=1
+Imported conversation: Pytania do oceny kompatybilności | messages=25 | chunks=10
+Imported conversation: Wyposażenie nowego mieszkania | messages=13 | chunks=6
+Imported conversation: Porque te vas tekst i tłumaczenie | messages=4 | chunks=2
+Imported conversation: Dystans przejeżdżany przez taksówki | messages=53 | chunks=10
+Imported conversation: Popular Car Makers Europe | messages=179 | chunks=30
+Imported conversation: Abstrakcyjna scena z szumem | messages=15 | chunks=4
+Imported conversation: Zmiana operatora w Polsce | messages=40 | chunks=6
+Imported conversation: Jak znaleźć sprzątaczkę Warszawa | messages=2 | chunks=1
+Imported conversation: Najwięksi sprzedawcy energii w Polsce | messages=26 | chunks=15
+Imported conversation: Dystans Warszawa Polanica Zdrój | messages=4 | chunks=1
+Imported conversation: Pierwsza elektrownia w Polsce | messages=14 | chunks=2
+Imported conversation: Firmowe wyjazdy integracyjne zalety | messages=6 | chunks=3
+Imported conversation: Przepis na tortille | messages=29 | chunks=6
+Imported conversation: Przyprawy do pasztetu drobiowo-wieprzowego | messages=19 | chunks=4
+Imported conversation: Najlepsze olejki do masażu | messages=28 | chunks=9
+Imported conversation: Pobieranie sprawozdań finansowych | messages=10 | chunks=1
+Imported conversation: Wiersz o orle białym | messages=10 | chunks=1
+Imported conversation: Konwersja pliku do Excela | messages=29 | chunks=9
+Imported conversation: Panele fotowoltaiczne hybrydowe | messages=14 | chunks=2
+Imported conversation: Dodatki do tacosów wołowych | messages=57 | chunks=13
+Imported conversation: Kryzys InPostu i rozwój | messages=4 | chunks=1
+Imported conversation: Premiera Problem trzech ciał | messages=2 | chunks=1
+Imported conversation: Przepis na comber z jelenia | messages=18 | chunks=9
+Imported conversation: Dodatki do naleśników na słono | messages=4 | chunks=1
+Imported conversation: Nadzienie do naleśników z krewetkami | messages=4 | chunks=1
+Imported conversation: Przepis na naleśniki kokosowe | messages=10 | chunks=2
+Imported conversation: Najlepsi producenci grzałek | messages=20 | chunks=4
+Imported conversation: Dekoracje świąteczne w Wiedniu | messages=6 | chunks=1
+Imported conversation: Zarobki tatuatora w Polsce | messages=2 | chunks=1
+Imported conversation: EV Sales vs Targets 2024 | messages=57 | chunks=14
+Imported conversation: Head of Trading Candidates | messages=4 | chunks=2
+Imported conversation: Drukowanie nut w MuseScore | messages=10 | chunks=3
+Imported conversation: Czas pieczenia roastbeefu | messages=9 | chunks=2
+Imported conversation: Przepis na sos do łososia | messages=6 | chunks=1
+Imported conversation: Związek czy one night stand | messages=2 | chunks=1
+Imported conversation: Piosenka Szukam wiatru | messages=4 | chunks=1
+Imported conversation: Tłumaczenie słowa baczek | messages=18 | chunks=2
+Imported conversation: Dekommisionowanie elektrowni węglowych | messages=24 | chunks=5
+Imported conversation: Loty do ciepłych krajów | messages=16 | chunks=5
+Imported conversation: Import gazu Świnoujście TWh | messages=2 | chunks=1
+Imported conversation: Przepis na gofry | messages=14 | chunks=3
+Imported conversation: Pomysły na prezent | messages=2 | chunks=1
+Imported conversation: Instalacje PV w biznesie | messages=6 | chunks=1
+Imported conversation: Słodkie przed wytrawnymi | messages=81 | chunks=24
+Imported conversation: Kara za seks publiczny | messages=24 | chunks=6
+Imported conversation: Bary z muzyką na żywo | messages=4 | chunks=2
+Imported conversation: Ograniczenia podatkowe w Rumunii | messages=4 | chunks=1
+Imported conversation: Produkcja samolotów odrzutowych | messages=10 | chunks=2
+Imported conversation: Sen o rodzinnym domu | messages=25 | chunks=4
+Imported conversation: Pronto tłumaczenie | messages=2 | chunks=1
+Imported conversation: Top Tattoo Schools Europe | messages=7 | chunks=3
+Imported conversation: Harmonogram farm wiatrowych | messages=26 | chunks=16
+Imported conversation: Styl architektoniczny Polanicy | messages=11 | chunks=4
+Imported conversation: Aplikacje do elewacji AI | messages=13 | chunks=4
+Imported conversation: Luksusowe spa w Norwegii | messages=2 | chunks=1
+Imported conversation: APT meaning and usage | messages=2 | chunks=1
+Imported conversation: Piosenka APT znaczenie | messages=10 | chunks=2
+Imported conversation: Koszty w OPEX | messages=4 | chunks=1
+Imported conversation: Start CSIRE 2025 | messages=4 | chunks=1
+Imported conversation: Populacja miast i wsi | messages=4 | chunks=1
+Imported conversation: Restauracje 3 gwiazdki Michelin | messages=8 | chunks=1
+
+ChatGPT import finished. Imported=100, skipped=0
+Importing file: data/raw/chatgpt/20260310/conversations-001.json
+Imported conversation: Indyjskie restauracje Michelin | messages=24 | chunks=5
+Imported conversation: Xbox vs PC Flight Simulator | messages=3 | chunks=1
+Imported conversation: Xbox vs PC Flight Simulator | messages=20 | chunks=4
+Imported conversation: Przystawka z przegrzebków | messages=6 | chunks=1
+Imported conversation: Interpretacja snu Sebastiana | messages=3 | chunks=2
+Imported conversation: PayPal Mafia członkowie | messages=16 | chunks=4
+Imported conversation: Co to guanciale | messages=2 | chunks=1
+Imported conversation: Tagliatelle z polędwicą przepis | messages=4 | chunks=1
+Imported conversation: Pad nie łączy się | messages=2 | chunks=1
+Imported conversation: Interpretacja snu Sebastiana | messages=34 | chunks=10
+Imported conversation: Korzyści z sauny | messages=2 | chunks=1
+Imported conversation: Pieczony schab cielęcy przepis | messages=8 | chunks=2
+Imported conversation: Dane Futures EEX | messages=4 | chunks=1
+Imported conversation: Renumeration Decision Strategy | messages=4 | chunks=3
+Imported conversation: W+2 w DE | messages=81 | chunks=15
+Imported conversation: Strategia tradingowa W+2 | messages=13 | chunks=2
+Imported conversation: Analiza rynku gazu | messages=117 | chunks=17
+Imported conversation: Optymalizacja strategii tradingowej | messages=14 | chunks=1
+Imported conversation: Strategia tradingowa gazu | messages=9 | chunks=1
+Imported conversation: Buteleczka życia w HL | messages=10 | chunks=3
+Imported conversation: Dystrybucja nagród na Kaggle | messages=22 | chunks=4
+Imported conversation: Problemy zdrowotne mopsów | messages=4 | chunks=1
+Imported conversation: Wartość nieruchomości Polanica | messages=10 | chunks=3
+Imported conversation: Elektrownie gazowe w Niemczech | messages=6 | chunks=2
+Imported conversation: Mothballing elektrowni | messages=2 | chunks=1
+Imported conversation: Autopatching w infrastrukturze IT | messages=4 | chunks=2
+Imported conversation: Przyczyny rozwodu po porodzie | messages=6 | chunks=2
+Imported conversation: Pytania do dyrektora sprzedaży | messages=3 | chunks=1
+Imported conversation: Castor et Pollux opera | messages=14 | chunks=4
+Imported conversation: Pochodzenie nazwiska Farion | messages=4 | chunks=1
+Imported conversation: Konkurencja i partnerzy NATO | messages=8 | chunks=2
+Imported conversation: Oferta nieruchomości Polanica-Zdrój | messages=8 | chunks=2
+Imported conversation: Feedback dla CCO | messages=14 | chunks=6
+Imported conversation: Rozmowa o psie dla Wojtka | messages=6 | chunks=2
+Imported conversation: Przepis na pieczoną gęś | messages=36 | chunks=12
+Imported conversation: Lotniska w zasięgu 700 mil | messages=29 | chunks=8
+Imported conversation: Podsumowanie działań biznesowych | messages=4 | chunks=1
+Imported conversation: Pies w dwóch domach | messages=6 | chunks=3
+Imported conversation: Wynagrodzenie zmienne dla zarządu | messages=7 | chunks=3
+Imported conversation: Epickie pranki dla znajomych | messages=2 | chunks=1
+Imported conversation: Ewidencja vs Rejestr zabytków | messages=2 | chunks=1
+Imported conversation: Nazwa Polanicy-Zdroju po niemiecku | messages=15 | chunks=1
+Imported conversation: Szkodliwość e-papierosów vs papierosów | messages=2 | chunks=1
+Imported conversation: Biggest Oil Reserves | messages=6 | chunks=1
+Imported conversation: Ford F-150 Lightning w Europie | messages=2 | chunks=1
+Imported conversation: Frustracja Sebastiana z samochodami | messages=14 | chunks=7
+Imported conversation: Najlepsze rowery elektryczne | messages=12 | chunks=4
+Imported conversation: Najlepsze musical.ly na streamingu | messages=8 | chunks=2
+Imported conversation: Przepis na gorącą czekoladę | messages=2 | chunks=1
+Imported conversation: Zasady serwowania w squashu | messages=6 | chunks=1
+Imported conversation: Wiek kandydata na prezydenta | messages=3 | chunks=1
+Imported conversation: Szybkie ciasto do pizzy | messages=8 | chunks=1
+Imported conversation: Analiza sytuacji w teamie | messages=14 | chunks=10
+Imported conversation: Sprzedaż gazu przez SPP | messages=6 | chunks=1
+Imported conversation: Miejsca na spacer w Weronie | messages=4 | chunks=1
+Imported conversation: Pieczenie polędwicy wołowej | messages=6 | chunks=1
+Imported conversation: De gustibus non est disputandum | messages=6 | chunks=1
+Imported conversation: Warzywa do krewetek z ryżem | messages=5 | chunks=1
+Imported conversation: Pytania dla Finance Managera | messages=2 | chunks=1
+Imported conversation: Dziecko nie chce do szkoły | messages=6 | chunks=2
+Imported conversation: Organiczny przepis Mai Tai | messages=18 | chunks=4
+Imported conversation: Usprawnienie procesów HR | messages=7 | chunks=2
+Imported conversation: Pytania dla Treasury Managera | messages=6 | chunks=4
+Imported conversation: REH ZARZADZANIE | messages=3 | chunks=2
+Imported conversation: Wykwintne dania wegetariańskie | messages=3 | chunks=2
+Imported conversation: Dostęp do czatów | messages=3 | chunks=1
+Imported conversation: Wykwintne dania wegetariańskie | messages=3 | chunks=2
+Imported conversation: Przepis na kaszę pęczak | messages=6 | chunks=2
+Imported conversation: Popyt na energię w Europie | messages=3 | chunks=1
+Imported conversation: Przepis na sos pomidorowy | messages=3 | chunks=1
+Imported conversation: Polityka a feudalizm | messages=2 | chunks=1
+Imported conversation: Najdłuższe wojny w historii | messages=2 | chunks=1
+Imported conversation: Farsz do pierogów z mięsem | messages=6 | chunks=1
+Imported conversation: Budżet zbrojeniowy Rosji 2025 | messages=12 | chunks=1
+Imported conversation: Przepis na bryzol | messages=4 | chunks=1
+Imported conversation: BDP EU 2024 | messages=16 | chunks=6
+Imported conversation: Przepis na kaszę pęczak | messages=2 | chunks=1
+Imported conversation: Ewaluacja celów Moniki | messages=4 | chunks=2
+Imported conversation: Wsparcie dla Ukrainy | messages=4 | chunks=2
+Imported conversation: Tłumaczenie rotacji na angielski | messages=4 | chunks=1
+Imported conversation: Konflikt serologiczny Rh | messages=16 | chunks=2
+Imported conversation: Zużycie energii w sklepach | messages=6 | chunks=1
+Imported conversation: Pieczenie filetu z dorady | messages=2 | chunks=1
+Imported conversation: Cena chleba w hurcie | messages=34 | chunks=6
+Imported conversation: Sen o mrocznym domu | messages=2 | chunks=2
+Imported conversation: Cena Ford Bronco Raptor | messages=2 | chunks=1
+Imported conversation: Bezpośrednie loty z WAW | messages=3 | chunks=2
+Imported conversation: Significato di burdel | messages=4 | chunks=1
+Imported conversation: Liczenie NPV w trakcie realizacji | messages=17 | chunks=5
+Imported conversation: Przepis na szarpaną wołowinę | messages=3 | chunks=1
+Imported conversation: Pasta z fasoli meksykańska | messages=2 | chunks=1
+Imported conversation: Wydobycie ropy i gazu w Rosji | messages=14 | chunks=7
+Imported conversation: Psikanie psa wodą | messages=6 | chunks=2
+Imported conversation: Grupa krwi dziecka | messages=2 | chunks=1
+Imported conversation: Bezpośrednie loty z Warszawy | messages=6 | chunks=1
+Imported conversation: Koncerty 4-5 maja 2025 | messages=35 | chunks=4
+Imported conversation: Bezpośrednie loty do Singapuru | messages=12 | chunks=2
+Imported conversation: Luksusowe hotele z atrakcjami | messages=6 | chunks=2
+Imported conversation: Harmonogram farm wiatrowych Polenergia | messages=12 | chunks=3
+Imported conversation: Przepis na sos orzechowy | messages=2 | chunks=1
+
+ChatGPT import finished. Imported=100, skipped=0
+Importing file: data/raw/chatgpt/20260310/conversations-002.json
+Imported conversation: Najlepsze hotele na Zakynthos | messages=4 | chunks=1
+Imported conversation: TCO Toyota Corolla vs Cupra | messages=3 | chunks=3
+Imported conversation: Picie przed zabiegiem | messages=6 | chunks=1
+Imported conversation: Euvic Future Work Overview | messages=2 | chunks=1
+Imported conversation: Zaliczenie studiów doświadczeniem zawodowym | messages=3 | chunks=1
+Imported conversation: Zużycie gazu w Europie | messages=6 | chunks=1
+Imported conversation: Opieka nad dziećmi 50/50 | messages=96 | chunks=26
+Imported conversation: Piosenka spontaniczna? | messages=7 | chunks=1
+Imported conversation: Ignorowanie i konsekwencje | messages=6 | chunks=2
+Imported conversation: Dawkowanie nifuroksazydu | messages=6 | chunks=1
+Imported conversation: Parki rozrywki dla dzieci | messages=2 | chunks=1
+Imported conversation: Członkowie zarządu w radzie | messages=8 | chunks=2
+Imported conversation: Producent maszyn Panatta | messages=2 | chunks=1
+Imported conversation: Przepis na sushi | messages=2 | chunks=1
+Imported conversation: Argumenty sprzedażowe Respect Energy | messages=8 | chunks=2
+Imported conversation: 30STM nadchodzące koncerty EU | messages=2 | chunks=1
+Imported conversation: Odpowiedź na obawy traderów | messages=25 | chunks=10
+Imported conversation: Koszt przejazdu flotowego | messages=4 | chunks=1
+Imported conversation: Aloft gra dla 2 osób | messages=6 | chunks=1
+Imported conversation: Przygotowanie mrożonych ravioli | messages=6 | chunks=1
+Imported conversation: Przenoszenie danych iPhone | messages=4 | chunks=1
+Imported conversation: Popyt na energię w Rumunii | messages=11 | chunks=2
+Imported conversation: Wartość Rolls-Royce'a | messages=20 | chunks=5
+Imported conversation: The Last Kingdom summary | messages=2 | chunks=1
+Imported conversation: Apteki z dostawą | messages=2 | chunks=1
+Imported conversation: Pomysły na dorsza Skrei | messages=6 | chunks=2
+Imported conversation: Czas zakaźności przy anginie | messages=4 | chunks=1
+Imported conversation: Ciasto z mąki orkiszowej | messages=4 | chunks=1
+Imported conversation: Raz zdrajca zawsze zdrajca | messages=10 | chunks=4
+Imported conversation: Dorsz w sosie śmietanowym | messages=4 | chunks=1
+Imported conversation: Paraliż decyzyjny i wybór | messages=4 | chunks=1
+Imported conversation: Roczna wartość importu USA | messages=8 | chunks=2
+Imported conversation: CIA i zamach na JFK | messages=2 | chunks=1
+Imported conversation: Przepisy z żabnicą | messages=2 | chunks=1
+Imported conversation: Co to znaczy przebiegły | messages=2 | chunks=1
+Imported conversation: Seks a choroba | messages=4 | chunks=1
+Imported conversation: Dystrybucja długości penisa | messages=28 | chunks=6
+Imported conversation: Kołdra po angielsku | messages=13 | chunks=2
+Imported conversation: Wejście na dzwonnicę Warszawa | messages=2 | chunks=1
+Imported conversation: Bezpieczeństwo przeciwprądów basenowych | messages=4 | chunks=2
+Imported conversation: Intel Annual CapEx Overview | messages=16 | chunks=5
+Imported conversation: Koncerty Jamesa Blunta 2025 | messages=25 | chunks=10
+Imported conversation: Import USA ropy gazu UE | messages=6 | chunks=1
+Imported conversation: Spadek po synach słońca | messages=12 | chunks=2
+Imported conversation: Sen o poszukiwaniach domu | messages=4 | chunks=2
+Imported conversation: Import UE z Chin | messages=16 | chunks=6
+Imported conversation: Krwawy władca Danii | messages=6 | chunks=1
+Imported conversation: Cena brylantu na rynku | messages=18 | chunks=2
+Imported conversation: Czas na nowy związek | messages=2 | chunks=1
+Imported conversation: Atrakcje dla dzieci Hamburg | messages=13 | chunks=3
+Imported conversation: Laweta po niemiecku | messages=2 | chunks=1
+Imported conversation: Piwnice kamienic w Zamościu | messages=30 | chunks=8
+Imported conversation: Klabautermann Wellerman adaptacja | messages=7 | chunks=1
+Imported conversation: Mazut po niemiecku | messages=6 | chunks=1
+Imported conversation: Przepis na barszcz biały | messages=12 | chunks=2
+Imported conversation: Właściciele Grupy Electrica | messages=2 | chunks=1
+Imported conversation: Eksport historii ID.4 | messages=6 | chunks=2
+Imported conversation: Czekoladowy biszkopt kokosowy | messages=12 | chunks=3
+Imported conversation: Leczenie zaropiałego oka | messages=8 | chunks=2
+Imported conversation: Kolejność prac wykończeniowych | messages=11 | chunks=4
+Imported conversation: Gołąbki wigilijne z kaszą | messages=12 | chunks=3
+Imported conversation: Lisan Al-Gaib znaczenie | messages=2 | chunks=1
+Imported conversation: Czyste Powietrze dla nowych domów | messages=2 | chunks=1
+Imported conversation: Reakcja na słowa Wojtka | messages=2 | chunks=1
+Imported conversation: Trąba wodna wyjaśnienie | messages=4 | chunks=1
+Imported conversation: Wynagrodzenie kierownika budowy | messages=8 | chunks=2
+Imported conversation: Jezus zmartwychwstał | messages=74 | chunks=10
+Imported conversation: Drzewka owocowe w Polsce | messages=7 | chunks=4
+Imported conversation: Nowy papież? | messages=2 | chunks=1
+Imported conversation: Rozpoznawanie drzewa ozdobnego | messages=6 | chunks=1
+Imported conversation: Dysocjacja psychiczna i chemiczna | messages=4 | chunks=1
+Imported conversation: Funkcje controllingu w organizacji | messages=7 | chunks=3
+Imported conversation: Macocha a opieka nad dziećmi | messages=12 | chunks=5
+Imported conversation: Ulotne po angielsku | messages=12 | chunks=4
+Imported conversation: Premium wina bezalkoholowe | messages=4 | chunks=2
+Imported conversation: Sekret tożsamości i roli | messages=14 | chunks=7
+Imported conversation: Czas gotowania bobu | messages=4 | chunks=2
+Imported conversation: Migracja playlist TIDAL do Apple Music | messages=2 | chunks=1
+Imported conversation: Szybkie obniżenie cholesterolu | messages=19 | chunks=8
+Imported conversation: Sen o oczyszczeniu | messages=6 | chunks=2
+Imported conversation: Magazyny energii do gniazdka | messages=2 | chunks=1
+Imported conversation: Rostbef w marynacie | messages=2 | chunks=1
+Imported conversation: Przepis na udziec jagnięcy | messages=2 | chunks=1
+Imported conversation: Przyprawy do kurczaka | messages=2 | chunks=1
+Imported conversation: Jagnięcina a cholesterol | messages=2 | chunks=1
+Imported conversation: Wpływ czerwonego wina na cholesterol | messages=4 | chunks=1
+Imported conversation: Naprzód po francusku | messages=2 | chunks=1
+Imported conversation: CAGR of Global Energy | messages=8 | chunks=3
+Imported conversation: US Oil and Gas Profitability | messages=2 | chunks=1
+Imported conversation: Wielkie Jeziora powierzchnia | messages=8 | chunks=1
+Imported conversation: Luksusowe samochody dla rodzin | messages=5 | chunks=2
+Imported conversation: Les prélats de la France | messages=30 | chunks=7
+Imported conversation: Najlepsze stajnie Warszawa | messages=6 | chunks=3
+Imported conversation: Polityka hedgingowa Exxona | messages=2 | chunks=1
+Imported conversation: Sales Position Questions | messages=9 | chunks=3
+Imported conversation: Przyczyny wolnego rozwoju e-commerce | messages=4 | chunks=2
+Imported conversation: Luksusowe kosze piknikowe | messages=6 | chunks=2
+Imported conversation: Operacja Sindoora Podsumowanie | messages=5 | chunks=2
+Imported conversation: Platformy fractional real estate | messages=7 | chunks=4
+Imported conversation: Uprawnienia ETS 1 i 2 | messages=12 | chunks=6
+
+ChatGPT import finished. Imported=100, skipped=0
+Importing file: data/raw/chatgpt/20260310/conversations-003.json
+Imported conversation: Nóż Bunka Fish-Bone | messages=2 | chunks=1
+Imported conversation: Koszt budowy turbiny 2MW | messages=4 | chunks=2
+Imported conversation: Kontakty do firm | messages=18 | chunks=3
+Imported conversation: Pytania na rozmowę kwalifikacyjną | messages=19 | chunks=9
+Imported conversation: Podcasty o szczęśliwych związkach | messages=2 | chunks=1
+Imported conversation: Zmiana koloru włosów | messages=24 | chunks=3
+Imported conversation: Nauka w CNK | messages=2 | chunks=1
+Imported conversation: Koszt wydania gry | messages=6 | chunks=2
+Imported conversation: Udziały Rafała Brzoski w InPost | messages=2 | chunks=1
+Imported conversation: Zmiany powierzchni mieszkań | messages=15 | chunks=4
+Imported conversation: Luksusowe sukienki na wesele | messages=23 | chunks=6
+Imported conversation: Firmy ESCO w Polsce | messages=2 | chunks=1
+Imported conversation: Количество волос на голове | messages=7 | chunks=1
+Imported conversation: Gry samochodowe na Xboxa | messages=4 | chunks=2
+Imported conversation: Emisje CO2 ETS 2015-2029 | messages=6 | chunks=3
+Imported conversation: Ślubne życzenia po japońsku | messages=18 | chunks=2
+Imported conversation: Nóż na prezent | messages=2 | chunks=1
+Imported conversation: Saldo migracji do Polski | messages=16 | chunks=2
+Imported conversation: Kandydaci na Prezesa Zarządu | messages=4 | chunks=2
+Imported conversation: Zadania controllingu w spółce | messages=2 | chunks=1
+Imported conversation: Wyniki finansowe Octopus Energy | messages=13 | chunks=5
+Imported conversation: Kandydaci do zarządu Respect Energy | messages=4 | chunks=2
+Imported conversation: Czekoladowy ryż na mleku | messages=2 | chunks=1
+Imported conversation: Spółki 500+ w Polsce | messages=8 | chunks=1
+Imported conversation: Koncesja na obrót energią | messages=4 | chunks=2
+Imported conversation: Liczba szkół podstawowych w Polsce | messages=2 | chunks=1
+Imported conversation: Klej PVA zastosowanie i właściwości | messages=5 | chunks=1
+Imported conversation: Wyniki głosowania 2025 | messages=11 | chunks=4
+Imported conversation: Опечатка в сообщении | messages=8 | chunks=1
+Imported conversation: Zarobki Minecraft rocznie | messages=12 | chunks=5
+Imported conversation: Co o mnie wiesz | messages=6 | chunks=2
+Imported conversation: Analiza użytkownika i zainteresowań | messages=8 | chunks=4
+Imported conversation: Wzorcowe sieci sprzedaży energii | messages=1 | chunks=1
+Imported conversation: sprzedaz | messages=254 | chunks=84
+Imported conversation: Największe call center PL | messages=25 | chunks=9
+Imported conversation: Efekty polio | messages=3 | chunks=1
+Imported conversation: Przedsiębiorstwa w Polsce taryfy | messages=4 | chunks=2
+Imported conversation: Rozkład mocy i zużycia | messages=2 | chunks=2
+Imported conversation: Wiek Witolda Pawłowskiego | messages=2 | chunks=1
+Imported conversation: Cena Pilatusa PC-24 | messages=9 | chunks=4
+Imported conversation: O3 vs GPT-4o | messages=17 | chunks=7
+Imported conversation: Poziom wydobycia gazu w Polsce | messages=4 | chunks=1
+Imported conversation: Zmiana sprzedawcy energii | messages=2 | chunks=1
+Imported conversation: Obrazy Warhola z olejem | messages=2 | chunks=1
+Imported conversation: Hiranandani Group Valuation | messages=2 | chunks=1
+Imported conversation: Budowa centrów danych MW | messages=4 | chunks=2
+Imported conversation: Strefa saun poprawna forma | messages=14 | chunks=3
+Imported conversation: Zgłoszenie IETA dla grupy | messages=4 | chunks=1
+Imported conversation: Sprzedaż książek Harry Potter | messages=4 | chunks=1
+Imported conversation: Frekwencja wyborcza 2025 | messages=4 | chunks=1
+Imported conversation: Lumeny żarówki LED 17W | messages=2 | chunks=1
+Imported conversation: Zagadki z Tysiąca Nocy | messages=2 | chunks=1
+Imported conversation: Dieta na szybkie odchudzanie | messages=18 | chunks=8
+Imported conversation: Statystyki publikacji Jablonowski | messages=8 | chunks=4
+Imported conversation: Pomoc przy duszności u dziecka | messages=4 | chunks=1
+Imported conversation: Procent osób bez łaskotek | messages=7 | chunks=4
+Imported conversation: Kreatyna a odchudzanie | messages=81 | chunks=30
+Imported conversation: Najlepsze samochody RC | messages=35 | chunks=6
+Imported conversation: WORD mazowieckie zdawalność | messages=10 | chunks=3
+Imported conversation: Skrót na paragonie Auchan | messages=2 | chunks=1
+Imported conversation: Teorie rozproszenia uwagi w biznesie | messages=8 | chunks=6
+Imported conversation: Koszty bilansowania elektrowni wiatrowych | messages=2 | chunks=1
+Imported conversation: Nakład Wprost z Listą 100 | messages=2 | chunks=1
+Imported conversation: Podsumowanie preferencji użytkownika | messages=10 | chunks=2
+Imported conversation: Wybitni malarze XX wieku | messages=12 | chunks=4
+Imported conversation: Były prezes Hermes Energy | messages=4 | chunks=1
+Imported conversation: Kontakt z Krzysztofem Romanowskim | messages=2 | chunks=1
+Imported conversation: Dane wydobycia ropy Rosji | messages=9 | chunks=1
+Imported conversation: Sprzedaż gazu Unimot SA | messages=14 | chunks=1
+Imported conversation: Pokoje w hotelach 5★ | messages=19 | chunks=8
+Imported conversation: Dieta przed lipidogramem | messages=4 | chunks=2
+Imported conversation: Populacja ZSRR 1988 | messages=8 | chunks=2
+Imported conversation: Hotele spa blisko Warszawy | messages=5 | chunks=2
+Imported conversation: Wynik D-dimerów interpretacja | messages=11 | chunks=5
+Imported conversation: Obniżone neutrocyty i erytrocyty | messages=10 | chunks=4
+Imported conversation: Największa powierzchnia Polski | messages=2 | chunks=1
+Imported conversation: Fish identification question | messages=2 | chunks=1
+Imported conversation: Cholesterol i triglicerydy | messages=9 | chunks=6
+Imported conversation: Różnica zużycia PC | messages=10 | chunks=4
+Imported conversation: Pytania do dyrektora zakupów | messages=4 | chunks=3
+Imported conversation: Ilość alkoholu na 1.6‰ | messages=2 | chunks=1
+Imported conversation: Wykres pudełkowy definicja | messages=6 | chunks=1
+Imported conversation: Compa-ratio w wynagrodzeniach | messages=2 | chunks=1
+Imported conversation: Rotacja w telecentrum outboundowym | messages=2 | chunks=1
+Imported conversation: Mikroelektrownie wiatrowe do domu | messages=22 | chunks=6
+Imported conversation: Radioaktywność bananów i bezpieczeństwo | messages=5 | chunks=3
+Imported conversation: PKB polskich miast 2022 | messages=14 | chunks=9
+Imported conversation: Konsekwencje parkowania na cudzym miejscu | messages=2 | chunks=1
+Imported conversation: Najlepsi producenci okien PVC | messages=19 | chunks=9
+Imported conversation: Koszt przewodnika Zamość | messages=2 | chunks=1
+Imported conversation: Zwiedzanie Mykonos Atrakcje | messages=2 | chunks=1
+Imported conversation: Konsumpcja alkoholu w Polsce | messages=4 | chunks=1
+Imported conversation: Historia 5 rue de Talleyrand | messages=2 | chunks=1
+Imported conversation: Działanie resweratrolu | messages=6 | chunks=3
+Imported conversation: Zadania kierownika budowy | messages=6 | chunks=1
+Imported conversation: Czas sprzedaży używanego auta | messages=2 | chunks=1
+Imported conversation: Zdrowa owsianka overnight | messages=4 | chunks=2
+Imported conversation: Co robić w Łodzi | messages=2 | chunks=1
+Imported conversation: Produkty kosmetyczne La Mer | messages=2 | chunks=1
+Imported conversation: Opóźniony wzrost wagi kreatyna | messages=2 | chunks=1
+
+ChatGPT import finished. Imported=100, skipped=0
+Importing file: data/raw/chatgpt/20260310/conversations-004.json
+Imported conversation: Co robić z dziećmi w Warszawie | messages=7 | chunks=3
+Imported conversation: Bentley Continental GTC 2025 | messages=4 | chunks=1
+Imported conversation: Grzybobranie na Mazowszu | messages=2 | chunks=1
+Imported conversation: Korzyści z odstawienia alkoholu | messages=4 | chunks=2
+Imported conversation: Działki z linią brzegową | messages=10 | chunks=4
+Imported conversation: Leczenie siniaka na udzie | messages=4 | chunks=2
+Imported conversation: Interpretacja snu o plombie | messages=2 | chunks=1
+Imported conversation: Znaczenie imion według Junga | messages=2 | chunks=1
+Imported conversation: Procent kobiet narcystycznych | messages=2 | chunks=1
+Imported conversation: Prawo jazdy po egzaminie | messages=4 | chunks=1
+Imported conversation: Wymiana pokrycia dachu | messages=6 | chunks=3
+Imported conversation: Maksymalna temperatura we Włoszech | messages=14 | chunks=2
+Imported conversation: Wpływ mięsa z królika | messages=2 | chunks=1
+Imported conversation: Hotele rodzinne z farmą | messages=2 | chunks=1
+Imported conversation: Najczęstsze błędy na egzaminie | messages=5 | chunks=2
+Imported conversation: Wniosek o prawo jazdy | messages=8 | chunks=4
+Imported conversation: Włączanie podgrzewania kierownicy | messages=2 | chunks=1
+Imported conversation: Placuszki bananowo-jajeczne przepis | messages=2 | chunks=1
+Imported conversation: Znaczenie imienia Sophia po chińsku | messages=4 | chunks=1
+Imported conversation: Prośba o lek w Grecji | messages=20 | chunks=9
+Imported conversation: Przepięcia w instalacji elektrycznej | messages=11 | chunks=5
+Imported conversation: Tkactwo po angielsku | messages=2 | chunks=1
+Imported conversation: Problemy z Live Photo | messages=2 | chunks=1
+Imported conversation: Sola jako plis | messages=3 | chunks=1
+Imported conversation: Koszt ubezpieczenia zdrowotnego NFZ | messages=10 | chunks=4
+Imported conversation: Wydarzenia dla rodzin Warszawa | messages=2 | chunks=1
+Imported conversation: Kolory samochodów a bezpieczeństwo | messages=2 | chunks=1
+Imported conversation: Przepis na ciasto pizzowe | messages=10 | chunks=4
+Imported conversation: Najdrobniejsza mąka przemiałowa | messages=2 | chunks=1
+Imported conversation: Aktywności dla dzieci hotel | messages=2 | chunks=1
+Imported conversation: Co to resentment | messages=8 | chunks=3
+Imported conversation: Zalegalizowanie samowoli budowlanej | messages=4 | chunks=2
+Imported conversation: Przepis na pracuszki | messages=3 | chunks=1
+Imported conversation: Lista prywatnych spółek gazowych | messages=4 | chunks=2
+Imported conversation: Family Hotels Val d'Isère Courchevel | messages=2 | chunks=1
+Imported conversation: Alugastrin w Niemczech | messages=8 | chunks=3
+Imported conversation: Działanie Oralpädon | messages=2 | chunks=1
+Imported conversation: Jeziora w Kotlinie Kłodzkiej | messages=2 | chunks=1
+Imported conversation: Kupno domu Polanica-Zdrój | messages=2 | chunks=1
+Imported conversation: Dieta makrobiotyczna posiłki | messages=6 | chunks=3
+Imported conversation: Gdzie mieszka Olga Tokarczuk | messages=2 | chunks=1
+Imported conversation: Mercedes GLC vs GLE | messages=2 | chunks=2
+Imported conversation: Co to za ryba | messages=8 | chunks=1
+Imported conversation: Przepis na turbota | messages=8 | chunks=2
+Imported conversation: Przepis na Muay Thai | messages=8 | chunks=1
+Imported conversation: SUV z ISOFIX 3x | messages=14 | chunks=5
+Imported conversation: Projekt przydomowej szklarni | messages=46 | chunks=13
+Imported conversation: Mercedes GLE 2025 tylną osią | messages=2 | chunks=1
+Imported conversation: 22 mln ton ropy bbl | messages=4 | chunks=1
+Imported conversation: Pieczenie jagnięciny z kością | messages=8 | chunks=3
+Imported conversation: Współdzielenie konta Steam | messages=4 | chunks=2
+Imported conversation: Elektryki porównanie cen | messages=6 | chunks=1
+Imported conversation: PMOZE_A informacje na URE | messages=110 | chunks=39
+Imported conversation: Rynek gazu w Rumunii | messages=10 | chunks=2
+Imported conversation: Rekrutacja do sprzedaży energii | messages=2 | chunks=2
+Imported conversation: Polswiss Art wyniki finansowe | messages=5 | chunks=2
+Imported conversation: Hotele podobne do Familux | messages=2 | chunks=1
+Imported conversation: Konwersja danych na DOC | messages=2 | chunks=1
+Imported conversation: Właściciel Boston Dynamics | messages=2 | chunks=1
+Imported conversation: Hotele dla rodzin z dziećmi | messages=4 | chunks=2
+Imported conversation: Wzrost włosów miesięcznie | messages=2 | chunks=1
+Imported conversation: Przepis na sos do łososia | messages=2 | chunks=1
+Imported conversation: Kasza jęczmienna na śniadanie | messages=2 | chunks=1
+Imported conversation: Przepisy z halibuta | messages=10 | chunks=5
+Imported conversation: Przepis na ciastka z makiem | messages=24 | chunks=6
+Imported conversation: Nowy deal EU US | messages=8 | chunks=3
+Imported conversation: Best family hotels Mallorca | messages=3 | chunks=1
+Imported conversation: Best Dune quotes | messages=2 | chunks=1
+Imported conversation: Synonimy "fuck up" | messages=2 | chunks=1
+Imported conversation: Plaud Note nagranie długości | messages=8 | chunks=2
+Imported conversation: Przepis na kurki | messages=4 | chunks=1
+Imported conversation: Data analysis summary | messages=2 | chunks=1
+Imported conversation: Obliczanie zysku arbitrażowego | messages=6 | chunks=1
+Imported conversation: Full electric concept SUV | messages=2 | chunks=1
+Imported conversation: Tabletki pytanie | messages=2 | chunks=1
+Imported conversation: mObywatel na lotnisku | messages=2 | chunks=1
+Imported conversation: Koszt budowy hotelu | messages=2 | chunks=1
+Imported conversation: Dynamiczny rozwój turystyki w Polsce | messages=4 | chunks=3
+Imported conversation: Śmierć Geralta z Rivii | messages=2 | chunks=1
+Imported conversation: Biznes plan hotelu Bania | messages=109 | chunks=39
+Imported conversation: Harmonogram budowy S8 Wrocław Kłodzko | messages=8 | chunks=4
+Imported conversation: Koszt i wyniki wieży | messages=20 | chunks=6
+Imported conversation: Tekst na pocztówkę | messages=2 | chunks=1
+Imported conversation: Interpretacja snu | messages=2 | chunks=1
+Imported conversation: Populacja Rosji 1990–2025 | messages=8 | chunks=3
+Imported conversation: Przepis na tort Adasia | messages=7 | chunks=2
+Imported conversation: Co to za przypinka | messages=13 | chunks=1
+Imported conversation: Przepis na szybki królik | messages=2 | chunks=1
+Imported conversation: Planowanie lotu Pilatus PC-24 | messages=42 | chunks=8
+Imported conversation: Strategia tradingowa backtest | messages=87 | chunks=19
+Imported conversation: Przepis na zakwas do chleba | messages=25 | chunks=8
+Imported conversation: Przepis na carpaccio z buraka | messages=4 | chunks=1
+Imported conversation: Wymiana dachu czas | messages=30 | chunks=11
+Imported conversation: AUM of Citadel | messages=6 | chunks=2
+Imported conversation: Odpowiedź na pytanie o Zosię | messages=5 | chunks=1
+Imported conversation: Analiza podmiotu sprzedaży | messages=12 | chunks=5
+Imported conversation: Wartość Gunvor Group | messages=7 | chunks=1
+Imported conversation: Znajdowanie tabletek po zdjęciu | messages=2 | chunks=1
+Imported conversation: Rzeka w Guangzhou | messages=5 | chunks=1
+Imported conversation: Przepis na jaglankę | messages=2 | chunks=1
+
+ChatGPT import finished. Imported=100, skipped=0
+Importing file: data/raw/chatgpt/20260310/conversations-005.json
+Imported conversation: Liczba wyprodukowanych Honda Jet | messages=2 | chunks=1
+Imported conversation: Właściciele WB Electronics | messages=2 | chunks=1
+Imported conversation: Przemiał mąki na chleb | messages=8 | chunks=2
+Imported conversation: Porównanie kosztów samolotów | messages=6 | chunks=2
+Imported conversation: Przychody skarbu państwa | messages=4 | chunks=1
+Imported conversation: Wyniki finansowe Grupy Arche | messages=8 | chunks=2
+Imported conversation: Identical Vs Same Explained
+ | messages=12 | chunks=1
+Imported conversation: Analiza spreadu DE PL | messages=66 | chunks=28
+Imported conversation: Analiza spreadu DE/PL | messages=87 | chunks=33
+Imported conversation: Skutki długiego siedzenia na toalecie | messages=2 | chunks=1
+Imported conversation: Strategia TTF backtest | messages=48 | chunks=18
+Imported conversation: Strategia TTF backtest | messages=3 | chunks=3
+Imported conversation: New chat | messages=1 | chunks=1
+Imported conversation: Analiza strategii TTF | messages=26 | chunks=14
+Imported conversation: Inflacja w Polsce 2019-2027 | messages=2 | chunks=1
+Imported conversation: Strategia oparta na prognozach | messages=8 | chunks=5
+Imported conversation: Wycena a rynek warszawski | messages=9 | chunks=5
+Imported conversation: Przepis na łopatkę jagnięcą | messages=4 | chunks=1
+Imported conversation: Przyprawianie kurczaka masłem | messages=2 | chunks=1
+Imported conversation: Wyniki finansowe Achemy | messages=6 | chunks=2
+Imported conversation: Zatrudnienie w Axpo Polska | messages=2 | chunks=1
+Imported conversation: Koncerty w Europie 5 września | messages=6 | chunks=2
+Imported conversation: Alternatywne wojny Rosji | messages=4 | chunks=2
+Imported conversation: Przemoc w szkołach Polska UK | messages=2 | chunks=1
+Imported conversation: Inflacja a błędy rządzących | messages=2 | chunks=1
+Imported conversation: Wakacje z PC-24 | messages=9 | chunks=4
+Imported conversation: Co to kardiografia | messages=2 | chunks=1
+Imported conversation: Publikacja projektu rozporządzenia | messages=8 | chunks=1
+Imported conversation: Propozycje destynacji wakacyjnych | messages=7 | chunks=3
+Imported conversation: Dojazd do One&Only Nyungwe House | messages=6 | chunks=3
+Imported conversation: Autyzm a genetyka | messages=14 | chunks=3
+Imported conversation: Average income in Rwanda | messages=4 | chunks=2
+Imported conversation: Asperger a sukces zawodowy | messages=2 | chunks=1
+Imported conversation: Wyniki finansowe SpaceX | messages=2 | chunks=1
+Imported conversation: Billionaires under 40 count | messages=4 | chunks=1
+Imported conversation: Przepis na pieczeń wołową | messages=6 | chunks=2
+Imported conversation: Doradztwo w IKEA | messages=2 | chunks=1
+Imported conversation: Procent singli w Warszawie | messages=8 | chunks=2
+Imported conversation: Straty Ukrainy i Rosji | messages=2 | chunks=1
+Imported conversation: Farmy wiatrowe w Polsce | messages=42 | chunks=10
+Imported conversation: Farmy wiatrowe w Polsce | messages=112 | chunks=43
+Imported conversation: WhatsApp ptaszki wyjaśnienie | messages=2 | chunks=1
+Imported conversation: Wypełnianie formularzy PDF | messages=8 | chunks=3
+Imported conversation: Obliczanie BMI dziecka | messages=4 | chunks=1
+Imported conversation: Porównanie kabin HondaJet i Pilatus | messages=2 | chunks=1
+Imported conversation: Właściciel Polonii Warszawa | messages=2 | chunks=1
+Imported conversation: Realistyczne oczekiwania PnL | messages=2 | chunks=1
+Imported conversation: Propozycje dań makrobiotycznych | messages=8 | chunks=4
+Imported conversation: Szacunkowe zużycie energii hoteli | messages=2 | chunks=1
+Imported conversation: Tekst i tłumaczenie piosenki | messages=2 | chunks=1
+Imported conversation: Restauracje z rybami w Warszawie | messages=2 | chunks=1
+Imported conversation: Aktywności dla dzieci w Wawie | messages=3 | chunks=2
+Imported conversation: Szklanka mąki w gramach | messages=2 | chunks=1
+Imported conversation: Najlepsze romanse 2023-2025 | messages=2 | chunks=1
+Imported conversation: Wpływ rozporządzenia na biomasę | messages=2 | chunks=1
+Imported conversation: Przepis na tzatziki | messages=2 | chunks=1
+Imported conversation: Przepis na filety soli | messages=4 | chunks=1
+Imported conversation: Roboty zanikające w elektrowni | messages=2 | chunks=1
+Imported conversation: Przedsiębiorcy z Zamojszczyzny | messages=2 | chunks=1
+Imported conversation: Desery w stylu europejskim | messages=4 | chunks=2
+Imported conversation: Wartość projektu RTB PV BESS | messages=12 | chunks=1
+Imported conversation: Mieszkania oddawane w Polsce | messages=11 | chunks=2
+Imported conversation: Charakterystyka nimfomanii | messages=25 | chunks=3
+Imported conversation: Popyt na gaz w USA | messages=18 | chunks=6
+Imported conversation: Monumento a Vittorio Emanuele II | messages=4 | chunks=1
+Imported conversation: Historia fontanny di Trevi | messages=10 | chunks=2
+Imported conversation: Ceny nieruchomości w Rzymie | messages=4 | chunks=1
+Imported conversation: Rodzaje drzew sosnowych | messages=8 | chunks=1
+Imported conversation: Procent dzieci chrzczonych w Polsce | messages=6 | chunks=1
+Imported conversation: Najczęstsze subskrypcje w Polsce | messages=8 | chunks=2
+Imported conversation: Porównanie firm ACT STX OTC | messages=6 | chunks=3
+Imported conversation: Błąd E0 w kuchence | messages=2 | chunks=1
+Imported conversation: Wpływ ekranów na dziecko | messages=2 | chunks=1
+Imported conversation: Capture rate wiatru w Rumunii | messages=2 | chunks=1
+Imported conversation: Maksymalna produkcja ropy | messages=14 | chunks=4
+Imported conversation: Moc w elektrowniach węglowych | messages=9 | chunks=3
+Imported conversation: Moc elektrowni gazowych w Polsce | messages=4 | chunks=1
+Imported conversation: Umorzenie zielonych certyfikatów | messages=36 | chunks=16
+Imported conversation: Produkcja ropy i gazu Rosja | messages=11 | chunks=5
+Imported conversation: Znaczenie protekcjonalne | messages=6 | chunks=1
+Imported conversation: Konsekwencje parkowania na miejscu | messages=2 | chunks=1
+Imported conversation: Mandat za parkowanie | messages=2 | chunks=1
+Imported conversation: Kombucha dla dzieci | messages=2 | chunks=1
+Imported conversation: Rolls-Royce plany napędu | messages=103 | chunks=11
+Imported conversation: Sprzedaż samochodów elektrycznych | messages=18 | chunks=5
+Imported conversation: Historia i prognoza gazu | messages=5 | chunks=1
+Imported conversation: Research EU ETS balance | messages=7 | chunks=6
+Imported conversation: Prognoza mocy i pojemności | messages=3 | chunks=1
+Imported conversation: Minions znaczenie etymologia | messages=2 | chunks=1
+Imported conversation: Gitara Oscar Schmidt OG2CE | messages=16 | chunks=6
+Imported conversation: Restauracje Michelin na świecie | messages=11 | chunks=1
+Imported conversation: Styl eklektyczny w designie | messages=2 | chunks=1
+Imported conversation: Remont domu pytanie | messages=3 | chunks=1
+Imported conversation: Popyt na energię elektryczną | messages=8 | chunks=1
+Imported conversation: Tłumaczenie menu francuskiego | messages=36 | chunks=8
+Imported conversation: Gorączka u dziecka | messages=8 | chunks=3
+Imported conversation: Analiza sytuacji wojennej | messages=3 | chunks=1
+Imported conversation: Temperatura u dziecka | messages=15 | chunks=4
+
+ChatGPT import finished. Imported=98, skipped=0
+Importing file: data/raw/chatgpt/20260310/conversations-006.json
+Imported conversation: Koszty bilansowania OZE | messages=5 | chunks=2
+Imported conversation: Rozszyfrowanie zaleceń lekarza | messages=2 | chunks=1
+Imported conversation: Zatrudnienie CFO tier one | messages=4 | chunks=2
+Imported conversation: Porównanie goli klubowych | messages=4 | chunks=1
+Imported conversation: Prognozy cen EUA 2025-2026 | messages=16 | chunks=8
+Imported conversation: Różnica w cenie ETH a BTC | messages=10 | chunks=3
+Imported conversation: Nebud w nebulizatorze siateczkowym | messages=6 | chunks=1
+Imported conversation: Przepis na kiszoną kapustę | messages=4 | chunks=1
+Imported conversation: Kapusta do kiszenia sprzedaż | messages=2 | chunks=1
+Imported conversation: Czas trwania procesu kościelnego | messages=2 | chunks=1
+Imported conversation: Muzyka zespołu Gorillaz | messages=6 | chunks=1
+Imported conversation: Przepis na krupnik | messages=6 | chunks=1
+Imported conversation: Przepis na pieczone jabłka | messages=2 | chunks=1
+Imported conversation: Porównanie wymiarów samochodów | messages=6 | chunks=2
+Imported conversation: Ceny podłóg dębowych | messages=2 | chunks=1
+Imported conversation: Wzrost emerytury po latach | messages=32 | chunks=9
+Imported conversation: Osoby niemieckiego pochodzenia w Polsce | messages=4 | chunks=1
+Imported conversation: Loty Warszawa Sri Lanka | messages=4 | chunks=1
+Imported conversation: Cena elewacji ze styropianu | messages=4 | chunks=1
+Imported conversation: Godziny lotów z Warszawy | messages=2 | chunks=1
+Imported conversation: Wypieki z daktylami | messages=4 | chunks=1
+Imported conversation: Pieczenie fileta z red snappera | messages=2 | chunks=1
+Imported conversation: Proces kiszenia kapusty | messages=44 | chunks=18
+Imported conversation: Mieszanie zakwasu narzędziem | messages=4 | chunks=1
+Imported conversation: Suszony vs świeży zakwas | messages=2 | chunks=1
+Imported conversation: Model biznesowy MET Group | messages=4 | chunks=1
+Imported conversation: Jak filetować comber z królika | messages=11 | chunks=3
+Imported conversation: Elektryki a Toyota Corolla | messages=2 | chunks=1
+Imported conversation: Przepis na lukier | messages=2 | chunks=1
+Imported conversation: Odczytanie notatki lekarskiej | messages=4 | chunks=1
+Imported conversation: Wpływ usług systemowych | messages=2 | chunks=1
+Imported conversation: Moc elektrowni wiatrowych | messages=8 | chunks=2
+Imported conversation: Analiza ofert pomp ciepła | messages=2 | chunks=1
+Imported conversation: Kim byl Boreasz | messages=2 | chunks=1
+Imported conversation: Halloween z dziećmi w Europie | messages=6 | chunks=3
+Imported conversation: Rozszyfrowanie przepisu chleba | messages=179 | chunks=67
+Imported conversation: Rekomendacje sklepów Halloween | messages=4 | chunks=2
+Imported conversation: Znajdź sklep z suknią | messages=3 | chunks=1
+Imported conversation: Sprawdzanie adwokatów w Polsce | messages=2 | chunks=1
+Imported conversation: Przyprawianie steków z miecznika | messages=2 | chunks=1
+Imported conversation: Orientalne wpływy w Polsce | messages=2 | chunks=1
+Imported conversation: Wartość projektu magazynu energii | messages=2 | chunks=1
+Imported conversation: Bunt trzylatka definicja | messages=4 | chunks=1
+Imported conversation: Zmiana hasła do Windowsa | messages=14 | chunks=4
+Imported conversation: Najszybszy samochód świata | messages=2 | chunks=1
+Imported conversation: Pomysły na dania z kapusty | messages=2 | chunks=1
+Imported conversation: Najlepsze wyciskarki w Polsce | messages=8 | chunks=3
+Imported conversation: Koszt lampy ulicznej | messages=4 | chunks=2
+Imported conversation: Lista sprzedawców energii w Niemczech | messages=2 | chunks=2
+Imported conversation: Opóźnione projekty offshore | messages=2 | chunks=1
+Imported conversation: Zużycie gazu Polpharma | messages=6 | chunks=1
+Imported conversation: Przypomnienie dla użytkownika | messages=2 | chunks=1
+Imported conversation: Ocena postępu pieczenia | messages=8 | chunks=2
+Imported conversation: Chińskie czytanie twarzy | messages=11 | chunks=5
+Imported conversation: Analiza rysów twarzy | messages=6 | chunks=3
+Imported conversation: Akcjonariat A2A | messages=2 | chunks=1
+Imported conversation: Historia dywidend A2A | messages=2 | chunks=1
+Imported conversation: Doprawianie filetów z turbota | messages=2 | chunks=1
+Imported conversation: Propozycje wakacyjne z dziećmi | messages=4 | chunks=2
+Imported conversation: Wybór wkładki do drzwi | messages=4 | chunks=1
+Imported conversation: Koncerty Mumford & Sons | messages=2 | chunks=1
+Imported conversation: Alkohol vs zakwas z buraka | messages=2 | chunks=1
+Imported conversation: Przywracanie usuniętych czatów | messages=2 | chunks=1
+Imported conversation: Właściwości mąki kasztanowej | messages=8 | chunks=4
+Imported conversation: Przepis na zupę krem | messages=4 | chunks=1
+Imported conversation: Przygotowanie turbota | messages=2 | chunks=1
+Imported conversation: Smak białego i czerwonego wina | messages=2 | chunks=1
+Imported conversation: Sous vide polędwica wagyu | messages=4 | chunks=1
+Imported conversation: Dlaczego FairBee nie sprzedaje | messages=6 | chunks=2
+Imported conversation: Błąd i30 w zmywarce | messages=4 | chunks=1
+Imported conversation: Koszty LNG USA Europa | messages=4 | chunks=2
+Imported conversation: Co to jest mononukleoza | messages=2 | chunks=1
+Imported conversation: Jak wyjąć wkładkę | messages=6 | chunks=2
+Imported conversation: Pakiet kompensacyjny CEO | messages=22 | chunks=12
+Imported conversation: Europejskie odpowiedniki makrobiotyki | messages=6 | chunks=3
+Imported conversation: Czas lotu PC-24 | messages=6 | chunks=2
+Imported conversation: Rzeczy do zrobienia w Genewie | messages=2 | chunks=2
+Imported conversation: Виспи на Канарах | messages=5 | chunks=1
+Imported conversation: Flight brief PC-24 Warszawa Dubaj | messages=2 | chunks=1
+Imported conversation: Przepis na pieczone gruszki | messages=4 | chunks=1
+Imported conversation: Ubezpieczenie partnerki NFZ | messages=2 | chunks=1
+Imported conversation: New chat | messages=4 | chunks=1
+Imported conversation: Tłumaczenie napisu | messages=4 | chunks=1
+Imported conversation: Przystawki IBS-D makrobiotyczne | messages=4 | chunks=2
+Imported conversation: Spółka Kalbarczyka i wspólnik | messages=3 | chunks=2
+Imported conversation: New chat | messages=1 | chunks=1
+Imported conversation: Naprawa kamionkowej beczki | messages=2 | chunks=1
+Imported conversation: Prezent dla partnerki | messages=4 | chunks=2
+Imported conversation: Liczba szaf w kontenerze | messages=2 | chunks=1
+Imported conversation: Co to jest porridge | messages=2 | chunks=1
+Imported conversation: Najlepsze kluby muzyczne | messages=3 | chunks=1
+Imported conversation: Historia Bazyliki św. Marka | messages=2 | chunks=1
+Imported conversation: Kim jest Zosia | messages=2 | chunks=1
+Imported conversation: Zabawy w czasie lotu | messages=4 | chunks=2
+Imported conversation: Cena zestawu karaoke | messages=2 | chunks=1
+Imported conversation: Identyfikacja samolotu | messages=1 | chunks=1
+Imported conversation: Procent kobiet z dziećmi | messages=4 | chunks=1
+
+ChatGPT import finished. Imported=97, skipped=0
+Importing file: data/raw/chatgpt/20260310/conversations-007.json
+Imported conversation: Opowieść o pecorino | messages=2 | chunks=1
+Imported conversation: Tłumaczenie słowa konszabelant | messages=3 | chunks=1
+Imported conversation: Odkrycie likopenu | messages=2 | chunks=1
+Imported conversation: Śmierć od piłki golfowej | messages=4 | chunks=1
+Imported conversation: Psy podobne do kotów | messages=4 | chunks=1
+Imported conversation: Analiza wyników finansowych | messages=8 | chunks=6
+Imported conversation: Zmiany populacji Sycylii | messages=10 | chunks=2
+Imported conversation: Oliwki a gubienie liści | messages=4 | chunks=1
+Imported conversation: Samoloty a taśma speed tape | messages=2 | chunks=1
+Imported conversation: Jak włączyć podgrzewaną kierownicę | messages=2 | chunks=1
+Imported conversation: Historia bitwy pod Samosierrą | messages=4 | chunks=1
+Imported conversation: Honda HA-420 statystyki bezpieczeństwa | messages=2 | chunks=1
+Imported conversation: Opis obrazu abstrakcyjnego | messages=4 | chunks=1
+Imported conversation: Czas lotu Mumbai-Singapur | messages=6 | chunks=1
+Imported conversation: New chat | messages=2 | chunks=1
+Imported conversation: Jak wziąć L4 | messages=4 | chunks=1
+Imported conversation: Pomysły na prace konkursowe | messages=2 | chunks=1
+Imported conversation: Koszt samolotu LET L-410 | messages=2 | chunks=1
+Imported conversation: Porównanie CBT i Lacana | messages=6 | chunks=2
+Imported conversation: Długość pasa dla PC-24 | messages=2 | chunks=1
+Imported conversation: Kary za e-papierosy w Indiach | messages=10 | chunks=3
+Imported conversation: Kurs INR na PLN | messages=2 | chunks=1
+Imported conversation: Kara za przekroczenie prędkości | messages=2 | chunks=1
+Imported conversation: RDF fuel definition | messages=2 | chunks=1
+Imported conversation: Kontakty handlowe Polska Indie | messages=10 | chunks=7
+Imported conversation: Przesłanie i historia piosenki | messages=20 | chunks=7
+Imported conversation: Dane finansowe Avaada Group | messages=10 | chunks=2
+Imported conversation: Zestawy uli dla pszczelarzy | messages=50 | chunks=21
+Imported conversation: Koszty dystrybucji energii | messages=6 | chunks=3
+Imported conversation: Przedłużający się ból gardła | messages=26 | chunks=6
+Imported conversation: Mounjaro vs Ozempic porównanie | messages=2 | chunks=1
+Imported conversation: Gotówka i kapitał Berkshire | messages=2 | chunks=1
+Imported conversation: Przeliczanie MMBTU na MWh | messages=2 | chunks=1
+Imported conversation: Numerologia daty urodzenia | messages=8 | chunks=4
+Imported conversation: Ile samolotów Drukair | messages=8 | chunks=2
+Imported conversation: Flight brief Delhi Warszawa | messages=16 | chunks=8
+Imported conversation: CFS/ME definicja choroby | messages=4 | chunks=2
+Imported conversation: Liczba mieszkańców Kazachstanu | messages=2 | chunks=1
+Imported conversation: Przewyższenie na Śnieżnik | messages=8 | chunks=1
+Imported conversation: Koncept twin flame | messages=12 | chunks=3
+Imported conversation: Ceny selenu 2025 | messages=4 | chunks=1
+Imported conversation: Bhutan vs India GDP growth | messages=2 | chunks=1
+Imported conversation: Bhutan GDP per capita | messages=4 | chunks=1
+Imported conversation: Opinie o diagnozie autyzmu | messages=5 | chunks=2
+Imported conversation: Koszt na amoniaku | messages=2 | chunks=1
+Imported conversation: Cena amoniaku w Polsce | messages=22 | chunks=4
+Imported conversation: Wybór zegarka na 1/4 IM | messages=70 | chunks=10
+Imported conversation: Rowery do ¼ Ironmana | messages=89 | chunks=12
+Imported conversation: Pianki do pływania | messages=113 | chunks=14
+Imported conversation: Eventy dla dzieci w Warszawie | messages=8 | chunks=3
+Imported conversation: Organizacja PZSzach | messages=16 | chunks=6
+Imported conversation: Zmiany wymiarów Concorda | messages=2 | chunks=1
+Imported conversation: ترجمہ اور وضاحت | messages=10 | chunks=3
+Imported conversation: Pomiar urządzenia WHOOP | messages=4 | chunks=1
+Imported conversation: Katy Perry z kim? | messages=4 | chunks=1
+Imported conversation: Dystans półmaratonu | messages=6 | chunks=2
+Imported conversation: Plan lotu PC-24 Warszawa Reykjavik | messages=6 | chunks=2
+Imported conversation: Przychody Grupy Colian | messages=4 | chunks=2
+Imported conversation: Transport cieczy koszt | messages=5 | chunks=1
+Imported conversation: Procent kobiet i mężczyzn z myślami autoagresywnymi | messages=4 | chunks=2
+Imported conversation: Sekwencja suplementów KoeNza | messages=19 | chunks=7
+Imported conversation: Mleko low FODMAP | messages=2 | chunks=1
+Imported conversation: Ocena oferty na karnisze | messages=14 | chunks=5
+Imported conversation: Tłumaczenie menu restauracji | messages=2 | chunks=1
+Imported conversation: Podsumowanie filmu Twin Flames | messages=4 | chunks=2
+Imported conversation: Sprzedaż zegarka a podatek | messages=2 | chunks=1
+Imported conversation: Najlepsze kluby taneczne | messages=3 | chunks=1
+Imported conversation: Kluby premium w Kolonii | messages=12 | chunks=5
+Imported conversation: Zakupy luksusowe w Kolonii | messages=25 | chunks=3
+Imported conversation: Restauracje z gęsiną w Kolonii | messages=2 | chunks=1
+Imported conversation: Restauracje blisko Katedry | messages=4 | chunks=2
+Imported conversation: Potwierdzenie pragnienia po niemiecku | messages=2 | chunks=1
+Imported conversation: Włączanie Hotspotu iPhone | messages=3 | chunks=1
+Imported conversation: Opłata z Apple.com/bill | messages=2 | chunks=1
+Imported conversation: Ostatnie pytanie Richtera | messages=6 | chunks=2
+Imported conversation: Przepis na guacamole | messages=2 | chunks=1
+Imported conversation: Plan lotu PC-24 | messages=3 | chunks=1
+Imported conversation: Wyciszenie połączeń iPhone | messages=6 | chunks=1
+Imported conversation: Prędkość pływania żółwi | messages=8 | chunks=1
+Imported conversation: Przepis na pieczoną gęś | messages=8 | chunks=2
+Imported conversation: Rokid Max 2 kompatybilność | messages=6 | chunks=2
+Imported conversation: Co to jest glifosat | messages=2 | chunks=1
+Imported conversation: Żywność BIO a zdrowie | messages=18 | chunks=8
+Imported conversation: Ból barku przy ćwiczeniach | messages=10 | chunks=5
+Imported conversation: Indeksacja przychodów w Polsce | messages=3 | chunks=1
+Imported conversation: Magazynowanie energii w Polsce | messages=9 | chunks=8
+Imported conversation: Sklepy z ozdobami świątecznymi | messages=2 | chunks=1
+Imported conversation: Potencjał malarzy na rynku | messages=14 | chunks=8
+Imported conversation: Procent populacji z autyzmem | messages=3 | chunks=1
+Imported conversation: Projekcja wartości King Air | messages=22 | chunks=3
+Imported conversation: Wpływ SSW na Europę | messages=329 | chunks=197
+Imported conversation: Subskrypcje GPT porównanie | messages=4 | chunks=2
+Imported conversation: Wpływ słowa proszę | messages=3 | chunks=1
+Imported conversation: Wpływ autyzmu na relacje | messages=7 | chunks=6
+Imported conversation: Teorie o dopasowaniu par | messages=2 | chunks=1
+Imported conversation: Raport handel energią USA | messages=2 | chunks=2
+Imported conversation: Akcjonariat Tpay | messages=2 | chunks=1
+Imported conversation: Tłumaczenie die Gutachta | messages=5 | chunks=1
+Imported conversation: Długość pasa PC-24 2025 | messages=3 | chunks=1
+Imported conversation: Programy Trumpa w TV | messages=2 | chunks=1
+
+ChatGPT import finished. Imported=100, skipped=0
+Importing file: data/raw/chatgpt/20260310/conversations-008.json
+Imported conversation: Koszt ładowarki EV | messages=13 | chunks=2
+Imported conversation: Wierszyk kobyłka i młynka | messages=2 | chunks=1
+Imported conversation: Właściciel śmigłowca R44 | messages=2 | chunks=1
+Imported conversation: Przepis na paszteciki | messages=15 | chunks=2
+Imported conversation: Pieczenie pasztetu wieprzowego | messages=5 | chunks=1
+Imported conversation: Regulacje oczyszczania krajobrazu | messages=2 | chunks=1
+Imported conversation: Znalezienie tekstu piosenki | messages=2 | chunks=1
+Imported conversation: Przychody z CIT dla JST | messages=5 | chunks=1
+Imported conversation: Opinie o burmistrzu Jellinie | messages=2 | chunks=1
+Imported conversation: Prezenty dla burmistrza | messages=3 | chunks=1
+Imported conversation: Historia budynku Kościelna 1 | messages=55 | chunks=17
+Imported conversation: Liczba pokoi hotelu | messages=42 | chunks=5
+Imported conversation: Ewolucja autyzmu u ludzi | messages=6 | chunks=4
+Imported conversation: Ślad dzika | messages=15 | chunks=1
+Imported conversation: Ksiądz Sławomir Augustynowicz | messages=4 | chunks=1
+Imported conversation: Sklepy z zabawkami w okolicy | messages=2 | chunks=1
+Imported conversation: Interpretacja snu Zosi | messages=5 | chunks=1
+Imported conversation: Domy na sprzedaż Polanica | messages=59 | chunks=27
+Imported conversation: Czas remontu łazienki | messages=4 | chunks=1
+Imported conversation: Miłość wg Lacana | messages=7 | chunks=4
+Imported conversation: Sen o namiętności i lwie | messages=11 | chunks=4
+Imported conversation: Decommissioning mocy w Niemczech | messages=3 | chunks=2
+Imported conversation: Wyniki finansowe Hekla Energy | messages=2 | chunks=1
+Imported conversation: Rekomendacje samochodów terenowych | messages=8 | chunks=5
+Imported conversation: Włączanie hotspotu w Orange | messages=6 | chunks=1
+Imported conversation: Koszty budowy elektrowni PV | messages=2 | chunks=2
+Imported conversation: Cena szampana Taittinger | messages=7 | chunks=1
+Imported conversation: Sauna na kaca | messages=9 | chunks=2
+Imported conversation: Film o dziecku potworze | messages=2 | chunks=1
+Imported conversation: Interpretacja snu Zosi | messages=6 | chunks=4
+Imported conversation: Leki przy flare upie IBS | messages=22 | chunks=7
+Imported conversation: Gdzie oglądać Rolnika Szukazony | messages=2 | chunks=1
+Imported conversation: Jak zamknąć sejf | messages=9 | chunks=1
+Imported conversation: Jak zamknąć rachunek ING | messages=2 | chunks=1
+Imported conversation: Szczepienie na ospę wietrzną | messages=4 | chunks=1
+Imported conversation: Prywatne spółki z zyskiem | messages=2 | chunks=1
+Imported conversation: Podłączenie słuchawek USB-C | messages=6 | chunks=2
+Imported conversation: Przepis na gęś pieczoną | messages=20 | chunks=6
+Imported conversation: Instrumenty w Sąsiedzi | messages=2 | chunks=1
+Imported conversation: 2025 Ewa Juszkiewicz sales | messages=4 | chunks=1
+Imported conversation: Dostępność kremów w Warszawie | messages=12 | chunks=3
+Imported conversation: Ceny projektów PV w Polsce | messages=7 | chunks=3
+Imported conversation: Najlepsze harmonijki ustne | messages=25 | chunks=2
+Imported conversation: Portfel sprzedaży Axpo Polska | messages=4 | chunks=2
+Imported conversation: Prognoza cen EUA 2025-2026 | messages=18 | chunks=8
+Imported conversation: Znaczenie przysłowia | messages=4 | chunks=1
+Imported conversation: Obrazy olejne Juszkiewicz | messages=10 | chunks=4
+Imported conversation: Gerhard Richter i AI | messages=18 | chunks=9
+Imported conversation: Różnice w mózgach autystycznych | messages=50 | chunks=26
+Imported conversation: Gaz w polskich domach | messages=2 | chunks=1
+Imported conversation: Właściciel Greenvolt | messages=2 | chunks=1
+Imported conversation: Większość głosów na walnym zgromadzeniu | messages=2 | chunks=1
+Imported conversation: Ocena wyceny renowacji | messages=4 | chunks=1
+Imported conversation: Pomysły na prezent dla babci | messages=2 | chunks=1
+Imported conversation: Co to jest autyzm | messages=4 | chunks=1
+Imported conversation: Export aukcji JAO.eu | messages=4 | chunks=1
+Imported conversation: Analiza diagnozy i wnioski | messages=18 | chunks=8
+Imported conversation: Co to AuADHD | messages=2 | chunks=1
+Imported conversation: Impakt CBAM na Węgry | messages=156 | chunks=80
+Imported conversation: Pomysły na prezent dla cioci | messages=4 | chunks=1
+Imported conversation: Jak długo trwa La Niña | messages=14 | chunks=4
+Imported conversation: Wpływ DUB na OZE | messages=6 | chunks=3
+Imported conversation: Koszty serwisu turbin | messages=2 | chunks=1
+Imported conversation: Profesor Grzegorz Krzos | messages=12 | chunks=6
+Imported conversation: Przelew za cudzy dom | messages=16 | chunks=7
+Imported conversation: Wartość mieszkania w Warszawie | messages=4 | chunks=2
+Imported conversation: New chat | messages=3 | chunks=1
+Imported conversation: Wielka Pieniawa Polanica Zdrój | messages=4 | chunks=1
+Imported conversation: Aport budynku do spółki | messages=6 | chunks=3
+Imported conversation: Interpretacja snu Zosi | messages=8 | chunks=3
+Imported conversation: Interpretacja snu o porodzie | messages=22 | chunks=11
+Imported conversation: Sytuacja na rynku ropy | messages=4 | chunks=2
+Imported conversation: Koszt tomografii w Płocku | messages=6 | chunks=2
+Imported conversation: Co to jest udar | messages=10 | chunks=4
+Imported conversation: Turbina wiatrowa bez pozwolenia | messages=45 | chunks=4
+Imported conversation: Wpływ CBAM na przepływy | messages=2 | chunks=2
+Imported conversation: Taryfy URE 2026 | messages=2 | chunks=1
+Imported conversation: Klon głosu i decyzji | messages=12 | chunks=6
+Imported conversation: Udar a diagnoza CT | messages=8 | chunks=4
+Imported conversation: Godziny otwarcia Galerii | messages=2 | chunks=1
+Imported conversation: Masa molowa wolframu | messages=4 | chunks=1
+Imported conversation: Doprawianie farszu do pasztecików | messages=8 | chunks=3
+Imported conversation: Podgrzewanie całej gęsi | messages=2 | chunks=1
+Imported conversation: Statystyki samobójstw w autyzmie | messages=2 | chunks=1
+Imported conversation: Przyprawy do schabu sous-vide | messages=9 | chunks=3
+Imported conversation: Epicka pasta z łososia | messages=8 | chunks=4
+Imported conversation: Mąka pszenna vs orkiszowa | messages=6 | chunks=3
+Imported conversation: Genetyka a zaburzenia neurologiczne | messages=256 | chunks=127
+Imported conversation: Mandat za przekroczenie prędkości | messages=4 | chunks=1
+Imported conversation: Historia Polski przed Mieszkiem | messages=2 | chunks=1
+Imported conversation: Motywacje i granice opieki | messages=2 | chunks=1
+Imported conversation: NextQuik Nutrient Score A | messages=2 | chunks=1
+Imported conversation: Dzisiaj Bentleyem kolęda | messages=6 | chunks=2
+Imported conversation: Pies z długimi nogami | messages=2 | chunks=1
+Imported conversation: Cel zmiany sylwetki | messages=17 | chunks=4
+Imported conversation: Owczarki niemieckie zapach | messages=16 | chunks=8
+Imported conversation: Wyniki finansowe Panattoni Europe | messages=5 | chunks=2
+Imported conversation: Budowa dróg ekspresowych S8 S10 | messages=4 | chunks=2
+Imported conversation: Orzeł w ludowych przesłaniach | messages=2 | chunks=1
+Imported conversation: Władca Czech 1063 | messages=6 | chunks=1
+
+ChatGPT import finished. Imported=100, skipped=0
+Importing file: data/raw/chatgpt/20260310/conversations-009.json
+Imported conversation: Karmienie dzikich kaczek | messages=4 | chunks=1
+Imported conversation: Interpretacja snu Zosi | messages=2 | chunks=1
+Imported conversation: Baterie USB-C | messages=7 | chunks=1
+Imported conversation: Znaczenie słowa silly | messages=4 | chunks=1
+Imported conversation: Gdzie kupić sanki | messages=10 | chunks=3
+Imported conversation: Górki do sankowania Polanica | messages=4 | chunks=2
+Imported conversation: Sen o remoncie domu | messages=8 | chunks=6
+Imported conversation: Dopisanie siostry do NFZ | messages=12 | chunks=3
+Imported conversation: Zakup latarni dekoracyjnej | messages=2 | chunks=1
+Imported conversation: Koszty wojny Rosji | messages=8 | chunks=4
+Imported conversation: Najmocniejszy silnik V-Class | messages=2 | chunks=1
+Imported conversation: Jeep Wrangler JL 2018+ | messages=2 | chunks=1
+Imported conversation: Bezpieczeństwo Bell 429 | messages=4 | chunks=2
+Imported conversation: Wyposażenie domu 500m2 | messages=2 | chunks=1
+Imported conversation: Polędwica wołowa sous vide | messages=6 | chunks=2
+Imported conversation: Ceny obrazów Kapłańskiego | messages=2 | chunks=1
+Imported conversation: LG WashTower dozownik automatyczny | messages=48 | chunks=7
+Imported conversation: Baza wołowa do bolognese | messages=2 | chunks=1
+Imported conversation: Prawdopodobieństwo zakupu babki | messages=4 | chunks=1
+Imported conversation: Kazik a T.Love | messages=4 | chunks=1
+Imported conversation: Kupowanie drogich win | messages=2 | chunks=1
+Imported conversation: Zmywarki premium z dozowaniem | messages=2 | chunks=1
+Imported conversation: Misa buddyjska z Bhutanu | messages=4 | chunks=2
+Imported conversation: Zestaw narzędzi aku | messages=63 | chunks=5
+Imported conversation: Liczba placówek Poczty Polskiej | messages=6 | chunks=1
+Imported conversation: Portfel energii Poste Energia | messages=10 | chunks=2
+Imported conversation: Kombucha a dzieci | messages=2 | chunks=1
+Imported conversation: Przepis na syrop z cebuli | messages=4 | chunks=1
+Imported conversation: Dostęp do czatów w projekcie | messages=2 | chunks=1
+Imported conversation: Sprawdzanie połączenia głosowego | messages=9 | chunks=2
+Imported conversation: Koszt Clavinovy kiedyś | messages=2 | chunks=1
+Imported conversation: Wartość miliona USD 1985 | messages=8 | chunks=2
+Imported conversation: Irena Bednarek Intermod | messages=6 | chunks=3
+Imported conversation: Ocena mieczy kolekcjonerskich | messages=9 | chunks=3
+Imported conversation: IBS-D a suplementacja jodu | messages=6 | chunks=2
+Imported conversation: Remont kuchni krok po kroku | messages=6 | chunks=2
+Imported conversation: PowerDisk ECO do Miele | messages=6 | chunks=3
+Imported conversation: Wykonawcy kuchni dębowych | messages=14 | chunks=7
+Imported conversation: Sto lat po hiszpańsku | messages=2 | chunks=1
+Imported conversation: Możliwe przyczyny ranki | messages=4 | chunks=1
+Imported conversation: Najlepsze ekspresy do kawy | messages=10 | chunks=5
+Imported conversation: Różnice między astrologiem a gastroenterologiem | messages=4 | chunks=1
+Imported conversation: Phenom 300 vs PC-24 Interior | messages=2 | chunks=1
+Imported conversation: Otwieranie maski Bentleya | messages=2 | chunks=1
+Imported conversation: Firmy wywozu śmieci Polanica | messages=4 | chunks=2
+Imported conversation: Cena wina Bordeaux | messages=4 | chunks=1
+Imported conversation: Wybór pomp ciepła | messages=10 | chunks=4
+Imported conversation: Koncerty Gregory'ego Isakova 2026 | messages=2 | chunks=1
+Imported conversation: Sen o odpowiedzialności | messages=41 | chunks=20
+Imported conversation: Wyczyszczanie odkurzacza Dyson | messages=4 | chunks=1
+Imported conversation: Antypoślizgowe schody granitowe | messages=2 | chunks=1
+Imported conversation: Prędkość startowa Pilatus PC-24 | messages=4 | chunks=1
+Imported conversation: Twardość materaca VATNESTRÖM | messages=2 | chunks=1
+Imported conversation: Niechęć do sosnowego drewna | messages=2 | chunks=1
+Imported conversation: Przesadzanie trzydziestoletnich drzew | messages=2 | chunks=1
+Imported conversation: Sklepy z dywanami Polanica-Zdrój | messages=2 | chunks=1
+Imported conversation: Firmy remontowe Płock | messages=2 | chunks=1
+Imported conversation: Twardość wody Polanica-Zdrój | messages=2 | chunks=1
+Imported conversation: Poziom alkoholu we krwi | messages=4 | chunks=1
+Imported conversation: Pediatrzy z dojazdem Kołobrzeg | messages=4 | chunks=1
+Imported conversation: Polędwica medium well | messages=6 | chunks=2
+Imported conversation: Sól do zmiękczaczy wody | messages=6 | chunks=2
+Imported conversation: Ślady psa czy lisa | messages=3 | chunks=1
+Imported conversation: Mercedes GLE 450d 2025 moc | messages=2 | chunks=1
+Imported conversation: Inteligencja kawki | messages=4 | chunks=1
+Imported conversation: Wizualizacja remontu elewacji | messages=17 | chunks=4
+Imported conversation: Gerhard Richter Zgorzelec | messages=12 | chunks=2
+Imported conversation: New chat | messages=2 | chunks=1
+Imported conversation: Historia Łuku Triumfalnego | messages=2 | chunks=1
+Imported conversation: Sentencje o dobru | messages=10 | chunks=1
+Imported conversation: Sen o skoku spadochronowym | messages=10 | chunks=3
+Imported conversation: Technologia wielkiej płyty | messages=2 | chunks=1
+Imported conversation: Kupno ryby w niedzielę | messages=2 | chunks=1
+Imported conversation: Wartość działki w Polanicy | messages=14 | chunks=7
+Imported conversation: Premium sofy i fotele | messages=4 | chunks=2
+Imported conversation: Dodatki do polędwicy | messages=2 | chunks=1
+Imported conversation: Gulasz z polędwicy wołowej | messages=6 | chunks=3
+Imported conversation: Jak włączyć chronograf Bentley | messages=4 | chunks=1
+Imported conversation: Cena srebra 196g 925 | messages=12 | chunks=4
+Imported conversation: Zamek Hohenzollern | messages=2 | chunks=1
+Imported conversation: Najlepszy światłowód Polanica-Zdrój | messages=2 | chunks=1
+Imported conversation: Interpretacja snu | messages=7 | chunks=4
+Imported conversation: M2 paneli na 1 MW | messages=2 | chunks=1
+Imported conversation: Pochodzenie imienia Sebastian | messages=4 | chunks=1
+Imported conversation: Spadek po Synach Słońca | messages=4 | chunks=1
+Imported conversation: Imieniny Wojtka 6.11 | messages=2 | chunks=1
+Imported conversation: Doniczki na storczyki | messages=2 | chunks=1
+Imported conversation: Wartość głośnika M-Audio | messages=2 | chunks=1
+Imported conversation: Hradec Králové wymiary pasa | messages=4 | chunks=1
+Imported conversation: Wkładki Gerda vs LOB | messages=2 | chunks=1
+Imported conversation: Detergent i woda do Dysona | messages=2 | chunks=1
+Imported conversation: Przepis na grzaniec | messages=4 | chunks=1
+Imported conversation: Premium budynek Polanica Zdrój | messages=4 | chunks=1
+Imported conversation: Przeróbka elewacji domu | messages=6 | chunks=1
+Imported conversation: Pick-up dla rodziny | messages=4 | chunks=2
+Imported conversation: Otwieranie maski GLE | messages=2 | chunks=1
+Imported conversation: Rozwój Singapuru i Dubaju | messages=2 | chunks=1
+Imported conversation: Flaga Austrii | messages=2 | chunks=1
+Imported conversation: Tłumaczenie i pochodzenie tekstu | messages=2 | chunks=1
+Imported conversation: Wydatki wojskowe a ubóstwo | messages=16 | chunks=3
+
+ChatGPT import finished. Imported=100, skipped=0
+Importing file: data/raw/chatgpt/20260310/conversations-010.json
+Imported conversation: Dawkowanie przy IBS-D | messages=10 | chunks=3
+Imported conversation: Odebranie praw rodzicielskich | messages=6 | chunks=2
+Imported conversation: Grupa uderzeniowa lotniskowca | messages=2 | chunks=1
+Imported conversation: Przepis na pancakes | messages=2 | chunks=1
+Imported conversation: Ram 1500 RHO vs TRX | messages=2 | chunks=1
+Imported conversation: Jak prać delikatnie | messages=2 | chunks=1
+Imported conversation: Przepis na miętusa z grilla | messages=2 | chunks=1
+Imported conversation: Przepis na duszone pieczarki | messages=2 | chunks=1
+Imported conversation: New chat | messages=2 | chunks=1
+Imported conversation: Spekulacja vs Hazard | messages=2 | chunks=1
+Imported conversation: Sok malinowy w marynacie | messages=2 | chunks=1
+Imported conversation: Co to jest Esperanto | messages=14 | chunks=2
+Imported conversation: Pasteryzowane soki jabłkowe | messages=4 | chunks=1
+Imported conversation: Porównanie treningów Concept2 Bellicon | messages=2 | chunks=1
+Imported conversation: Przepis na zacierkę | messages=4 | chunks=1
+Imported conversation: Książki o Kubusiu Puchatku | messages=4 | chunks=1
+Imported conversation: Pick-upy w Polsce 2026 | messages=4 | chunks=2
+Imported conversation: Elektryczna G-klasa vs Defender | messages=2 | chunks=1
+Imported conversation: Ustawianie budzika Garmin | messages=2 | chunks=1
+Imported conversation: Przeniesienie szczegółowych informacji | messages=5 | chunks=3
+Imported conversation: Wartość Telewizji Republika | messages=2 | chunks=1
+Imported conversation: Filozoficzne cytaty o strachu | messages=5 | chunks=1
+Imported conversation: Strategia demograficzna Polski | messages=7 | chunks=4
+Imported conversation: Perspektywy La Niña 2026 | messages=8 | chunks=4
+Imported conversation: Cło na foteliki z UK | messages=2 | chunks=1
+Imported conversation: Stabilność Prądu Zatokowego | messages=6 | chunks=6
+Imported conversation: Interpretacja snu o Wigilii | messages=10 | chunks=6
+Imported conversation: Analiza czatu z Zosią | messages=40 | chunks=12
+Imported conversation: Przepis na zacierkę | messages=2 | chunks=1
+Imported conversation: Znikająca komunikacja w związku | messages=37 | chunks=12
+Imported conversation: Lewicowe poglądy polityczne | messages=8 | chunks=2
+Imported conversation: Poznanie użytkownika przez pytania | messages=4 | chunks=1
+Imported conversation: Wywiad rozwojowy | messages=8 | chunks=1
+Imported conversation: Pytania dla użytkownika | messages=3 | chunks=1
+Imported conversation: Wyczerpująca analiza czatu | messages=9 | chunks=2
+Imported conversation: Pytania o zainteresowania | messages=4 | chunks=1
+Imported conversation: Konsekwencje wyjścia z CITu | messages=6 | chunks=2
+Imported conversation: Co to aklamacja | messages=2 | chunks=1
+Imported conversation: Znaczenie słowa fuego | messages=2 | chunks=1
+Imported conversation: Kalorie zacierka vs płatki | messages=4 | chunks=1
+Imported conversation: PKB per capita Niemcy Polska | messages=4 | chunks=1
+Imported conversation: Kancelarie prawne Warszawa | messages=9 | chunks=3
+Imported conversation: Rekordy w trójboju siłowym | messages=5 | chunks=1
+Imported conversation: Dentysta premium endodoncja Warszawa | messages=28 | chunks=7
+Imported conversation: Koszt lotu Pilatusem PC-24 | messages=13 | chunks=3
+Imported conversation: Normy limfocytów i monocytów | messages=2 | chunks=1
+Imported conversation: Royal College of London | messages=2 | chunks=1
+Imported conversation: Sklepy z luksusową bielizną | messages=6 | chunks=3
+Imported conversation: Nauczyciele pianina Warszawa | messages=2 | chunks=1
+Imported conversation: Dr Michał Ganowicz studia | messages=11 | chunks=1
+Imported conversation: Zapotrzebowanie kaloryczne | messages=2 | chunks=1
+Imported conversation: Szacowanie wieku na zdjęciach | messages=2 | chunks=1
+Imported conversation: Hascovir Max dawkowanie | messages=14 | chunks=4
+Imported conversation: Epickie kluby w Kopenhadze | messages=4 | chunks=2
+Imported conversation: Sklep mięsny w GM | messages=2 | chunks=1
+Imported conversation: Warkocz po angielsku | messages=2 | chunks=1
+Imported conversation: Żelazo a libido kobiet | messages=6 | chunks=2
+Imported conversation: Ocena składu ciała | messages=14 | chunks=6
+Imported conversation: Curodont - co to jest | messages=4 | chunks=2
+Imported conversation: Dziękuję po duńsku | messages=2 | chunks=1
+Imported conversation: Tłumaczenie z duńskiego | messages=10 | chunks=2
+Imported conversation: Niewidomi czarnoskórzy piosenkarze | messages=2 | chunks=1
+Imported conversation: Historia Nimb Hotel | messages=4 | chunks=2
+Imported conversation: Sklep z talerzami luksusowymi | messages=2 | chunks=1
+Imported conversation: John Dory po Polsku | messages=2 | chunks=1
+Imported conversation: Zwierzęta dla dzieci 4-9 lat | messages=6 | chunks=2
+Imported conversation: Pochodzenie Maurom | messages=2 | chunks=1
+Imported conversation: Tivoli Gardens w Kopenhadze | messages=4 | chunks=1
+Imported conversation: Kim jest Nicola Botticini | messages=2 | chunks=1
+Imported conversation: Porównanie Maine Coon i Norweski Leśny | messages=2 | chunks=1
+Imported conversation: Eksport historii Teams | messages=2 | chunks=1
+Imported conversation: Eksport historii z Teams | messages=4 | chunks=2
+Imported conversation: Konwersja PDF na XLSX | messages=5 | chunks=3
+Imported conversation: Flight Brief PC-24 | messages=4 | chunks=2
+Imported conversation: Cena lampy MM Lampadari | messages=2 | chunks=1
+Imported conversation: Cut me some slack | messages=2 | chunks=1
+Imported conversation: Analiza zachowań w konflikcie | messages=317 | chunks=114
+Imported conversation: Przymusowy wykup udziałów S.A. | messages=2 | chunks=1
+Imported conversation: Imiona dla kotek na R | messages=2 | chunks=1
+Imported conversation: Kuwety samoczyszczące premium | messages=10 | chunks=2
+Imported conversation: Obowiązki przy posiadaniu kota | messages=2 | chunks=1
+Imported conversation: Liczba mnoga sanek | messages=2 | chunks=1
+Imported conversation: Globalny bilans węgla 2020-2030 | messages=19 | chunks=11
+Imported conversation: Globalne zapasy węgla | messages=16 | chunks=7
+Imported conversation: Kolor brązowy czy czerwony | messages=2 | chunks=1
+Imported conversation: Atak USA na Iran | messages=324 | chunks=191
+Imported conversation: Diagnoza związku i analiza | messages=73 | chunks=31
+Imported conversation: Skleratyna choroba | messages=2 | chunks=1
+Imported conversation: Podział roku na kwartały | messages=2 | chunks=1
+Imported conversation: Analiza osobowości użytkownika | messages=158 | chunks=76
+Imported conversation: Nieskończoność w logice | messages=2 | chunks=1
+Imported conversation: Związki felinologiczne w Polsce | messages=2 | chunks=1
+Imported conversation: Kondycja finansowa Zamościa | messages=6 | chunks=3
+Imported conversation: Obowiązek wojskowy w II RP | messages=2 | chunks=1
+Imported conversation: Porównanie kotów Kartuskiego i Maine Coon | messages=2 | chunks=1
+Imported conversation: Harmonogram budowy S17 | messages=2 | chunks=1
+Imported conversation: Prędkość skorpuchy jaszczurowatej | messages=4 | chunks=1
+Imported conversation: Dzieci Elona Muska | messages=32 | chunks=7
+Imported conversation: Michael Morris Twarowski | messages=4 | chunks=1
+Imported conversation: Skręt jelita | messages=4 | chunks=1
+
+ChatGPT import finished. Imported=100, skipped=0
+Importing file: data/raw/chatgpt/20260310/conversations-011.json
+Imported conversation: Co to over-explaining | messages=2 | chunks=1
+Imported conversation: Psychoanaliza dla par | messages=2 | chunks=1
+Imported conversation: IQ w spektrum vs NT | messages=37 | chunks=17
+Imported conversation: Autyzm i różnice mózgowe | messages=2 | chunks=1
+Imported conversation: Etymologia Patek Philippe | messages=2 | chunks=1
+Imported conversation: Automatyczne kuwety dla kotów | messages=32 | chunks=5
+Imported conversation: Status samochodu w PRL | messages=8 | chunks=4
+Imported conversation: Obszary rozwoju osobistego | messages=389 | chunks=172
+Imported conversation: Zarobki Kacpra Tomasiaka 2026 | messages=4 | chunks=1
+Imported conversation: Profil idealnej partnerki | messages=10 | chunks=5
+Imported conversation: Co to clusterfuck | messages=2 | chunks=1
+Imported conversation: Ocena Zosi z perspektywy | messages=18 | chunks=7
+Imported conversation: Pace Is the Trick | messages=4 | chunks=3
+Imported conversation: Pragnienia a działania życiowe | messages=6 | chunks=3
+Imported conversation: Bilans CO2 na Ziemi | messages=16 | chunks=3
+Imported conversation: Sen o utracie kontroli | messages=2 | chunks=1
+Imported conversation: Warszawskie metro pasażerowie | messages=34 | chunks=16
+Imported conversation: Co to protagonista | messages=2 | chunks=1
+Imported conversation: Sen o rynku i ryzyku | messages=6 | chunks=3
+Imported conversation: Ciemny mocz u dziecka | messages=6 | chunks=3
+Imported conversation: Etapy terapii par EFT | messages=4 | chunks=2
+Imported conversation: Finansowanie projektu energii | messages=36 | chunks=20
+Imported conversation: Czytanie mobi na iPhone | messages=2 | chunks=1
+Imported conversation: Pożary EV vs spalinowe | messages=2 | chunks=1
+Imported conversation: Wiosenne rośliny cebulowe | messages=2 | chunks=1
+Imported conversation: Moc Bentleya Flying Spur | messages=2 | chunks=1
+Imported conversation: Atlanci w architekturze | messages=2 | chunks=1
+Imported conversation: Najlepsze strony z newsami | messages=3 | chunks=1
+Imported conversation: Powierzchnia Iranu | messages=2 | chunks=1
+Imported conversation: Krople do oczu dla dziecka | messages=4 | chunks=1
+Imported conversation: Flota morska Iranu | messages=2 | chunks=1
+Imported conversation: Kalendarz F1 2026 | messages=10 | chunks=4
+Imported conversation: Restauracje z winem Warszawa | messages=4 | chunks=2
+Imported conversation: Etniczne wołania w piosenkach | messages=4 | chunks=1
+Imported conversation: Wzrost PKB Francji i Niemiec | messages=5 | chunks=1
+Imported conversation: Materiały do szycia Blue City | messages=2 | chunks=1
+Imported conversation: Powierzchnia Kotliny Kłodzkiej | messages=6 | chunks=1
+Imported conversation: Ventolin dla dziecka | messages=2 | chunks=1
+Imported conversation: Forza Horizon 5 Split-Screen | messages=6 | chunks=2
+Imported conversation: Dlaczego zajebiście jest brzydkie | messages=2 | chunks=1
+Imported conversation: Bunt czterolatka wyjaśniony | messages=2 | chunks=1
+Imported conversation: Zatrucie salmonellą konsekwencje | messages=2 | chunks=1
+Imported conversation: Przestrzeń powietrzna nad Cyprem | messages=4 | chunks=1
+Imported conversation: Oliwa do smażenia | messages=2 | chunks=1
+Imported conversation: Obawy Wojtusia o rodzeństwo | messages=2 | chunks=1
+Imported conversation: Stopy procentowe w strefie euro | messages=2 | chunks=1
+Imported conversation: Ulgi Czyste Powietrze 2026 | messages=4 | chunks=1
+Imported conversation: Automatyzacja w księgowości | messages=4 | chunks=2
+Imported conversation: Bloons TD6 Zwalczanie Specjalnych Bloonów | messages=8 | chunks=4
+Imported conversation: Odkupienie udziałów w spółce | messages=4 | chunks=1
+Imported conversation: Stawka 60 PLN/m2 tynk | messages=4 | chunks=1
+Imported conversation: Pomnik Ofiar Zbrodni Katyńskiej | messages=4 | chunks=1
+Imported conversation: Problemy z powiadomieniami Alior | messages=2 | chunks=1
+Imported conversation: Kryteria rekrutacyjne dla traderów | messages=12 | chunks=6
+Imported conversation: Profil związku z Zosią | messages=19 | chunks=18
+Imported conversation: Profil osobowościowy użytkownika | messages=14 | chunks=13
+Imported conversation: Profil zawodowy użytkownika | messages=14 | chunks=13
+Imported conversation: Model matematyczny relacji | messages=28 | chunks=26
+Imported conversation: Podsumowanie spotkania DL Invest | messages=32 | chunks=30
+Imported conversation: Eksport historii WhatsApp | messages=8 | chunks=3
+Imported conversation: Moc gazowa we Włoszech | messages=13 | chunks=8
+Imported conversation: Model relacji biznesowych | messages=22 | chunks=15
+Imported conversation: Przepis na zacierkę | messages=2 | chunks=1
+Imported conversation: SSW i polar vortex split | messages=4 | chunks=2
+Imported conversation: Due diligence Energia Polska | messages=63 | chunks=48
+Imported conversation: Grill węglowy vs gazowy | messages=4 | chunks=1
+Imported conversation: Najbardziej zaawansowany robot Unitree | messages=2 | chunks=1
+Imported conversation: Due diligence Ecovoltis SA | messages=37 | chunks=35
+Imported conversation: Pozycja na rynku gazu | messages=17 | chunks=7
+Imported conversation: Aplikacja ChatGPT na desktop | messages=6 | chunks=2
+Imported conversation: Projekt asystenta AI desktop | messages=112 | chunks=94
+Imported conversation: Hasło do projektów GPT | messages=21 | chunks=16
+Imported conversation: Postgres metadata wyjaśnienie | messages=9 | chunks=2
+Imported conversation: Polietylen w rolkach | messages=2 | chunks=1
+Imported conversation: Konfiguracja konta Linux | messages=10 | chunks=7
+Imported conversation: Faza 1: Setup WSL | messages=194 | chunks=121
+Imported conversation: Najsłynniejszy mentat w Diunie | messages=4 | chunks=1
+Imported conversation: Personal AI przyszłości | messages=44 | chunks=34
+Imported conversation: Nobel Prize and Sci-Fi | messages=2 | chunks=1
+Imported conversation: Liczba kontenerów 40 stopowych | messages=6 | chunks=1
+Imported conversation: Zarządzanie energią w domu | messages=2 | chunks=1
+Imported conversation: Funkcje EMS dla BESS | messages=6 | chunks=3
+Imported conversation: Ewa & Sebastian: 80 Lat | messages=3 | chunks=1
+Imported conversation: Różnica między życiem a egzystowaniem | messages=2 | chunks=1
+Imported conversation: Poland Jet Fuel Production | messages=4 | chunks=1
+Imported conversation: Diagram biznesowy komercjalizacji magazynów | messages=3 | chunks=2
+Imported conversation: Dyrektor Sprzedaży Magazynów Energii | messages=6 | chunks=2
+Imported conversation: Dobra niania dla Adasia. | messages=4 | chunks=1
+Imported conversation: Socrates' Views on Women | messages=5 | chunks=1
+Imported conversation: Optymalizacja procesu walutowego | messages=2 | chunks=1
+Imported conversation: F1 Team Buying Costs | messages=4 | chunks=1
+Imported conversation: Przetłumacz tekst na angielski | messages=8 | chunks=1
+Imported conversation: Ferrari Cars Registered Count
+ | messages=4 | chunks=1
+Imported conversation: PCC w Holandii nieobecny | messages=14 | chunks=2
+Imported conversation: Ukrain War Russian Casualties
+ | messages=8 | chunks=1
+Imported conversation: BESS Business Process Diagram | messages=4 | chunks=1
+Imported conversation: Rozmowa kwalifikacyjna Enter Air SA | messages=6 | chunks=3
+Imported conversation: Praca: CCO w spółce energetycznej | messages=6 | chunks=3
+Imported conversation: Dyrektor Backoffice - Ogłoszenie | messages=4 | chunks=2
+Imported conversation: New chat | messages=4 | chunks=2
+
+ChatGPT import finished. Imported=100, skipped=0
+Importing file: data/raw/chatgpt/20260310/conversations-012.json
+Imported conversation: Glebokość korzeni winorosli | messages=4 | chunks=1
+Imported conversation: Dziurawiec na depresję. | messages=6 | chunks=1
+Imported conversation: Install Lucid Chat Plugin | messages=4 | chunks=1
+Imported conversation: Global Oil Tanker Fleet | messages=18 | chunks=4
+Imported conversation: Platforma REPOWERIC OZE | messages=4 | chunks=1
+Imported conversation: Praca elastyczna dla miliarderki | messages=4 | chunks=1
+Imported conversation: Raportowanie dyrektora zakupów | messages=4 | chunks=1
+Imported conversation: Strategia ESG dla Respect Energy | messages=8 | chunks=3
+Imported conversation: Sebastian Jabłoński - brak informacji. | messages=4 | chunks=1
+Imported conversation: Zwolnienie z pracy | messages=4 | chunks=1
+Imported conversation: Rozmowa o zwolnieniu pracownika | messages=2 | chunks=1
+Imported conversation: Uplifting Songs for Bad Days | messages=6 | chunks=1
+Imported conversation: Podzielenie 10 na 3 | messages=21 | chunks=2
+Imported conversation: Kierownik Działu Zakupów Respect | messages=2 | chunks=1
+
+ChatGPT import finished. Imported=14, skipped=0
+ChatGPT import finished.
+==> WALIDACJA POST-IMPORT
+ total_sources 
+---------------
+          1209
+(1 row)
+
+ total_documents 
+-----------------
+            1209
+(1 row)
+
+ total_chunks 
+--------------
+         4775
+(1 row)
+
+==> ROZMIAR QDRANT
+20K	data/processed/qdrant
+==> BACKUP PO IMPORCIE
+==> Tworze backup w: backups/db/2026-03-15_13-23-51
+==> Backup gotowy
+total 7.3M
+-rw-r--r-- 1 sebastian sebastian  266 Mar 15 13:23 manifest.json
+-rw-r--r-- 1 sebastian sebastian 7.3M Mar 15 13:23 postgres.dump
+-rw-r--r-- 1 sebastian sebastian  392 Mar 15 13:23 qdrant.tar.zst
+==> GOTOWE

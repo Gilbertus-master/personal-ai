@@ -1,0 +1,358 @@
+[07:54:40] Turbo extract: batch=100, workers=2, model=claude-haiku-4-5-20251001
+Before: 35463 entities, 91836 events | Need: 3421 entity, 4024 event chunks
+[07:54:41] Starting entity worker 0/2 (claude-haiku-4-5-20251001)...
+[07:54:41] Starting entity worker 1/2 (claude-haiku-4-5-20251001)...
+[07:54:41] Starting event worker 0/2 (claude-haiku-4-5-20251001)...
+[07:54:41] Starting event worker 1/2 (claude-haiku-4-5-20251001)...
+[07:54:41] All 4 workers launched: 1132727 1132731 1132736 1132740
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/sebastian/personal-ai/app/extraction/events.py", line 430, in <module>
+    main()
+  File "/home/sebastian/personal-ai/app/extraction/events.py", line 395, in main
+    event_id = insert_event(
+               ^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/app/extraction/events.py", line 261, in insert_event
+    cur.execute(
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/psycopg/cursor.py", line 97, in execute
+    raise ex.with_traceback(None)
+psycopg.errors.InvalidDatetimeFormat: invalid input syntax for type timestamp with time zone: "2026-T.8"
+CONTEXT:  unnamed portal parameter $4 = '...'
+Chunks to process: 100 (worker 1/2)
+{"chunk_id": 34585, "event_detected": true, "event_type": "trade"}
+{"chunk_id": 35281, "event_detected": true, "event_type": "trade"}
+{"chunk_id": 35293, "event_detected": true, "event_type": "trade"}
+{"chunk_id": 35305, "event_detected": true, "event_type": "trade"}
+{"chunk_id": 35317, "event_detected": true, "event_type": "trade"}
+{"chunk_id": 35377, "event_detected": true, "event_type": "trade"}
+{"chunk_id": 35413, "event_detected": true, "event_type": "trade"}
+{"chunk_id": 35425, "event_detected": true, "event_type": "trade"}
+{"chunk_id": 51229, "event_detected": true, "event_type": "blocker"}
+{"chunk_id": 51235, "event_detected": true, "event_type": "deadline"}
+{"chunk_id": 51241, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 51247, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 51253, "event_detected": true, "event_type": "escalation"}
+{"chunk_id": 51259, "event_detected": true, "event_type": "task_assignment"}
+{"chunk_id": 51265, "event_detected": true, "event_type": "task_assignment"}
+{"chunk_id": 51277, "event_detected": true, "event_type": "milestone"}
+{"chunk_id": 51283, "event_detected": true, "event_type": "task_assignment"}
+{"chunk_id": 51289, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 51295, "event_detected": true, "event_type": "meeting"}
+{"chunk_id": 51301, "event_detected": true, "event_type": "blocker"}
+{"chunk_id": 51307, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 51313, "event_detected": true, "event_type": "meeting"}
+{"chunk_id": 51319, "event_detected": true, "event_type": "task_assignment"}
+{"chunk_id": 51325, "event_detected": true, "event_type": "blocker"}
+{"chunk_id": 51331, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 51337, "event_detected": true, "event_type": "task_assignment"}
+Chunks to process: 100 (worker 0/2)
+{"chunk_id": 177610, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177612, "entity_count": 3, "entity_names": ["Respect Energy", "Balkan Energy", "EEX"]}
+{"chunk_id": 177614, "entity_count": 4, "entity_names": ["Hungary", "Croatia", "Greece", "Romania"]}
+{"chunk_id": 177616, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177618, "entity_count": 1, "entity_names": ["Danube"]}
+{"chunk_id": 177620, "entity_count": 4, "entity_names": ["Budapest", "Bucharest", "Sofia", "Athens"]}
+{"chunk_id": 177622, "entity_count": 4, "entity_names": ["Kostolac B G2", "Maritsa 2 G1", "Komotini P.", "Mochovce 11, 12"]}
+{"chunk_id": 177624, "entity_count": 4, "entity_names": ["HUPX", "OPCOM", "IBEX", "CROPEX"]}
+{"chunk_id": 177626, "entity_count": 1, "entity_names": ["ALPEX"]}
+{"chunk_id": 177628, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177630, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177632, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177634, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177636, "entity_count": 2, "entity_names": ["JAO", "IT-CH-D-DAILYPRODU"]}
+{"chunk_id": 177638, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177640, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177642, "entity_count": 4, "entity_names": ["TOE", "Marek Kulesa", "Monika Gasiuk", "Maciej Izdebski"]}
+{"chunk_id": 177644, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177646, "entity_count": 2, "entity_names": ["JAO", "UA-SK-D-DAILYPRODU"]}
+{"chunk_id": 177648, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177658, "entity_count": 2, "entity_names": ["JAO", "UA-PL"]}
+{"chunk_id": 177660, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177662, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177664, "entity_count": 3, "entity_names": ["SK-UA-D-DAILYPRODU-260326-01", "10Y1001C--000182", "10YSK-SEPS-----K"]}
+{"chunk_id": 177666, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177668, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177670, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177672, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177674, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177676, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177678, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177680, "entity_count": 2, "entity_names": ["HU-UA", "MAVIR"]}
+{"chunk_id": 177682, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177684, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177686, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177688, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177690, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177692, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177694, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177696, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177698, "entity_count": 2, "entity_names": ["HU-UA", "MAVIR"]}
+{"chunk_id": 177700, "entity_count": 4, "entity_names": ["Krystian Juchacz", "Respect Energy Fuels sp. z o.o.", "Sebastian Jabłoński", "Jakub Pawłowski"]}
+{"chunk_id": 177702, "entity_count": 2, "entity_names": ["JAO", "HU-UA"]}
+{"chunk_id": 177704, "entity_count": 4, "entity_names": ["Respect Energy Fuels Sp. z o.o.", "Sebastian Jabłoński", "Ewa Jabłońska", "Dariusz Bliźniak"]}
+{"chunk_id": 177706, "entity_count": 2, "entity_names": ["Respect Energy Fuels Sp. z o.o.", "Rada Nadzorcza"]}
+{"chunk_id": 177708, "entity_count": 4, "entity_names": ["Respect Energy Fuels sp. z o.o.", "Jakub Pawłowski", "Krystian Juchacz", "Sebastian Jabłoński"]}
+{"chunk_id": 177710, "entity_count": 4, "entity_names": ["Respect Energy Fuels sp. z o.o.", "Witold Pawłowski", "Jakub Pawłowski", "Warszawa"]}
+{"chunk_id": 177712, "entity_count": 4, "entity_names": ["Jakub Pawłowski", "Respect Energy Fuels sp. z o.o.", "Witold Pawłowski", "Krystian Juchacz"]}
+{"chunk_id": 177714, "entity_count": 2, "entity_names": ["Respect Energy Fuels sp. z o.o.", "Warsaw"]}
+{"chunk_id": 177716, "entity_count": 3, "entity_names": ["Sebastian Ludwik Jabłoński", "Ewa Jabłońska", "Dariusz Bliźniak"]}
+{"chunk_id": 177718, "entity_count": 2, "entity_names": ["Nadzwyczajne Zgromadzenie Wspólników Spółki", "Umowa Spółki"]}
+{"chunk_id": 177720, "entity_count": 2, "entity_names": ["CENNIK Buy FI Standard D 20260327 v1.xlsx", "respect.energy"]}
+{"chunk_id": 177722, "entity_count": 3, "entity_names": ["Cenniki Buy SE2 Standard", "respect.energy", "Portfolio Management"]}
+{"chunk_id": 177724, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177726, "entity_count": 2, "entity_names": ["CENNIK Buy SE3 Standard D 20260327 v1.xlsx", "respect.energy"]}
+{"chunk_id": 177728, "entity_count": 3, "entity_names": ["respect.energy", "DK2 Standard", "Portfolio Management"]}
+{"chunk_id": 177730, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177732, "entity_count": 3, "entity_names": ["TGE", "RDN_26-03-26_H01", "Aggregated curves"]}
+{"chunk_id": 177734, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177736, "entity_count": 2, "entity_names": ["RDN_26-03-26_H02", "RDN_26-03-26_H03"]}
+{"chunk_id": 177738, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177740, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177742, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177744, "entity_count": 2, "entity_names": ["RDN_26-03-26_H05", "RDN_26-03-26_H06"]}
+{"chunk_id": 177746, "entity_count": 2, "entity_names": ["RDN_26-03-26_H06", "RDN_26-03-26_H07"]}
+{"chunk_id": 177748, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177750, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177752, "entity_count": 1, "entity_names": ["RDN_26-03-26_H09"]}
+{"chunk_id": 177754, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177756, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177758, "entity_count": 2, "entity_names": ["Respect Energy", "CENNIK Buy DK1 Standard"]}
+{"chunk_id": 177760, "entity_count": 2, "entity_names": ["Respect Energy", "Buy SE1 Standard"]}
+{"chunk_id": 177762, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177764, "entity_count": 1, "entity_names": ["JAO"]}
+{"chunk_id": 177766, "entity_count": 3, "entity_names": ["CENNIK Buy NO4 Standard D", "respect.energy", "Cenniki Buy NO4 Standard"]}
+{"chunk_id": 177768, "entity_count": 2, "entity_names": ["Cenniki Buy DE Standard", "respect.energy"]}
+{"chunk_id": 177770, "entity_count": 2, "entity_names": ["respect.energy", "Cenniki Buy DE Standard"]}
+{"chunk_id": 177772, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177774, "entity_count": 3, "entity_names": ["CENNIK Buy NO2 Standard D", "respect.energy", "NO2 Standard"]}
+{"chunk_id": 177776, "entity_count": 2, "entity_names": ["Respect Energy", "Cenniki Buy NO3 Standard"]}
+{"chunk_id": 177778, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177780, "entity_count": 2, "entity_names": ["respect.energy", "CENNIK Buy NO1 Standard"]}
+{"chunk_id": 177782, "entity_count": 2, "entity_names": ["Cenniki Buy BG Standard", "respect.energy"]}
+{"chunk_id": 177784, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177786, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177788, "entity_count": 3, "entity_names": ["CENNIK Buy ES Standard D 20260327 v1", "Respect Energy", "Cenniki Buy ES Standard"]}
+{"chunk_id": 177790, "entity_count": 3, "entity_names": ["Respect Energy", "Buy IT Standard", "Portfolio Management"]}
+{"chunk_id": 177792, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177794, "entity_count": 3, "entity_names": ["CENNIK Buy BALKANS Standard D", "respect.energy", "BALKANS"]}
+{"chunk_id": 177796, "entity_count": 3, "entity_names": ["Respect Energy", "Buy RO Standard", "Portfolio Management"]}
+{"chunk_id": 177798, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177800, "entity_count": 2, "entity_names": ["CENNIK Buy HU Standard D 20260327 v1.xlsx", "respect.energy"]}
+{"chunk_id": 177802, "entity_count": 4, "entity_names": ["PSEW", "Tom Ellison", "Wojciech Balczun", "Dominika Taranko"]}
+{"chunk_id": 177804, "entity_count": 2, "entity_names": ["Rzeczpospolita", "PSEW"]}
+Chunks to process: 100 (worker 1/2)
+{"chunk_id": 177609, "entity_count": 4, "entity_names": ["Montenegro", "Romania", "Serbia", "Balkan Energy"]}
+{"chunk_id": 177611, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177613, "entity_count": 3, "entity_names": ["HUPX", "Balkan Energy", "Hungary"]}
+{"chunk_id": 177615, "entity_count": 4, "entity_names": ["HU+exYU+AL", "Romania", "Bulgaria", "Greece"]}
+{"chunk_id": 177617, "entity_count": 4, "entity_names": ["Danube", "Romania", "Pump storage generation", "Hydro generation"]}
+{"chunk_id": 177619, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177621, "entity_count": 3, "entity_names": ["Athens", "Bucharest", "Sofia"]}
+{"chunk_id": 177623, "entity_count": 4, "entity_names": ["TENT A G6", "Mochovce 11, 12", "HUPX", "OPCOM"]}
+{"chunk_id": 177625, "entity_count": 4, "entity_names": ["BELEN", "ALPEX", "HUPX", "OPCOM"]}
+{"chunk_id": 177627, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177629, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177631, "entity_count": 1, "entity_names": ["HUPX"]}
+{"chunk_id": 177633, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177635, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177637, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177639, "entity_count": 2, "entity_names": ["JAO", "10YDOM--CH-FR--W"]}
+{"chunk_id": 177641, "entity_count": 2, "entity_names": ["Monika Gasiuk", "posiedzenia.pl"]}
+{"chunk_id": 177643, "entity_count": 2, "entity_names": ["JAO", "UA-HU-D-DAILYPRODU"]}
+{"chunk_id": 177645, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177647, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177657, "entity_count": 4, "entity_names": ["Krystian Juchacz", "Sebastian Jablonski", "re-fuels.energy", "respect.energy"]}
+{"chunk_id": 177659, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177661, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177663, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177665, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177667, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177669, "entity_count": 2, "entity_names": ["JAO", "PL-UA Auction"]}
+{"chunk_id": 177671, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177673, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177675, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177677, "entity_count": 3, "entity_names": ["JAO", "HU-UA", "MAVIR"]}
+{"chunk_id": 177679, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177681, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177683, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177685, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177687, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177689, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177691, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177693, "entity_count": 2, "entity_names": ["Hungary-Ukraine Energy Trade", "MAVIR"]}
+{"chunk_id": 177695, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177697, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177699, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177701, "entity_count": 3, "entity_names": ["Jakub Pawłowski", "Respect Energy Fuels sp. z o.o.", "Warsaw"]}
+{"chunk_id": 177703, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177705, "entity_count": 4, "entity_names": ["Sebastian Ludwik Jabłoński", "Ewa Jabłońska", "Dariusz Bliźniak", "Respect Energy Fuels Sp. z o.o."]}
+{"chunk_id": 177707, "entity_count": 2, "entity_names": ["Respect Energy Fuels Sp. z o.o.", "Warszawa"]}
+{"chunk_id": 177709, "entity_count": 4, "entity_names": ["Jakub Pawłowski", "Respect Energy Fuels sp. z o.o.", "Marzena Grzelec", "Witold Pawłowski"]}
+{"chunk_id": 177711, "entity_count": 4, "entity_names": ["Respect Energy Fuels Sp. z o.o.", "Krystian Juchacz", "Jakub Pawłowski", "Witold Pawłowski"]}
+{"chunk_id": 177713, "entity_count": 4, "entity_names": ["Jakub Pawłowski", "Ewa Jabłońska", "Respect Energy Fuels sp. z o.o.", "Warsaw"]}
+{"chunk_id": 177715, "entity_count": 4, "entity_names": ["Respect Energy Fuels sp. z o.o.", "Krystian Juchacz", "Sebastian Jabłoński", "Ewa Jabłońska"]}
+{"chunk_id": 177717, "entity_count": 3, "entity_names": ["Rada Nadzorcza", "Spółka", "Financial approval thresholds and Supervisory Board authorization"]}
+{"chunk_id": 177719, "entity_count": 3, "entity_names": ["Respect Energy", "Buy FI Standard", "Portfolio Management"]}
+{"chunk_id": 177721, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177723, "entity_count": 2, "entity_names": ["respect.energy", "CENNIK Buy SE2 Standard"]}
+{"chunk_id": 177725, "entity_count": 2, "entity_names": ["respect.energy", "SE3 Standard"]}
+{"chunk_id": 177727, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177729, "entity_count": 2, "entity_names": ["CENNIK_Buy_DK2_Standard_D_20260327_v1.xlsx", "respect.energy"]}
+{"chunk_id": 177731, "entity_count": 3, "entity_names": ["respect.energy", "SE4 Standard", "Portfolio Management"]}
+{"chunk_id": 177733, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177735, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177737, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177739, "entity_count": 2, "entity_names": ["RDN_26-03-26_H03", "RDN_26-03-26_H04"]}
+{"chunk_id": 177741, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177743, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177745, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177747, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177749, "entity_count": 2, "entity_names": ["RDN_26-03-26_H07", "RDN_26-03-26_H08"]}
+{"chunk_id": 177751, "entity_count": 2, "entity_names": ["RDN_26-03-26_H08", "RDN_26-03-26_H09"]}
+{"chunk_id": 177753, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177755, "entity_count": 3, "entity_names": ["Cenniki Buy SE4 Standard", "respect.energy", "CENNIK_Buy_SE4_Standard_D_20260327_v1.xlsx"]}
+{"chunk_id": 177757, "entity_count": 3, "entity_names": ["Respect Energy", "DK1 Standard", "Cenniki Buy DK1 Standard"]}
+{"chunk_id": 177759, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177761, "entity_count": 2, "entity_names": ["Respect Energy", "Buy SE1 Standard"]}
+{"chunk_id": 177763, "entity_count": 3, "entity_names": ["Respect Energy", "Buy NO4 Standard", "Portfolio Management"]}
+{"chunk_id": 177765, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177767, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177769, "entity_count": 2, "entity_names": ["Biuro Analiz i Strategii", "respect.energy"]}
+{"chunk_id": 177771, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177773, "entity_count": 3, "entity_names": ["Cenniki Buy NO2 Standard", "respect.energy", "Portfolio Management"]}
+{"chunk_id": 177775, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177777, "entity_count": 2, "entity_names": ["respect.energy", "CENNIK Buy NO3 Standard D"]}
+{"chunk_id": 177779, "entity_count": 3, "entity_names": ["Respect Energy", "Buy NO1 Standard", "Portfolio Management"]}
+{"chunk_id": 177781, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177783, "entity_count": 2, "entity_names": ["JAO", "UA-SK transmission area"]}
+{"chunk_id": 177785, "entity_count": 2, "entity_names": ["Cenniki Buy BG Standard", "respect.energy"]}
+{"chunk_id": 177787, "entity_count": 3, "entity_names": ["Respect Energy", "Buy ES Standard", "Portfolio Management"]}
+{"chunk_id": 177789, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177791, "entity_count": 2, "entity_names": ["CENNIK Buy IT Standard D 20260327 v1", "respect.energy"]}
+{"chunk_id": 177793, "entity_count": 4, "entity_names": ["RESPECT Energy", "Buy BALKANS Standard", "Balkans", "CENNIK_Buy_BALKANS_Standard_D_20260327_v1"]}
+{"chunk_id": 177795, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177797, "entity_count": 3, "entity_names": ["CENNIK_Buy_RO_Standard_D_20260327_v1.xlsx", "respect.energy", "Cenniki Buy RO Standard"]}
+{"chunk_id": 177799, "entity_count": 3, "entity_names": ["Respect Energy", "Cenniki Buy HU Standard", "Portfolio Management"]}
+{"chunk_id": 177801, "entity_count": 0, "entity_names": []}
+{"chunk_id": 177806, "entity_count": 3, "entity_names": ["European Commodity Clearing AG", "ECC Clearing Circular 20/2026", "Leipzig"]}
+{"chunk_id": 177808, "entity_count": 4, "entity_names": ["SEE+Hungary Energy Daily", "Balkan Energy", "European Bank for Reconstruction and Development", "Krk LNG terminal"]}
+{"chunk_id": 177810, "entity_count": 4, "entity_names": ["SEE-Hungary Energy Daily", "Balkan Energy", "Krk LNG Terminal", "Druzhba"]}
+{"chunk_id": 177812, "entity_count": 4, "entity_names": ["Balkan Energy", "Respect Energy", "HUPX", "SEE+Hungary"]}
+{"chunk_id": 177814, "entity_count": 4, "entity_names": ["Bosnia and Herzegovina", "AAFS Infrastructure and Energy", "Southern Gas Interconnection", "Federation of Bosnia and Herzegovina"]}
+{"chunk_id": 177816, "entity_count": 4, "entity_names": ["Respect Energy", "Vedran Lakic", "Southern Gas Interconnection", "Gacko"]}
+{"processed_chunks": 100, "mentions_written": 153}
+{"chunk_id": 177803, "entity_count": 3, "entity_names": ["Gideon Ashwood", "Polskie Stowarzyszenie Energetyki Wiatrowej", "Energy independence"]}
+{"chunk_id": 177805, "entity_count": 4, "entity_names": ["ECC", "EPEX GB spot market", "GB Delivery Risk Parameter", "M7"]}
+{"chunk_id": 177807, "entity_count": 2, "entity_names": ["Forbes", "PSEW"]}
+{"chunk_id": 177809, "entity_count": 3, "entity_names": ["Balkan Energy AG", "Starrkirch Wil", "Country Reports on Energy Business"]}
+{"chunk_id": 177811, "entity_count": 4, "entity_names": ["Respect Energy", "Balkan Energy", "Renewable Energy in Albania", "Albania"]}
+{"chunk_id": 177813, "entity_count": 4, "entity_names": ["Balkan Energy", "Bosnia and Herzegovina", "Agency for Statistics of Bosnia and Herzegovina", "Electricity Production"]}
+{"chunk_id": 177815, "entity_count": 4, "entity_names": ["Southern Gas Interconnection", "AAFS Infrastructure and Energy", "Bosnia and Herzegovina", "Croatia"]}
+{"processed_chunks": 100, "mentions_written": 154}
+Chunks to process: 100 (worker 0/2)
+{"chunk_id": 51234, "event_detected": true, "event_type": "deadline"}
+{"chunk_id": 51246, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 51258, "event_detected": true, "event_type": "deadline"}
+{"chunk_id": 51270, "event_detected": true, "event_type": "task_assignment"}
+{"chunk_id": 51282, "event_detected": true, "event_type": "blocker"}
+{"chunk_id": 51294, "event_detected": true, "event_type": "meeting"}
+{"chunk_id": 51306, "event_detected": true, "event_type": "commitment"}
+{"chunk_id": 51318, "event_detected": true, "event_type": "task_assignment"}
+{"chunk_id": 51330, "event_detected": true, "event_type": "task_assignment"}
+{"chunk_id": 51342, "event_detected": true, "event_type": "task_assignment"}
+{"chunk_id": 51354, "event_detected": true, "event_type": "task_assignment"}
+{"chunk_id": 51366, "event_detected": true, "event_type": "task_assignment"}
+{"chunk_id": 53664, "event_detected": true, "event_type": "meeting"}
+{"chunk_id": 53670, "event_detected": true, "event_type": "milestone"}
+{"chunk_id": 176100, "event_detected": true, "event_type": "meeting"}
+{"chunk_id": 176114, "event_detected": true, "event_type": "meeting"}
+{"chunk_id": 176228, "event_detected": false, "event_type": null}
+{"chunk_id": 176230, "event_detected": false, "event_type": null}
+{"chunk_id": 176232, "event_detected": true, "event_type": "milestone"}
+{"chunk_id": 176234, "event_detected": true, "event_type": "conflict"}
+{"chunk_id": 176236, "event_detected": false, "event_type": null}
+{"chunk_id": 176238, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176240, "event_detected": true, "event_type": "escalation"}
+{"chunk_id": 176256, "event_detected": true, "event_type": "commitment"}
+{"chunk_id": 176272, "event_detected": true, "event_type": "meeting"}
+{"chunk_id": 176304, "event_detected": false, "event_type": null}
+{"chunk_id": 176306, "event_detected": false, "event_type": null}
+{"chunk_id": 176308, "event_detected": true, "event_type": "commitment"}
+{"chunk_id": 176310, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176312, "event_detected": false, "event_type": null}
+{"chunk_id": 176314, "event_detected": true, "event_type": "commitment"}
+{"chunk_id": 176316, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176318, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176320, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176322, "event_detected": false, "event_type": null}
+{"chunk_id": 176324, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176326, "event_detected": true, "event_type": "meeting"}
+{"chunk_id": 176328, "event_detected": false, "event_type": null}
+{"chunk_id": 176330, "event_detected": false, "event_type": null}
+{"chunk_id": 176332, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176334, "event_detected": false, "event_type": null}
+{"chunk_id": 176336, "event_detected": false, "event_type": null}
+{"chunk_id": 176338, "event_detected": true, "event_type": "commitment"}
+{"chunk_id": 176340, "event_detected": false, "event_type": null}
+{"chunk_id": 176342, "event_detected": false, "event_type": null}
+{"chunk_id": 176344, "event_detected": false, "event_type": null}
+{"chunk_id": 176346, "event_detected": false, "event_type": null}
+{"chunk_id": 176348, "event_detected": false, "event_type": null}
+{"chunk_id": 176350, "event_detected": true, "event_type": "task_assignment"}
+{"chunk_id": 176352, "event_detected": false, "event_type": null}
+{"chunk_id": 176354, "event_detected": true, "event_type": "health"}
+{"chunk_id": 176356, "event_detected": false, "event_type": null}
+{"chunk_id": 176358, "event_detected": false, "event_type": null}
+{"chunk_id": 176360, "event_detected": false, "event_type": null}
+{"chunk_id": 176362, "event_detected": false, "event_type": null}
+{"chunk_id": 176364, "event_detected": false, "event_type": null}
+{"chunk_id": 176366, "event_detected": false, "event_type": null}
+{"chunk_id": 176368, "event_detected": true, "event_type": "conflict"}
+{"chunk_id": 176370, "event_detected": false, "event_type": null}
+{"chunk_id": 176372, "event_detected": false, "event_type": null}
+{"chunk_id": 176374, "event_detected": false, "event_type": null}
+{"chunk_id": 176376, "event_detected": true, "event_type": "commitment"}
+{"chunk_id": 176378, "event_detected": true, "event_type": "commitment"}
+{"chunk_id": 176380, "event_detected": false, "event_type": null}
+{"chunk_id": 176382, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176384, "event_detected": true, "event_type": "commitment"}
+{"chunk_id": 176386, "event_detected": false, "event_type": null}
+{"chunk_id": 176388, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176390, "event_detected": true, "event_type": "task_assignment"}
+{"chunk_id": 176392, "event_detected": true, "event_type": "conflict"}
+{"chunk_id": 176394, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176396, "event_detected": true, "event_type": "conflict"}
+{"chunk_id": 176398, "event_detected": true, "event_type": "conflict"}
+{"chunk_id": 176400, "event_detected": true, "event_type": "meeting"}
+{"chunk_id": 176402, "event_detected": true, "event_type": "meeting"}
+{"chunk_id": 176404, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176406, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176408, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176410, "event_detected": true, "event_type": "blocker"}
+{"chunk_id": 176412, "event_detected": true, "event_type": "meeting"}
+{"chunk_id": 176414, "event_detected": true, "event_type": "meeting"}
+{"chunk_id": 176416, "event_detected": true, "event_type": "commitment"}
+{"chunk_id": 176418, "event_detected": true, "event_type": "meeting"}
+{"chunk_id": 176420, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176422, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176424, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176426, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176428, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176430, "event_detected": true, "event_type": "meeting"}
+{"chunk_id": 176432, "event_detected": true, "event_type": "meeting"}
+{"chunk_id": 176434, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176436, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176438, "event_detected": true, "event_type": "escalation"}
+{"chunk_id": 176440, "event_detected": false, "event_type": null}
+{"chunk_id": 176442, "event_detected": true, "event_type": "task_assignment"}
+{"chunk_id": 176444, "event_detected": true, "event_type": "task_assignment"}
+{"chunk_id": 176446, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176448, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176450, "event_detected": true, "event_type": "decision"}
+{"chunk_id": 176452, "event_detected": true, "event_type": "decision"}
+{"processed_chunks": 100, "events_written": 71, "event_entities_written": 197, "extraction_run_id": 82}
+[07:57:16] All workers finished
+After: 35489 entities, 91932 events | Remaining: 3221 entity, 3899 event chunks
+[07:57:17] Done
+[07:57:17] Cleaning up workers...

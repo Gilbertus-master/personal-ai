@@ -199,7 +199,7 @@ function CompetitorsContent() {
 export default function CompetitorsPage() {
   return (
     <RbacGate
-      roles={['board', 'ceo', 'gilbertus_admin']}
+      roles={['owner', 'board', 'ceo', 'gilbertus_admin']}
       permission="data:read:all"
       fallback={
         <div className="flex items-center justify-center h-full">

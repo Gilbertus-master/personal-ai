@@ -92,7 +92,7 @@ export default function GoalsPage() {
 
   return (
     <RbacGate
-      roles={['board', 'ceo']}
+      roles={['owner', 'board', 'ceo']}
       permission="financials:read"
       fallback={
         <div className="flex h-64 items-center justify-center text-[var(--text-secondary)]">

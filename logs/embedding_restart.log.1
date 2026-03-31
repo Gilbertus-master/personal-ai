@@ -1,0 +1,82 @@
+Traceback (most recent call last):
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/urllib3/response.py", line 903, in _error_catcher
+    yield
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/urllib3/response.py", line 1028, in _raw_read
+    data = self._fp_read(amt, read1=read1) if not fp_closed else b""
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/urllib3/response.py", line 1011, in _fp_read
+    return self._fp.read(amt) if amt is not None else self._fp.read()
+           ^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/http/client.py", line 484, in read
+    s = self.fp.read(amt)
+        ^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 707, in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/ssl.py", line 1252, in recv_into
+    return self.read(nbytes, buffer)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/ssl.py", line 1104, in read
+    return self._sslobj.read(len, buffer)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ssl.SSLError: [SSL: DECRYPTION_FAILED_OR_BAD_RECORD_MAC] decryption failed or bad record mac (_ssl.c:2559)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/requests/models.py", line 822, in generate
+    yield from self.raw.stream(chunk_size, decode_content=True)
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/urllib3/response.py", line 1257, in stream
+    data = self.read(amt=amt, decode_content=decode_content)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/urllib3/response.py", line 1112, in read
+    data = self._raw_read(amt)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/urllib3/response.py", line 1027, in _raw_read
+    with self._error_catcher():
+  File "/usr/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/urllib3/response.py", line 914, in _error_catcher
+    raise SSLError(e) from e
+urllib3.exceptions.SSLError: [SSL: DECRYPTION_FAILED_OR_BAD_RECORD_MAC] decryption failed or bad record mac (_ssl.c:2559)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/sebastian/personal-ai/app/retrieval/index_chunks.py", line 35, in <module>
+    TOKENIZER = tiktoken.get_encoding("cl100k_base")
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/tiktoken/registry.py", line 86, in get_encoding
+    enc = Encoding(**constructor())
+                     ^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/tiktoken_ext/openai_public.py", line 76, in cl100k_base
+    mergeable_ranks = load_tiktoken_bpe(
+                      ^^^^^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/tiktoken/load.py", line 162, in load_tiktoken_bpe
+    contents = read_file_cached(tiktoken_bpe_file, expected_hash)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/tiktoken/load.py", line 67, in read_file_cached
+    contents = read_file(blobpath)
+               ^^^^^^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/tiktoken/load.py", line 17, in read_file
+    resp = requests.get(blobpath)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/requests/api.py", line 73, in get
+    return request("get", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/requests/api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/requests/sessions.py", line 592, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/requests/sessions.py", line 749, in send
+    r.content
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/requests/models.py", line 904, in content
+    self._content = b"".join(self.iter_content(CONTENT_CHUNK_SIZE)) or b""
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sebastian/personal-ai/.venv/lib/python3.12/site-packages/requests/models.py", line 830, in generate
+    raise RequestsSSLError(e)
+requests.exceptions.SSLError: [SSL: DECRYPTION_FAILED_OR_BAD_RECORD_MAC] decryption failed or bad record mac (_ssl.c:2559)
