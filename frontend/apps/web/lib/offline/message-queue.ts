@@ -1,4 +1,5 @@
 import { put, getAll, del, clearStore, getDB } from './idb';
+import { uuid } from '@/lib/uuid';
 
 const MAX_RETRIES = 3;
 
@@ -11,7 +12,7 @@ export interface OutboxMessage {
 }
 
 function uuid(): string {
-  return crypto.randomUUID();
+  return uuid();
 }
 
 export async function enqueue(message: {

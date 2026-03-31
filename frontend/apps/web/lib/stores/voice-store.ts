@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { uuid } from '@/lib/uuid';
 
 export interface VoiceMessage {
   id: string;
@@ -108,7 +109,7 @@ export const useVoiceStore = create<VoiceStore>()(
 
       // Session actions
       createSession: () => {
-        const id = crypto.randomUUID();
+        const id = uuid();
         const now = new Date().toISOString();
         const session: VoiceSession = {
           id,
@@ -131,7 +132,7 @@ export const useVoiceStore = create<VoiceStore>()(
       addMessage: (sessionId, msg) => {
         const newMsg: VoiceMessage = {
           ...msg,
-          id: crypto.randomUUID(),
+          id: uuid(),
           timestamp: new Date().toISOString(),
         };
         set((s) => ({

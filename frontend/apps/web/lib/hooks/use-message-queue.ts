@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { uuid } from '@/lib/uuid';
 import { useOffline } from '@/lib/providers/offline-provider';
 import { useOfflineStore } from '@/lib/stores/offline-store';
 import {
@@ -71,7 +72,7 @@ export function useMessageQueue(
       if (isOnline) {
         try {
           const outboxMsg: OutboxMessage = {
-            id: crypto.randomUUID(),
+            id: uuid(),
             type: msg.type,
             payload: msg.payload,
             createdAt: new Date().toISOString(),

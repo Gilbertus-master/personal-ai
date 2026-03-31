@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { uuid } from '@/lib/uuid';
 
 // TODO: import from @gilbertus/api-client once P1T1 lands
 export interface SourceItem {
@@ -77,7 +78,7 @@ export const useChatStore = create<ChatStore>()(
       activeConversationId: null,
 
       createConversation: () => {
-        const id = crypto.randomUUID();
+        const id = uuid();
         const now = new Date().toISOString();
         const conv: Conversation = {
           id,
@@ -112,7 +113,7 @@ export const useChatStore = create<ChatStore>()(
       setActiveConversation: (id) => set({ activeConversationId: id }),
 
       addUserMessage: (convId, content) => {
-        const msgId = crypto.randomUUID();
+        const msgId = uuid();
         const now = new Date().toISOString();
         const msg: ChatMessage = {
           id: msgId,
@@ -141,7 +142,7 @@ export const useChatStore = create<ChatStore>()(
       addAssistantMessage: (convId, content, sources, meta) => {
         const now = new Date().toISOString();
         const msg: ChatMessage = {
-          id: crypto.randomUUID(),
+          id: uuid(),
           role: 'assistant',
           content,
           sources,
