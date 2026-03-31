@@ -74,7 +74,7 @@ export function CreateMatterModal({
 
   if (!isOpen) return null;
 
-  const canSubmit = title.trim().length > 0 && areaCode !== null;
+  const canSubmit = title.trim().length > 0;
 
   const handleSubmit = () => {
     if (!canSubmit || !areaCode) return;
@@ -183,7 +183,7 @@ export function CreateMatterModal({
           {/* Area */}
           <label className="space-y-1">
             <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-              Obszar compliance *
+              Obszar compliance
             </span>
             <AreaFilter value={areaCode} onChange={setAreaCode} />
           </label>
