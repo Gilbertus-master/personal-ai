@@ -6,3 +6,4 @@ export { CronManager } from './cron-manager';
 export { SystemStatusDashboard } from './system-status';
 export { CostsDashboard } from './costs-dashboard';
 export { AutofixerDashboard } from './autofixer-dashboard';
+export { RoleManager } from './role-manager';

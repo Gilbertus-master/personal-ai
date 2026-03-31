@@ -16,6 +16,7 @@ function AdminSidebarPlaceholder() {
         { label: 'Users', href: '/admin/users' },
         { label: 'Audit Log', href: '/admin/audit' },
         { label: 'Autofixery', href: '/admin/autofixers' },
+        { label: 'Role i uprawnienia', href: '/admin/roles' },
       ].map((item) => (
         <a
           key={item.href}
@@ -39,7 +40,7 @@ function AccessDenied() {
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
-    <RbacGate roles={['ceo', 'gilbertus_admin', 'operator']} fallback={<AccessDenied />}>
+    <RbacGate roles={['owner', 'gilbertus_admin', 'operator']} fallback={<AccessDenied />}>
       <div className="flex h-full">
         <AdminSidebarPlaceholder />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>

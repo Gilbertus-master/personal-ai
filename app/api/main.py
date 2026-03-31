@@ -520,6 +520,96 @@ def manual_fix_queue() -> list[dict]:
                     for r in cur.fetchall()]
 
 
+@app.get("/admin/roles")
+def admin_roles() -> list[dict]:
+    """Return all roles with permissions, classifications, modules, and user counts."""
+    from app.db.postgres import get_pg_connection
+
+    # Static definitions — mirrors frontend RBAC package
+    ROLE_DEFS = [
+        {"name": "owner", "level": 100, "label": "Owner", "description": "System owner — full control"},
+        {"name": "gilbertus_admin", "level": 99, "label": "System Admin", "description": "Full system administration"},
+        {"name": "operator", "level": 70, "label": "Operator", "description": "Infrastructure and sync management"},
+        {"name": "ceo", "level": 60, "label": "CEO", "description": "Full business access"},
+        {"name": "board", "level": 50, "label": "Board", "description": "Executive-level access"},
+        {"name": "director", "level": 40, "label": "Director", "description": "Department-level access"},
+        {"name": "manager", "level": 30, "label": "Manager", "description": "Team-level access"},
+        {"name": "specialist", "level": 20, "label": "Specialist", "description": "Individual contributor access"},
+    ]
+
+    ROLE_PERMS = {
+        "owner": ["*"],
+        "gilbertus_admin": ["*"],
+        "operator": ["config:write:system", "sync:manage", "sync:credentials", "infra:manage", "dev:execute", "commands:task"],
+        "ceo": ["data:read:all", "financials:read", "evaluations:read:all", "communications:read:all",
+                "config:write:system", "users:manage:all", "queries:create", "prompts:manage",
+                "rbac:manage", "commands:email", "commands:ticket", "commands:meeting",
+                "commands:task", "commands:sync", "views:configure:own"],
+        "board": ["data:read:all", "financials:read", "evaluations:read:reports", "config:write:system",
+                  "users:manage:below", "queries:create", "commands:email", "commands:ticket",
+                  "commands:meeting", "commands:task", "commands:sync", "views:configure:own"],
+        "director": ["data:read:department", "evaluations:read:reports", "communications:read:department",
+                     "config:write:department", "queries:create", "commands:email", "commands:ticket",
+                     "commands:meeting", "commands:task", "commands:sync", "views:configure:own"],
+        "manager": ["data:read:team", "config:write:own", "queries:create:department",
+                    "commands:ticket", "commands:meeting", "commands:task", "views:configure:own"],
+        "specialist": ["data:read:own", "config:write:own", "commands:task", "views:configure:own"],
+    }
+
+    ROLE_CLASSIFICATIONS = {
+        "owner": ["public", "internal", "confidential", "ceo_only", "personal"],
+        "gilbertus_admin": ["public", "internal", "confidential", "ceo_only", "personal"],
+        "ceo": ["public", "internal", "confidential", "ceo_only", "personal"],
+        "board": ["public", "internal", "confidential", "personal"],
+        "director": ["public", "internal", "personal"],
+        "manager": ["public", "internal", "personal"],
+        "specialist": ["public", "personal"],
+        "operator": [],
+    }
+
+    ROLE_MODULES = {
+        "owner": ["all"],
+        "gilbertus_admin": ["dashboard", "chat", "settings", "admin", "autofixers"],
+        "operator": ["dashboard", "chat", "settings", "admin", "autofixers"],
+        "ceo": ["dashboard", "brief", "chat", "people", "intelligence", "compliance", "market",
+                "finance", "process", "decisions", "calendar", "documents", "voice", "settings"],
+        "board": ["dashboard", "brief", "chat", "people", "intelligence", "compliance", "market",
+                  "finance", "process", "calendar", "documents", "voice", "settings"],
+        "director": ["dashboard", "chat", "people", "compliance", "market", "process",
+                     "calendar", "documents", "settings"],
+        "manager": ["dashboard", "chat", "calendar", "settings"],
+        "specialist": ["dashboard", "chat", "settings"],
+    }
+
+    # Get user counts from DB (if omnius tables exist)
+    user_counts: dict[str, int] = {}
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT r.name, COUNT(u.id)
+                    FROM omnius_roles r
+                    LEFT JOIN omnius_users u ON u.role_id = r.id AND u.is_active = TRUE
+                    GROUP BY r.name
+                """)
+                user_counts = {row[0]: row[1] for row in cur.fetchall()}
+    except Exception:
+        pass
+
+    result = []
+    for rd in ROLE_DEFS:
+        name = rd["name"]
+        result.append({
+            **rd,
+            "permissions": ROLE_PERMS.get(name, []),
+            "classifications": ROLE_CLASSIFICATIONS.get(name, []),
+            "modules": ROLE_MODULES.get(name, []),
+            "user_count": user_counts.get(name, 0),
+        })
+
+    return result
+
+
 @app.get("/autofixers/dashboard")
 def autofixer_dashboard() -> dict:
     """Unified dashboard for both repair pipelines."""
@@ -898,7 +988,7 @@ def _check_answer_cache(cache_key: str):
         return None
 
 
-def _save_answer_cache(cache_key: str, query: str, answer: str, meta: dict, ttl_hours: int = 1):
+def _save_answer_cache(cache_key: str, query: str, answer: str, meta: dict, ttl_hours: float = 0.5):
     """Cache an answer."""
     try:
         import json
@@ -1037,6 +1127,20 @@ def ask(body: AskRequest, request: Request) -> AskResponse:
             caller_ip=caller_ip,
             channel_key=channel_key,
         )
+        # Persist per-stage timing (orchestrator path)
+        try:
+            from app.db.timing_persistence import save_timing
+            _stage = timer.to_dict()
+            save_timing(
+                question_type=interpreted.question_type,
+                analysis_depth=interpreted.analysis_depth,
+                total_ms=latency_ms,
+                interpret_ms=_stage.get("interpret"),
+                channel=ask_req.channel,
+            )
+        except Exception:
+            pass
+
         return AskResponse(answer=answer, meta=response_meta, run_id=run_id)
 
     # Tool routing: smart source group inference when source_types not explicit
@@ -1142,6 +1246,23 @@ def ask(body: AskRequest, request: Request) -> AskResponse:
             caller_ip=caller_ip,
             channel_key=channel_key,
         )
+
+        # Persist per-stage timing (no-matches fallback path)
+        try:
+            from app.db.timing_persistence import save_timing
+            _stage = timer.to_dict()
+            save_timing(
+                question_type=interpreted.question_type,
+                analysis_depth=interpreted.analysis_depth,
+                used_fallback=used_fallback,
+                retrieved_count=0,
+                total_ms=latency_ms,
+                interpret_ms=_stage.get("interpret"),
+                retrieve_ms=_stage.get("retrieve"),
+                channel=ask_req.channel,
+            )
+        except Exception:
+            pass
 
         return AskResponse(
             answer=response_payload["answer"],
@@ -1341,8 +1462,26 @@ def ask(body: AskRequest, request: Request) -> AskResponse:
         channel_key=channel_key,
     )
 
-    # Save to cache (1h TTL)
-    _save_answer_cache(cache_key, ask_req.query, answer, response_meta)
+    # Persist per-stage timing
+    try:
+        from app.db.timing_persistence import save_timing
+        save_timing(
+            question_type=interpreted.question_type,
+            analysis_depth=interpreted.analysis_depth,
+            used_fallback=used_fallback,
+            retrieved_count=len(redacted_matches_for_answer),
+            total_ms=latency_ms,
+            interpret_ms=stage_breakdown.get("interpret"),
+            retrieve_ms=stage_breakdown.get("retrieve"),
+            answer_ms=stage_breakdown.get("answer"),
+            channel=ask_req.channel,
+            model_used=run_cost_data.get("model"),
+        )
+    except Exception:
+        pass  # timing is non-critical
+
+    # Save to cache (30min TTL)
+    _save_answer_cache(cache_key, ask_req.query, answer, response_meta, ttl_hours=0.5)
 
     ask_response = AskResponse(
         answer=answer,
@@ -1356,6 +1495,39 @@ def ask(body: AskRequest, request: Request) -> AskResponse:
     if run_id:
         json_resp.headers["X-Gilbertus-Run-ID"] = str(run_id)
     return json_resp
+
+
+# =========================
+# Performance stats endpoint
+# =========================
+
+@app.get("/performance/stats")
+def performance_stats(days: int = 7):
+    """Per-stage timing statistics for the last N days."""
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT
+                        question_type,
+                        COUNT(*) as request_count,
+                        ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY total_ms)) as p50_total,
+                        ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY total_ms)) as p95_total,
+                        ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY interpret_ms)) as p50_interpret,
+                        ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY retrieve_ms)) as p50_retrieve,
+                        ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY answer_ms)) as p50_answer,
+                        ROUND(AVG(retrieved_count::numeric), 1) as avg_chunks,
+                        ROUND((AVG(CASE WHEN used_fallback THEN 1.0 ELSE 0.0 END) * 100)::numeric, 1) as fallback_pct
+                    FROM query_stage_times
+                    WHERE created_at > NOW() - (%(days)s || ' days')::interval
+                    GROUP BY question_type
+                    ORDER BY request_count DESC
+                """, {"days": days})
+                cols = [d[0] for d in cur.description]
+                rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+        return {"days": days, "by_question_type": rows}
+    except Exception as e:
+        return {"error": str(e)}
 
 
 # =========================

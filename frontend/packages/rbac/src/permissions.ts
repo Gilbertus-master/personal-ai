@@ -1,6 +1,7 @@
 import type { RoleName } from './roles';
 
 export const ROLE_PERMISSIONS: Record<RoleName, string[]> = {
+  owner: [],
   gilbertus_admin: [],
   operator: [
     'config:write:system',

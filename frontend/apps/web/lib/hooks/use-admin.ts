@@ -11,8 +11,9 @@ import {
   getAuditLog,
   getCostBudget,
   getAutofixerDashboard,
+  getAdminRoles,
 } from '@gilbertus/api-client';
-import type { AutofixerDashboard, CreateUserRequest } from '@gilbertus/api-client';
+import type { AutofixerDashboard, RoleDefinition, CreateUserRequest } from '@gilbertus/api-client';
 
 // ── Crons ──────────────────────────────────────────────────────────────────
 
@@ -101,6 +102,16 @@ export function useAuditLog() {
     queryKey: ['audit-log'],
     queryFn: ({ signal }) => getAuditLog(signal),
     staleTime: 30_000,
+  });
+}
+
+// ── Roles ─────────────────────────────────────────────────────────────────
+
+export function useAdminRoles() {
+  return useQuery<RoleDefinition[]>({
+    queryKey: ['admin-roles'],
+    queryFn: ({ signal }) => getAdminRoles(signal),
+    staleTime: 60_000,
   });
 }
 

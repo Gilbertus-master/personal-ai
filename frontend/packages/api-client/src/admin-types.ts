@@ -118,6 +118,17 @@ export interface AuditLogEntry {
   at: string;
 }
 
+export interface RoleDefinition {
+  name: string;
+  level: number;
+  label: string;
+  description: string;
+  permissions: string[];
+  classifications: string[];
+  modules: string[];
+  user_count: number;
+}
+
 export interface AutofixerDashboard {
   code_fixer: {
     total: number;

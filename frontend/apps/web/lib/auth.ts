@@ -46,11 +46,11 @@ const nextAuth = NextAuth({
 
           if (res.ok) {
             return {
-              id: 'gilbertus-admin',
+              id: 'owner',
               email: 'sebastian@gilbertus.local',
               name: 'Sebastian',
-              role: 'gilbertus_admin' as RoleName,
-              roleLevel: 99,
+              role: 'owner' as RoleName,
+              roleLevel: 100,
               permissions: [],
               tenant: 'gilbertus',
               authType: 'api_key' as const,

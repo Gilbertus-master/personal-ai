@@ -8,6 +8,7 @@ export type Classification =
   | 'personal';
 
 export const ROLE_CLASSIFICATIONS: Record<RoleName, Classification[]> = {
+  owner: ['public', 'internal', 'confidential', 'ceo_only', 'personal'],
   gilbertus_admin: ['public', 'internal', 'confidential', 'ceo_only', 'personal'],
   ceo: ['public', 'internal', 'confidential', 'ceo_only', 'personal'],
   board: ['public', 'internal', 'confidential', 'personal'],

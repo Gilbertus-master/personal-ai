@@ -5,6 +5,7 @@ from typing import Any
 
 # Classification levels — what each role can see
 CLASSIFICATION_ACCESS: dict[str, list[str]] = {
+    "owner": ["public", "internal", "confidential", "ceo_only", "personal"],
     "gilbertus_admin": ["public", "internal", "confidential", "ceo_only", "personal"],
     "operator": [],  # No access to business data — infra/dev role only
     "ceo": ["public", "internal", "confidential", "ceo_only", "personal"],

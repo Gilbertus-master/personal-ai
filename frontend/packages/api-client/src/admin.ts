@@ -9,6 +9,7 @@ import type {
   CronToggleResponse,
   CreateUserRequest,
   CreateUserResponse,
+  RoleDefinition,
   SystemStatus,
 } from './admin-types';
 
@@ -114,6 +115,18 @@ export async function getAuditLog(
 ): Promise<AuditLogEntry[]> {
   return customFetch<AuditLogEntry[]>({
     url: '/api/v1/admin/audit',
+    method: 'GET',
+    signal,
+  });
+}
+
+// ── Roles (Gilbertus API) ─────────────────────────────────────────────────
+
+export async function getAdminRoles(
+  signal?: AbortSignal,
+): Promise<RoleDefinition[]> {
+  return customFetch<RoleDefinition[]>({
+    url: '/admin/roles',
     method: 'GET',
     signal,
   });
