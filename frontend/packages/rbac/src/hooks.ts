@@ -15,7 +15,7 @@ interface UseRoleResult {
 
 export function useRole(): UseRoleResult {
   const { data: session } = useSession();
-  const role = (session?.user as { role?: RoleName } | undefined)?.role ?? 'ceo';
+  const role = (session?.user as { role?: RoleName } | undefined)?.role ?? 'owner';
   const roleLevel = ROLES[role]?.level ?? 0;
   return { role, roleLevel };
 }
