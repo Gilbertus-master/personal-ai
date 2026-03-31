@@ -33,7 +33,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose, mobileOpen }: Side
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
-  const role = (session?.user as { role?: RoleName } | undefined)?.role ?? 'ceo';
+  const role = (session?.user as { role?: RoleName } | undefined)?.role ?? 'owner';
   const baseModules = getNavigationModules(role);
 
   // ── Drag-and-drop order ─────────────────────────────────────────────────

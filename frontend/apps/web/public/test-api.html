@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html><head><title>Gilbertus API Test</title></head>
+<body style="background:#1a1a2e;color:#e0e0e0;font-family:monospace;padding:20px">
+<h2>Gilbertus API Test</h2>
+<div id="results"></div>
+<script>
+const API = `http://${window.location.hostname}:8000`;
+document.getElementById('results').innerHTML = `<p>API URL: <b>${API}</b></p>`;
+
+const endpoints = ['/status', '/brief/today', '/alerts', '/admin/roles', '/autofixers/dashboard'];
+
+(async () => {
+  for (const ep of endpoints) {
+    const div = document.createElement('div');
+    div.style.margin = '8px 0';
+    try {
+      const r = await fetch(`${API}${ep}`);
+      const text = await r.text();
+      const preview = text.substring(0, 150);
+      div.innerHTML = `<span style="color:${r.ok ? '#4ade80' : '#f87171'}">${r.status}</span> <b>${ep}</b> → ${preview}...`;
+    } catch (e) {
+      div.innerHTML = `<span style="color:#f87171">ERR</span> <b>${ep}</b> → ${e.message}`;
+    }
+    document.getElementById('results').appendChild(div);
+  }
+})();
+</script>
+</body></html>
