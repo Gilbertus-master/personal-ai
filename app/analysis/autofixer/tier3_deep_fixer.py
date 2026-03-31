@@ -24,7 +24,7 @@ CLAUDE_BIN = os.getenv("CLAUDE_BIN", "/home/sebastian/.npm-global/bin/claude")
 MODEL = os.getenv("DEEP_FIX_MODEL", "sonnet")
 MAX_BUDGET_PER_BUG = float(os.getenv("DEEP_FIX_BUDGET", "2.0"))
 MAX_BUGS_PER_RUN = int(os.getenv("DEEP_FIX_MAX_BUGS", "2"))
-MIN_ATTEMPTS_FOR_PROMOTION = 3
+MIN_ATTEMPTS_FOR_PROMOTION = 2
 
 _tables_ensured = False
 

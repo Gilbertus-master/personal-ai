@@ -14,14 +14,62 @@ log = structlog.get_logger(__name__)
 
 import argparse
 import json
+import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 import threading
 
+from app.db.postgres import get_pg_connection
 from app.analysis.autofixer.cluster_manager import build_clusters
 from app.analysis.autofixer.context_gatherer import gather_cluster_context
 from app.analysis.autofixer.prompt_builder import build_fix_prompt
 from app.analysis.autofixer.tier1_executor import execute_tier1
 from app.analysis.autofixer.tier2_executor import execute_tier2
+
+
+PROJECT_DIR = Path(__file__).resolve().parent.parent
+
+
+def sanitize_hotspot_files() -> None:
+    """Run ruff --fix on files with most open findings to reduce baseline errors."""
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT file_path, COUNT(*) as cnt
+                FROM code_review_findings
+                WHERE NOT resolved AND fix_attempt_count >= 2
+                GROUP BY file_path
+                HAVING COUNT(*) >= 5
+                ORDER BY cnt DESC LIMIT 10
+            """)
+            hotspots = cur.fetchall()
+
+    for file_path, count in hotspots:
+        full_path = PROJECT_DIR / file_path
+        if not full_path.exists():
+            continue
+
+        # Run ruff --fix (safe auto-fixes only)
+        subprocess.run(
+            [".venv/bin/ruff", "check", "--fix", str(full_path)],
+            capture_output=True, text=True, timeout=30, cwd=str(PROJECT_DIR),
+        )
+
+        # Check if anything changed
+        diff = subprocess.run(
+            ["git", "diff", "--stat", str(full_path)],
+            capture_output=True, text=True, timeout=10, cwd=str(PROJECT_DIR),
+        )
+        if diff.stdout.strip():
+            log.info("hotspot_sanitized", file=file_path, findings=count)
+            subprocess.run(
+                ["git", "add", str(full_path)],
+                capture_output=True, text=True, timeout=10, cwd=str(PROJECT_DIR),
+            )
+            subprocess.run(
+                ["git", "commit", "-m", f"fix(autofixer): ruff cleanup for {file_path}"],
+                capture_output=True, text=True, timeout=10, cwd=str(PROJECT_DIR),
+            )
 
 
 def _ensure_schema() -> None:
@@ -95,6 +143,7 @@ def run_parallel(workers: int = 8, tier_filter: int | None = None) -> list[dict]
     Tier 2 clusters get enriched context and LLM sessions.
     """
     _ensure_schema()
+    sanitize_hotspot_files()
     clusters = build_clusters()
 
     if tier_filter:

@@ -101,9 +101,23 @@ def _launch_claude_session(system_prompt: str, user_prompt: str,
         return None
 
 
+def _count_ruff_errors(fp: str) -> int:
+    """Count ruff errors in a file, excluding E402 (import order)."""
+    try:
+        ruff = subprocess.run(
+            [".venv/bin/ruff", "check", fp],
+            capture_output=True, text=True, timeout=30, cwd=str(PROJECT_DIR),
+        )
+        errors = [ln for ln in ruff.stdout.splitlines()
+                  if ln.strip() and not ln.startswith("Found") and "E402" not in ln]
+        return len(errors)
+    except Exception:
+        return 0
+
+
 def _verify_fix(file_paths: list[str]) -> tuple[bool, str]:
-    """Verify fix: ruff check + git diff on modified files."""
-    # Check git diff — ensure something changed
+    """Verify fix didn't introduce new errors (baseline comparison)."""
+    # 1. Check git diff — ensure something changed
     try:
         diff = subprocess.run(
             ["git", "diff", "--stat"], capture_output=True, text=True,
@@ -114,25 +128,34 @@ def _verify_fix(file_paths: list[str]) -> tuple[bool, str]:
     except Exception as e:
         return False, f"git diff failed: {e}"
 
-    # Ruff check on modified Python files
+    # 2. For each modified Python file, compare ruff errors before vs after
     for fp in file_paths:
-        if fp.endswith(".py"):
-            try:
-                ruff = subprocess.run(
-                    [".venv/bin/ruff", "check", fp],
-                    capture_output=True, text=True, timeout=30,
-                    cwd=str(PROJECT_DIR),
-                )
-                # Count only NEW errors — ignore pre-existing E402 (import order)
-                # which are structural and not introduced by the fix
-                errors = [ln for ln in ruff.stdout.splitlines()
-                          if ln.strip()
-                          and not ln.startswith("Found")
-                          and "E402" not in ln]
-                if len(errors) > 5:
-                    return False, f"ruff: {len(errors)} errors in {fp}"
-            except Exception as e:
-                log.warning("ruff_check_failed", file=fp, error=str(e))
+        if not fp.endswith(".py"):
+            continue
+
+        # Get CURRENT error count (with fix applied)
+        after_errors = _count_ruff_errors(fp)
+
+        # Get BASELINE error count (before fix)
+        try:
+            subprocess.run(
+                ["git", "stash", "--quiet"],
+                capture_output=True, text=True, timeout=10, cwd=str(PROJECT_DIR),
+            )
+            before_errors = _count_ruff_errors(fp)
+            subprocess.run(
+                ["git", "stash", "pop", "--quiet"],
+                capture_output=True, text=True, timeout=10, cwd=str(PROJECT_DIR),
+            )
+        except Exception as e:
+            # If stash fails, try to recover
+            subprocess.run(["git", "stash", "pop", "--quiet"],
+                          capture_output=True, text=True, timeout=10, cwd=str(PROJECT_DIR))
+            return False, f"baseline check failed: {e}"
+
+        new_errors = after_errors - before_errors
+        if new_errors > 0:
+            return False, f"ruff: fix introduced {new_errors} new errors in {fp} ({before_errors}→{after_errors})"
 
     return True, diff.stdout.strip()
 

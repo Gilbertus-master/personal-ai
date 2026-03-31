@@ -78,6 +78,18 @@ def build_clusters(exclude_files: list[str] | None = None) -> list[dict]:
     exclude = exclude_files or []
     max_total = MAX_ATTEMPTS_PER_ROUND * MAX_ROUNDS
 
+    # Mark improvement findings as manual_review (not auto-fixable)
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE code_review_findings
+                SET manual_review = TRUE
+                WHERE category = 'improvement'
+                  AND resolved = FALSE
+                  AND manual_review = FALSE
+            """)
+        conn.commit()
+
     with get_pg_connection() as conn:
         with conn.cursor() as cur:
             if exclude:
@@ -95,6 +107,7 @@ def build_clusters(exclude_files: list[str] | None = None) -> list[dict]:
                 WHERE resolved = FALSE
                   AND manual_review = FALSE
                   AND severity IN ('critical', 'high', 'medium', 'low')
+                  AND category != 'improvement'
                   AND fix_attempt_count < %s
                   AND (fix_attempted_at IS NULL
                        OR fix_attempted_at < NOW() - INTERVAL '2 hours')

@@ -169,14 +169,54 @@ os.replace(tmp, '$STATE')
 
 # ── 4. Sprawdź czy dev server żyje ─────────────────────────────────────────
 check_server() {
+  local consec_failures
+  consec_failures=$(python3 -c "
+import json
+try:
+  s=json.load(open('$STATE'))
+  print(s.get('consecutive_server_failures', 0))
+except: print(0)
+" 2>/dev/null)
+
   if ! curl -s --max-time 3 "$BASE_URL" > /dev/null 2>&1; then
-    log "⚠️  Dev server nie odpowiada — restartuję"
+    consec_failures=$((consec_failures + 1))
+
+    # Persist counter
+    python3 -c "
+import json, os
+try: s=json.load(open('$STATE'))
+except: s={}
+s['consecutive_server_failures']=$consec_failures
+tmp='$STATE.tmp'
+json.dump(s, open(tmp,'w'))
+os.replace(tmp, '$STATE')
+" 2>/dev/null
+
+    if (( consec_failures >= 5 )); then
+      log "🛑 Dev server failed $consec_failures consecutive times — giving up (manual intervention needed)"
+      exit 0
+    fi
+
+    log "⚠️  Dev server nie odpowiada ($consec_failures/5) — restartuję"
     pkill -f "next dev" 2>/dev/null || true
     sleep 3
     cd "$PROJ/frontend" && nohup pnpm --filter @gilbertus/web dev > "$NEXTJS_LOG" 2>&1 &
     sleep 15
     log "🔄 Dev server zrestartowany"
     return 1
+  fi
+
+  # Reset counter on success
+  if (( consec_failures > 0 )); then
+    python3 -c "
+import json, os
+try: s=json.load(open('$STATE'))
+except: s={}
+s['consecutive_server_failures']=0
+tmp='$STATE.tmp'
+json.dump(s, open(tmp,'w'))
+os.replace(tmp, '$STATE')
+" 2>/dev/null
   fi
   return 0
 }
