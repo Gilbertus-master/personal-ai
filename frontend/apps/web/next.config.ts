@@ -5,7 +5,7 @@ const isTauriBuild = process.env.TAURI_BUILD === '1';
 const nextConfig: NextConfig = {
   output: isTauriBuild ? 'export' : 'standalone',
   images: { unoptimized: true },
-  allowedDevOrigins: ['http://172.17.44.2:3000'],
+  allowedDevOrigins: ['172.17.44.2'],
   transpilePackages: [
     '@gilbertus/ui',
     '@gilbertus/rbac',
