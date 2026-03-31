@@ -265,8 +265,8 @@ Materiał źródłowy:
 
     max_tokens_map = {
         "short": 600,
-        "medium": 1200,
-        "long": 2600,
+        "medium": 1400,
+        "long": 3000,
     }
     max_tokens = max_tokens_map.get(answer_length or "long", 2600)
 

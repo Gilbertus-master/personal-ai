@@ -321,34 +321,76 @@ def model_to_dict(obj: Any) -> dict[str, Any]:
 
 def get_prefetch_k(question_type: str, analysis_depth: str) -> int:
     base = {
-        "retrieval": 30,
-        "summary": 50,
-        "analysis": 70,
-        "chronology": 100,
-    }.get(question_type, 50)
+        "retrieval": 60,
+        "summary": 120,
+        "analysis": 150,
+        "chronology": 150,
+    }.get(question_type, 80)
 
     if analysis_depth == "high":
-        base = int(base * 1.25)
+        base = int(base * 1.3)
     elif analysis_depth == "low":
-        base = int(base * 0.75)
+        base = int(base * 0.6)
 
-    return max(base, 20)
+    return max(base, 30)
 
 
 def get_answer_match_limit(question_type: str, analysis_depth: str) -> int:
     base = {
-        "retrieval": 8,
-        "summary": 14,
-        "analysis": 18,
-        "chronology": 20,
-    }.get(question_type, 14)
+        "retrieval": 15,
+        "summary": 25,
+        "analysis": 30,
+        "chronology": 30,
+    }.get(question_type, 20)
 
     if analysis_depth == "high":
-        base = int(base * 1.25)
+        base = int(base * 1.3)
     elif analysis_depth == "low":
-        base = int(base * 0.75)
+        base = int(base * 0.7)
 
-    return max(base, 6)
+    return max(base, 8)
+
+
+def apply_diversity_and_recency(
+    matches: list[dict],
+    max_per_doc: int = 3,
+    recency_days: int = 30,
+    recency_boost: float = 1.1,
+) -> list[dict]:
+    """
+    Post-process matches:
+    1. Recency boost: recent docs get score multiplied by recency_boost
+    2. Diversity filter: cap chunks from same document at max_per_doc
+    """
+    from datetime import datetime, timezone, timedelta
+    cutoff = datetime.now(timezone.utc) - timedelta(days=recency_days)
+
+    for m in matches:
+        doc_date = m.get("created_at") or m.get("date")
+        if doc_date:
+            try:
+                if isinstance(doc_date, str):
+                    from dateutil.parser import parse
+                    doc_date = parse(doc_date)
+                if hasattr(doc_date, 'tzinfo') and doc_date.tzinfo is None:
+                    doc_date = doc_date.replace(tzinfo=timezone.utc)
+                if doc_date >= cutoff:
+                    m["score"] = m.get("score", 0) * recency_boost
+            except Exception:
+                pass
+
+    matches = sorted(matches, key=lambda x: x.get("score", 0), reverse=True)
+
+    doc_counts: dict = {}
+    filtered = []
+    for m in matches:
+        doc_id = m.get("document_id")
+        count = doc_counts.get(doc_id, 0)
+        if count < max_per_doc:
+            filtered.append(m)
+            doc_counts[doc_id] = count + 1
+
+    return filtered
 
 
 def sort_matches_for_question_type(matches: list[dict[str, Any]], question_type: str) -> list[dict[str, Any]]:
@@ -1279,9 +1321,13 @@ def ask(body: AskRequest, request: Request) -> AskResponse:
         matches,
         normalized_query=interpreted.normalized_query,
         top_k=final_match_limit,
-        max_per_document=2,
+        max_per_document=3,
         min_score=None,
     )
+
+    # Apply diversity and recency boost
+    if len(cleaned_matches) > 10:
+        cleaned_matches = apply_diversity_and_recency(cleaned_matches, max_per_doc=3, recency_days=30)
 
     matches_for_answer = cleaned_matches
     used_for_answer_count = len(matches_for_answer)
@@ -1809,6 +1855,67 @@ def check_commitments():
     """Run commitment check: overdue detection + fulfillment scan."""
     from app.analysis.commitment_tracker import run_commitment_check
     return run_commitment_check()
+
+
+class CommitmentResolution(BaseModel):
+    resolution_type: str  # "resolved" | "dismissed" | "delegated"
+    note: str | None = None
+    delegate_channel: str | None = None  # "email" | "teams" | "whatsapp"
+    delegate_to: str | None = None
+
+
+_RESOLUTION_STATUS_MAP = {
+    "resolved": "fulfilled",
+    "dismissed": "cancelled",
+    "delegated": "delegated",
+}
+
+
+@app.post("/commitments/{commitment_id}/resolve")
+def resolve_commitment(commitment_id: int, body: CommitmentResolution):
+    """Mark commitment as resolved, dismissed, or delegated."""
+    db_status = _RESOLUTION_STATUS_MAP.get(body.resolution_type)
+    if not db_status:
+        raise HTTPException(400, f"Invalid resolution_type: {body.resolution_type}")
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE commitments
+                SET status = %s,
+                    resolved_at = NOW(),
+                    resolution_note = %s,
+                    updated_at = NOW()
+                WHERE id = %s
+                RETURNING id, status
+            """, (db_status, body.note, commitment_id))
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(404, "Commitment not found")
+        conn.commit()
+    return {"id": commitment_id, "status": body.resolution_type, "note": body.note}
+
+
+@app.get("/commitments/{commitment_id}")
+def get_commitment_detail(commitment_id: int):
+    """Get full commitment detail."""
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, person_name, commitment_text, context, deadline,
+                       status, fulfilled_evidence, created_at, updated_at,
+                       resolved_at, resolution_note
+                FROM commitments
+                WHERE id = %s
+            """, (commitment_id,))
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(404, "Commitment not found")
+            cols = [d[0] for d in cur.description]
+            result = dict(zip(cols, row))
+            for k in ("deadline", "created_at", "updated_at", "resolved_at"):
+                if result.get(k):
+                    result[k] = str(result[k])
+            return result
 
 
 # =========================
@@ -2881,3 +2988,63 @@ def get_job_status(job_id: str):
     if not job:
         return {"status": "not_found"}
     return {"job_id": job_id, **job}
+
+
+# =========================
+# Data Coverage Heatmap
+# =========================
+
+@app.get("/coverage/heatmap")
+def coverage_heatmap(
+    years: int = 3,
+    source_types: str | None = None,
+) -> dict:
+    """Return document count per source_type per year-month for coverage visualization."""
+    try:
+        from collections import defaultdict
+
+        params: list = []
+        source_filter = ""
+        if source_types:
+            types = [t.strip() for t in source_types.split(",")]
+            placeholders = ",".join(["%s"] * len(types))
+            source_filter = f"AND s.source_type IN ({placeholders})"
+            params.extend(types)
+
+        params.append(years)
+
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"""
+                    SELECT
+                        s.source_type,
+                        TO_CHAR(d.created_at, 'YYYY-MM') as year_month,
+                        COUNT(d.id) as doc_count
+                    FROM documents d
+                    JOIN sources s ON s.id = d.source_id
+                    WHERE d.created_at >= NOW() - (%s || ' years')::interval
+                    {source_filter}
+                    GROUP BY s.source_type, year_month
+                    ORDER BY year_month, s.source_type
+                """, params)
+                rows = cur.fetchall()
+
+        heatmap: dict = defaultdict(dict)
+        all_months: set = set()
+        all_types: set = set()
+
+        for source_type, year_month, count in rows:
+            heatmap[source_type][year_month] = count
+            all_months.add(year_month)
+            all_types.add(source_type)
+
+        sorted_months = sorted(all_months)
+
+        return {
+            "months": sorted_months,
+            "source_types": sorted(all_types),
+            "data": {st: heatmap[st] for st in sorted(all_types)},
+            "thresholds": {"low": 10, "medium": 50, "high": 200},
+        }
+    except Exception as e:
+        return {"error": str(e)}
