@@ -379,7 +379,7 @@ def apply_diversity_and_recency(
                 if doc_date >= cutoff:
                     m["score"] = m.get("score", 0) * recency_boost
             except Exception:
-                pass
+                logger.debug("recency_boost_parse_failed", exc_info=True)
 
     matches = sorted(matches, key=lambda x: x.get("score", 0), reverse=True)
 
@@ -638,7 +638,7 @@ def admin_roles() -> list[dict]:
                 """)
                 user_counts = {row[0]: row[1] for row in cur.fetchall()}
     except Exception:
-        pass
+        logger.exception("role_user_counts_failed")
 
     result = []
     for rd in ROLE_DEFS:
@@ -753,7 +753,7 @@ def autofixer_dashboard() -> dict:
                     webapp["last_check"] = state.get("last_check")
                     webapp["routes_monitored"] = state.get("routes_monitored", 0)
                 except Exception:
-                    pass
+                    logger.debug("webapp_fixer_state_read_failed", exc_info=True)
             result["webapp_fixer"] = webapp
 
             # ── Daily history (14 days) ──
@@ -995,7 +995,7 @@ def _get_latest_cost_for_module(module: str) -> dict:
             return {"model": row[0], "input_tokens": row[1],
                     "output_tokens": row[2], "cost_usd": float(row[3] or 0)}
     except Exception:
-        pass
+        logger.exception("llm_stats_fetch_failed")
     return {}
 
 
@@ -1046,7 +1046,7 @@ def _save_answer_cache(cache_key: str, query: str, answer: str, meta: dict, ttl_
                 )
             conn.commit()
     except Exception:
-        pass
+        logger.exception("answer_cache_write_failed")
 
 
 
@@ -1183,7 +1183,7 @@ def ask(body: AskRequest, request: Request) -> AskResponse:
                 channel=ask_req.channel,
             )
         except Exception:
-            pass
+            logger.debug("timing_save_failed", exc_info=True)
 
         return AskResponse(answer=answer, meta=response_meta, run_id=run_id)
 
@@ -1305,7 +1305,7 @@ def ask(body: AskRequest, request: Request) -> AskResponse:
                 channel=ask_req.channel,
             )
         except Exception:
-            pass
+            logger.debug("timing_save_failed", exc_info=True)
 
         return AskResponse(
             answer=response_payload["answer"],
@@ -2805,12 +2805,12 @@ def process_intel_dashboard():
         from app.analysis.employee_automation import get_automation_overview
         result["workforce_automation"] = get_automation_overview()
     except Exception:
-        pass
+        logger.exception("workforce_automation_dashboard_failed")
     try:
         from app.analysis.tech_radar import get_tech_radar_dashboard
         result["tech_radar"] = get_tech_radar_dashboard()
     except Exception:
-        pass
+        logger.exception("tech_radar_dashboard_failed")
     return result
 
 @app.get("/process-intel/business-lines")

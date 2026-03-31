@@ -1,4 +1,5 @@
 import json
+import logging
 import signal
 import sys
 from pathlib import Path
@@ -22,6 +23,8 @@ from app.extraction.llm_client import LLMExtractionClient  # noqa: E402
 from app.extraction.taxonomy import EVENT_TYPES  # noqa: E402
 from app.db.postgres import get_pg_connection  # noqa: E402
 
+
+logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env")
@@ -338,7 +341,7 @@ def _finish_extraction_run(run_id: int | None, processed: int, created: int, neg
                 )
             conn.commit()
     except Exception:
-        pass
+        logger.exception("extraction_run_finalize_failed")
 
 
 def main() -> None:
