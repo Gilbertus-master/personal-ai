@@ -6,7 +6,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv, dotenv_values
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -86,6 +86,16 @@ def get_rate_limit_key(request: Request) -> str | None:
 limiter = Limiter(key_func=get_rate_limit_key)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# --- Feature flag caching ---
+_ENV_FLAGS: dict = {}
+
+@app.on_event("startup")
+def _load_env_flags():
+    """Load feature flags from .env on startup."""
+    global _ENV_FLAGS
+    _ENV_FLAGS = dotenv_values(BASE_DIR / ".env")
+
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.api.auth import api_key_middleware
@@ -510,6 +520,168 @@ def manual_fix_queue() -> list[dict]:
                     for r in cur.fetchall()]
 
 
+@app.get("/autofixers/dashboard")
+def autofixer_dashboard() -> dict:
+    """Unified dashboard for both repair pipelines."""
+    import json
+    from pathlib import Path
+    from app.db.postgres import get_pg_connection
+
+    result: dict = {}
+
+    with get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            # ── Code fixer overview ──
+            cur.execute("""
+                SELECT
+                    COUNT(*) as total,
+                    SUM(CASE WHEN resolved THEN 1 ELSE 0 END) as resolved,
+                    SUM(CASE WHEN NOT resolved THEN 1 ELSE 0 END) as open,
+                    SUM(CASE WHEN NOT resolved AND fix_attempt_count >= 2 THEN 1 ELSE 0 END) as stuck,
+                    SUM(CASE WHEN manual_review THEN 1 ELSE 0 END) as manual_review
+                FROM code_review_findings
+            """)
+            row = cur.fetchone()
+            total = row[0] or 0
+            resolved = row[1] or 0
+            code_fixer = {
+                "total": total,
+                "resolved": resolved,
+                "open": row[2] or 0,
+                "stuck": row[3] or 0,
+                "manual_review": row[4] or 0,
+                "by_severity": {},
+                "by_category": {},
+                "by_tier": {},
+                "success_rate": round(resolved / total * 100, 1) if total else 0,
+                "last_fix": None,
+            }
+
+            # By severity (open only)
+            cur.execute("""
+                SELECT severity, COUNT(*)
+                FROM code_review_findings WHERE NOT resolved
+                GROUP BY severity
+            """)
+            code_fixer["by_severity"] = {r[0]: r[1] for r in cur.fetchall()}
+
+            # By category (open only)
+            cur.execute("""
+                SELECT category, COUNT(*)
+                FROM code_review_findings WHERE NOT resolved
+                GROUP BY category
+            """)
+            code_fixer["by_category"] = {r[0]: r[1] for r in cur.fetchall()}
+
+            # By tier
+            cur.execute("""
+                SELECT COALESCE(tier, 1), COUNT(*)
+                FROM code_review_findings WHERE NOT resolved
+                GROUP BY COALESCE(tier, 1)
+            """)
+            code_fixer["by_tier"] = {f"tier{r[0]}": r[1] for r in cur.fetchall()}
+
+            # Last fix
+            cur.execute("""
+                SELECT MAX(resolved_at) FROM code_review_findings WHERE resolved
+            """)
+            last = cur.fetchone()
+            if last and last[0]:
+                code_fixer["last_fix"] = str(last[0])
+
+            result["code_fixer"] = code_fixer
+
+            # ── Webapp fixer ──
+            cur.execute("""
+                SELECT
+                    COUNT(*) as total,
+                    SUM(CASE WHEN resolved THEN 1 ELSE 0 END) as resolved,
+                    SUM(CASE WHEN NOT resolved THEN 1 ELSE 0 END) as open
+                FROM app_errors
+            """)
+            wrow = cur.fetchone()
+            webapp = {
+                "total_errors": wrow[0] or 0,
+                "resolved": wrow[1] or 0,
+                "open": wrow[2] or 0,
+                "server_status": "unknown",
+                "consecutive_failures": 0,
+                "last_check": None,
+                "routes_monitored": 0,
+            }
+            # Read state file if exists
+            state_path = Path("logs/webapp_autofix_state.json")
+            if state_path.exists():
+                try:
+                    state = json.loads(state_path.read_text())
+                    webapp["server_status"] = state.get("server_status", "unknown")
+                    webapp["consecutive_failures"] = state.get("consecutive_failures", 0)
+                    webapp["last_check"] = state.get("last_check")
+                    webapp["routes_monitored"] = state.get("routes_monitored", 0)
+                except Exception:
+                    pass
+            result["webapp_fixer"] = webapp
+
+            # ── Daily history (14 days) ──
+            cur.execute("""
+                SELECT DATE(created_at) as day,
+                    COUNT(*) as found,
+                    SUM(CASE WHEN resolved THEN 1 ELSE 0 END) as fixed
+                FROM code_review_findings
+                WHERE created_at > NOW() - INTERVAL '14 days'
+                GROUP BY DATE(created_at) ORDER BY day
+            """)
+            code_days = {str(r[0]): {"found": r[1], "fixed": r[2]} for r in cur.fetchall()}
+
+            cur.execute("""
+                SELECT DATE(created_at) as day,
+                    COUNT(*) as total,
+                    SUM(CASE WHEN resolved THEN 1 ELSE 0 END) as fixed
+                FROM app_errors
+                WHERE created_at > NOW() - INTERVAL '14 days'
+                GROUP BY DATE(created_at) ORDER BY day
+            """)
+            webapp_days = {str(r[0]): {"errors": r[1], "fixed": r[2]} for r in cur.fetchall()}
+
+            all_days = sorted(set(list(code_days.keys()) + list(webapp_days.keys())))
+            result["daily_history"] = [
+                {
+                    "date": d,
+                    "found": code_days.get(d, {}).get("found", 0),
+                    "fixed": code_days.get(d, {}).get("fixed", 0),
+                    "webapp_errors": webapp_days.get(d, {}).get("errors", 0),
+                    "webapp_fixed": webapp_days.get(d, {}).get("fixed", 0),
+                }
+                for d in all_days
+            ]
+
+            # ── Manual queue ──
+            cur.execute("""
+                SELECT id, file_path, severity, category, title,
+                    LEFT(description, 500) as description,
+                    fix_attempt_count, tier3_attempted, tier3_last_error,
+                    created_at, LEFT(suggested_fix, 500) as suggested_fix
+                FROM code_review_findings
+                WHERE NOT resolved AND (manual_review OR fix_attempt_count >= 3)
+                ORDER BY
+                    CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1
+                        WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 9 END,
+                    created_at
+            """)
+            result["manual_queue"] = [
+                {
+                    "id": r[0], "file_path": r[1], "severity": r[2],
+                    "category": r[3], "title": r[4], "description": r[5],
+                    "attempts": r[6] or 0, "tier3_attempted": bool(r[7]),
+                    "tier3_last_error": r[8], "created_at": str(r[9]),
+                    "suggested_fix": r[10],
+                }
+                for r in cur.fetchall()
+            ]
+
+    return result
+
+
 @app.get("/conversation/windows")
 def list_conversation_windows() -> list[dict]:
     """Active conversation windows (last 24h)."""
@@ -768,9 +940,6 @@ def ask(body: AskRequest, request: Request) -> AskResponse:
         )
     ask_req = ask_req.model_copy(update={"query": sanitized.text})
 
-    # Feature flags (read once per request)
-    from dotenv import dotenv_values
-    _env_flags = dotenv_values(BASE_DIR / ".env")
 
     # Conversation history (sliding window)
     from app.db.conversation_store import get_store
@@ -820,7 +989,7 @@ def ask(body: AskRequest, request: Request) -> AskResponse:
 
     # Orchestrator-Workers: decompose complex queries into sub-questions
     if (interpreted.sub_questions
-            and _env_flags.get("ENABLE_ORCHESTRATOR", "false").lower() == "true"):
+            and _ENV_FLAGS.get("ENABLE_ORCHESTRATOR", "false").lower() == "true"):
         timer.start("orchestrator")
         from app.retrieval.orchestrator import decompose_and_synthesize
         answer = decompose_and_synthesize(
@@ -871,7 +1040,7 @@ def ask(body: AskRequest, request: Request) -> AskResponse:
         return AskResponse(answer=answer, meta=response_meta, run_id=run_id)
 
     # Tool routing: smart source group inference when source_types not explicit
-    if _env_flags.get("ENABLE_TOOL_ROUTING", "false").lower() == "true":
+    if _ENV_FLAGS.get("ENABLE_TOOL_ROUTING", "false").lower() == "true":
         from app.retrieval.tool_router import route_tools
         routed_sources = route_tools(
             query=ask_req.query,
@@ -883,8 +1052,8 @@ def ask(body: AskRequest, request: Request) -> AskResponse:
 
     timer.start("retrieve")
     # Deep routing: specialized retrieval per question_type
-    _enable_routing = _env_flags.get("ENABLE_DEEP_ROUTING", "false").lower() == "true"
-    _enable_parallel = _env_flags.get("ENABLE_PARALLEL_RETRIEVAL", "false").lower() == "true"
+    _enable_routing = _ENV_FLAGS.get("ENABLE_DEEP_ROUTING", "false").lower() == "true"
+    _enable_parallel = _ENV_FLAGS.get("ENABLE_PARALLEL_RETRIEVAL", "false").lower() == "true"
     if _enable_routing:
         from app.retrieval.query_router import route_retrieval
         matches = route_retrieval(
@@ -1036,7 +1205,7 @@ def ask(body: AskRequest, request: Request) -> AskResponse:
     EVAL_SAMPLE_RATE = float(os.getenv("ANSWER_EVAL_SAMPLE_RATE", "0.1"))
     MAX_EVAL_RETRIES = int(os.getenv("MAX_EVAL_RETRIES", "2"))
     eval_result = None
-    if (_env_flags.get("ENABLE_ANSWER_EVAL", "false").lower() == "true"
+    if (_ENV_FLAGS.get("ENABLE_ANSWER_EVAL", "false").lower() == "true"
             and EVAL_SAMPLE_RATE > 0
             and random.random() < EVAL_SAMPLE_RATE):
         try:

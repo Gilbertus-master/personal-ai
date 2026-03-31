@@ -9,7 +9,7 @@ import type { RoleName } from '@gilbertus/rbac';
 import {
   LayoutDashboard, Sunrise, MessageSquare, Users, Brain, Shield,
   TrendingUp, DollarSign, Workflow, Scale, Calendar, FileText,
-  Mic, Settings, Bot, PanelLeftClose, PanelLeft, Send, GripVertical,
+  Mic, Settings, Bot, Wrench, PanelLeftClose, PanelLeft, Send, GripVertical,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -17,7 +17,7 @@ import { cn } from '../lib/utils';
 const ICON_MAP: Record<string, LucideIcon> = {
   LayoutDashboard, Sunrise, MessageSquare, Users, Brain, Shield,
   TrendingUp, DollarSign, Workflow, Scale, Calendar, FileText,
-  Mic, Settings, Bot,
+  Mic, Settings, Bot, Wrench,
 };
 
 const ORDER_KEY = 'gilbertus-nav-order';

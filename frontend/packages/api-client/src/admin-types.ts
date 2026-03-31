@@ -117,3 +117,47 @@ export interface AuditLogEntry {
   ip: string;
   at: string;
 }
+
+export interface AutofixerDashboard {
+  code_fixer: {
+    total: number;
+    resolved: number;
+    open: number;
+    stuck: number;
+    manual_review: number;
+    by_severity: Record<string, number>;
+    by_category: Record<string, number>;
+    by_tier: Record<string, number>;
+    success_rate: number;
+    last_fix: string | null;
+  };
+  webapp_fixer: {
+    total_errors: number;
+    resolved: number;
+    open: number;
+    server_status: string;
+    consecutive_failures: number;
+    last_check: string | null;
+    routes_monitored: number;
+  };
+  daily_history: Array<{
+    date: string;
+    found: number;
+    fixed: number;
+    webapp_errors: number;
+    webapp_fixed: number;
+  }>;
+  manual_queue: Array<{
+    id: number;
+    file_path: string;
+    severity: string;
+    category: string;
+    title: string;
+    description: string;
+    attempts: number;
+    tier3_attempted: boolean;
+    tier3_last_error: string | null;
+    created_at: string;
+    suggested_fix: string | null;
+  }>;
+}

@@ -10,8 +10,9 @@ import {
   createAdminUser,
   getAuditLog,
   getCostBudget,
+  getAutofixerDashboard,
 } from '@gilbertus/api-client';
-import type { CreateUserRequest } from '@gilbertus/api-client';
+import type { AutofixerDashboard, CreateUserRequest } from '@gilbertus/api-client';
 
 // ── Crons ──────────────────────────────────────────────────────────────────
 
@@ -100,5 +101,15 @@ export function useAuditLog() {
     queryKey: ['audit-log'],
     queryFn: ({ signal }) => getAuditLog(signal),
     staleTime: 30_000,
+  });
+}
+
+// ── Autofixer Dashboard ───────────────────────────────────────────────────
+
+export function useAutofixerDashboard() {
+  return useQuery<AutofixerDashboard>({
+    queryKey: ['autofixer-dashboard'],
+    queryFn: ({ signal }) => getAutofixerDashboard(signal),
+    refetchInterval: 60_000,
   });
 }

@@ -26,6 +26,7 @@ export const MODULES: ModuleConfig[] = [
   { id: 'admin', icon: 'ShieldCheck', roles: ['gilbertus_admin', 'operator'], label: { pl: 'Admin', en: 'Admin' }, path: '/admin' },
   { id: 'settings', icon: 'Settings', roles: ['*'], label: { pl: 'Ustawienia', en: 'Settings' }, path: '/settings' },
   { id: 'omnius', icon: 'Bot', roles: ['gilbertus_admin'], label: { pl: 'Omnius', en: 'Omnius' }, path: '/admin/omnius' },
+  { id: 'admin-autofixers', icon: 'Wrench', roles: ['gilbertus_admin', 'operator'], label: { pl: 'Autofixery', en: 'Autofixers' }, path: '/admin/autofixers' },
 ];
 
 export function getNavigationModules(role: RoleName): ModuleConfig[] {

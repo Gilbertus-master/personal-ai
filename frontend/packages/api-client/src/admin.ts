@@ -2,6 +2,7 @@ import { customFetch } from './base';
 import type {
   AdminUser,
   AuditLogEntry,
+  AutofixerDashboard,
   CodeFinding,
   CronListResponse,
   CronSummary,
@@ -113,6 +114,18 @@ export async function getAuditLog(
 ): Promise<AuditLogEntry[]> {
   return customFetch<AuditLogEntry[]>({
     url: '/api/v1/admin/audit',
+    method: 'GET',
+    signal,
+  });
+}
+
+// ── Autofixer Dashboard (Gilbertus API) ───────────────────────────────────
+
+export async function getAutofixerDashboard(
+  signal?: AbortSignal,
+): Promise<AutofixerDashboard> {
+  return customFetch<AutofixerDashboard>({
+    url: '/autofixers/dashboard',
     method: 'GET',
     signal,
   });
