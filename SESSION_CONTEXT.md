@@ -1,20 +1,18 @@
 # Session Context — Auto-generated
-**Generated:** 2026-03-31 01:10:43 CEST (2026-03-30 23:10:43 UTC)
+**Generated:** 2026-03-31 13:30:01 CEST (2026-03-31 11:30:02 UTC)
 **Project:** Gilbertus Albans (personal-ai)
 **Plan:** ~/.claude/plans/effervescent-squishing-sky.md
 
 ## Database Stats
-
-## Achievement Inventory (non-regression baseline)
-- **alerts:** 134
+- **alerts:** 162
 - **chunks:** 105778
 - **decisions:** 5
 - **documents:** 37368
 - **entities:** 37678
 - **events:** 96832
 - **insights:** 126
-- **people:** 17
-- **summaries:** 65
+- **people:** 19
+- **summaries:** 66
 
 ## Extraction Coverage
 - Events: 100.0% covered (2371 remaining)
@@ -34,12 +32,23 @@
 - **chatgpt:** 2026-03-15 12:23:44.362875+00
 
 ## Running Processes
-- MCP tools: 8
-- Cron jobs: 58
+- Extraction workers: 24
+
+## Git
+- Branch: main
+- Last commit: c0a1518 fix: WSL2 data loading — dynamic API URL + CORS wildcard
+- Uncommitted changes: 288 files
+
+---
+*Read the plan at ~/.claude/plans/effervescent-squishing-sky.md for full context.*
+
+## Achievement Inventory (non-regression baseline)
+- MCP tools: 
+- Cron jobs: 61
 - Lessons learned: 20
-- DB tables: 134
-- App modules: 199
-- Scripts: 130
+- DB tables: 137
+- App modules: 201
+- Scripts: 140
 - Memory files: 27
 - CLAUDE.md: OK
 - Pre-commit hook: OK

@@ -22,9 +22,9 @@ import requests
 import structlog
 from dotenv import load_dotenv
 
+from app.db.postgres import get_pg_connection
 from app.ingestion.common.db import (
-    document_exists_by_raw_path,
-    insert_chunk,
+    insert_chunks_batch,
     insert_document,
     insert_source,
 )
@@ -181,21 +181,51 @@ def sync_plaud(limit: int = 50, sync_all: bool = False) -> tuple[int, int, int]:
 
     source_id = insert_source(source_type="audio_transcript", source_name="plaud_sync")
 
-    # Check which are already imported
+    # Check which are already imported — batch query all raw_paths and pending transcripts at once
+    all_raw_paths = [f"plaud://sync/{rec.get('file_id') or rec.get('id') or ''}" for rec in all_recordings]
+    all_file_ids = [rec.get("file_id") or rec.get("id") or "" for rec in all_recordings]
+    all_file_ids = [fid for fid in all_file_ids if fid]
+
+    existing_paths = set()
+    pending_file_ids = set()
+
+    if all_raw_paths:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT raw_path FROM documents WHERE raw_path = ANY(%s)",
+                    (all_raw_paths,),
+                )
+                rows = cur.fetchall()
+                existing_paths = {row[0] for row in rows}
+
+    if all_file_ids:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT file_id FROM plaud_pending_transcripts WHERE file_id = ANY(%s)",
+                    (all_file_ids,),
+                )
+                rows = cur.fetchall()
+                pending_file_ids = {row[0] for row in rows}
+
     new_recordings = []
     skipped = 0
+    skipped_pending = 0
     for rec in all_recordings:
         file_id = rec.get("file_id") or rec.get("id") or ""
         raw_path = f"plaud://sync/{file_id}"
-        if document_exists_by_raw_path(raw_path):
+        if raw_path in existing_paths:
             skipped += 1
+        elif file_id in pending_file_ids:
+            skipped_pending += 1
         else:
             new_recordings.append(rec)
 
-    log.info("plaud_sync_status", new=len(new_recordings), skipped=skipped)
+    log.info("plaud_sync_status", new=len(new_recordings), skipped=skipped, skipped_pending=skipped_pending)
 
     if not new_recordings:
-        return 0, 0, skipped
+        return 0, 0, skipped + skipped_pending
 
     # Fetch full details with transcripts (batch of 10)
     imported = 0
@@ -234,8 +264,21 @@ def sync_plaud(limit: int = 50, sync_all: bool = False) -> tuple[int, int, int]:
                     pass
 
             transcript = extract_transcript(detail)
-            if not transcript.strip():
-                log.info("plaud_skip_no_transcript", title=title)
+            is_pending = not transcript.strip()
+            
+            if is_pending:
+                # Track pending transcripts to avoid re-fetching them repeatedly
+                try:
+                    with get_pg_connection() as conn:
+                        with conn.cursor() as cur:
+                            cur.execute(
+                                "INSERT INTO plaud_pending_transcripts (file_id) VALUES (%s) ON CONFLICT (file_id) DO UPDATE SET last_checked_at = NOW()",
+                                (file_id,),
+                            )
+                        conn.commit()
+                except Exception as e:
+                    log.warning("plaud_pending_tracking_failed", file_id=file_id, error=str(e))
+                log.info("plaud_pending_transcript", title=title, file_id=file_id)
                 continue
 
             # Build full text
@@ -263,22 +306,25 @@ def sync_plaud(limit: int = 50, sync_all: bool = False) -> tuple[int, int, int]:
             )
 
             chunks = chunk_text(full_text)
-            for chunk_index, chunk in enumerate(chunks):
-                insert_chunk(
-                    document_id=document_id,
-                    chunk_index=chunk_index,
-                    text=chunk,
-                    timestamp_start=recorded_at,
-                    timestamp_end=recorded_at,
-                    embedding_id=None,
-                )
+            chunks_payload = [
+                {
+                    "document_id": document_id,
+                    "chunk_index": i,
+                    "text": c,
+                    "timestamp_start": recorded_at,
+                    "timestamp_end": recorded_at,
+                    "embedding_id": None,
+                }
+                for i, c in enumerate(chunks)
+            ]
+            insert_chunks_batch(chunks_payload)
 
             imported += 1
             chunks_total += len(chunks)
             log.info("plaud_recording_imported", title=title, chunks=len(chunks))
 
-    log.info("plaud_sync_done", imported=imported, skipped=skipped, chunks=chunks_total)
-    return imported, chunks_total, skipped
+    log.info("plaud_sync_done", imported=imported, skipped=skipped, skipped_pending=skipped_pending, chunks=chunks_total)
+    return imported, chunks_total, skipped + skipped_pending
 
 
 def main() -> None:

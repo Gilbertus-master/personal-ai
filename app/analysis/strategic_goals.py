@@ -490,14 +490,14 @@ def analyze_goal_risks() -> list[dict]:
             )
             goals = cur.fetchall()
 
-    for goal_row in goals:
-        goal_id = goal_row[0]
-        goal_title = goal_row[1]
-        goal_risks = []
+        # Reuse same connection for all goal risk checks within the loop
+        for goal_row in goals:
+            goal_id = goal_row[0]
+            goal_title = goal_row[1]
+            goal_risks = []
 
-        # Check blocked dependencies
-        try:
-            with get_pg_connection() as conn:
+            # Check blocked dependencies
+            try:
                 with conn.cursor() as cur:
                     cur.execute(
                         """
@@ -514,12 +514,11 @@ def analyze_goal_risks() -> list[dict]:
                             "impact": "high",
                             "source": "dependency",
                         })
-        except Exception:
-            log.warning("goal_risk.dependency_check_failed", goal_id=goal_id, exc_info=True)
+            except Exception:
+                log.warning("goal_risk.dependency_check_failed", goal_id=goal_id, exc_info=True)
 
-        # Check overdue commitments related to goal company
-        try:
-            with get_pg_connection() as conn:
+            # Check overdue commitments related to goal company
+            try:
                 with conn.cursor() as cur:
                     company = goal_row[3]
                     if company:
@@ -539,24 +538,24 @@ def analyze_goal_risks() -> list[dict]:
                                 "impact": "medium",
                                 "source": "commitments",
                             })
-        except Exception:
-            log.warning("goal_risk.commitment_check_failed", goal_id=goal_id, exc_info=True)
-
-        # LLM risk analysis for goals with enough context
-        if goal_row[4] and goal_row[5]:  # target and current values exist
-            try:
-                llm_risks = _llm_risk_analysis(goal_row)
-                goal_risks.extend(llm_risks)
             except Exception:
-                log.warning("goal_risk.llm_analysis_failed", goal_id=goal_id, exc_info=True)
+                log.warning("goal_risk.commitment_check_failed", goal_id=goal_id, exc_info=True)
 
-        results.append({
-            "goal_id": goal_id,
-            "goal_title": goal_title,
-            "status": goal_row[8],
-            "risks": goal_risks,
-            "risk_count": len(goal_risks),
-        })
+            # LLM risk analysis for goals with enough context
+            if goal_row[4] and goal_row[5]:  # target and current values exist
+                try:
+                    llm_risks = _llm_risk_analysis(goal_row)
+                    goal_risks.extend(llm_risks)
+                except Exception:
+                    log.warning("goal_risk.llm_analysis_failed", goal_id=goal_id, exc_info=True)
+
+            results.append({
+                "goal_id": goal_id,
+                "goal_title": goal_title,
+                "status": goal_row[8],
+                "risks": goal_risks,
+                "risk_count": len(goal_risks),
+            })
 
     log.info("strategic_goals.risk_analysis_complete", goals=len(results),
              total_risks=sum(r["risk_count"] for r in results))

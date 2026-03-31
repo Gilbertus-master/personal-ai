@@ -37,50 +37,54 @@ def _propose_action(action_type: str, description: str, params: dict) -> int | N
 def check_market_triggers() -> list[dict[str, Any]]:
     """High-relevance market insights → action proposals."""
     proposals = []
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
-            # Market insights with relevance >= 85, not yet acted on
-            cur.execute("""
-                SELECT mi.id, mi.title, mi.impact_assessment, mi.relevance_score, mi.insight_type
-                FROM market_insights mi
-                WHERE mi.relevance_score >= 85
-                AND mi.created_at > NOW() - INTERVAL '24 hours'
-                AND NOT EXISTS (
-                    SELECT 1 FROM action_proposals ap
-                    WHERE ap.source_ref = 'market_insight:' || mi.id::text
-                    AND ap.created_at > NOW() - INTERVAL '48 hours'
-                )
-                ORDER BY mi.relevance_score DESC LIMIT 3
-            """)
-            for r in cur.fetchall():
-                mid, title, impact, relevance, itype = r
-                confidence = score_signal_confidence("market_insight", {
-                    "relevance_score": relevance, "action_type": "create_ticket",
-                    "severity": "high" if relevance >= 90 else "medium",
-                })
-                if confidence["confidence"] < 0.3:
-                    log.info("auto_actions.market_skip_low_confidence",
-                             insight_id=mid, confidence=confidence["confidence"])
-                    continue
-                if itype == "regulation":
-                    desc = f"Nowa regulacja: {title}. {impact}. Sugeruję sprawdzić wpływ na kontrakty."
-                    action_type = "send_email"
-                    params = {"subject": f"[Gilbertus] Regulacja: {title}", "body": desc,
-                              "to": "sebastian@respect.energy", "source_ref": f"market_insight:{mid}"}
-                elif itype == "price_change":
-                    desc = f"Zmiana cenowa: {title}. {impact}. Rozważ korektę pozycji."
-                    action_type = "create_ticket"
-                    params = {"title": f"Trading alert: {title}", "description": desc,
-                              "source_ref": f"market_insight:{mid}"}
-                else:
-                    desc = f"Market signal: {title} (relevance {relevance}). {impact}"
-                    action_type = "create_ticket"
-                    params = {"title": title, "description": desc,
-                              "source_ref": f"market_insight:{mid}"}
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                # Market insights with relevance >= 85, not yet acted on
+                cur.execute("""
+                    SELECT mi.id, mi.title, mi.impact_assessment, mi.relevance_score, mi.insight_type
+                    FROM market_insights mi
+                    WHERE mi.relevance_score >= 85
+                    AND mi.created_at > NOW() - INTERVAL '24 hours'
+                    AND NOT EXISTS (
+                        SELECT 1 FROM action_proposals ap
+                        WHERE ap.source_ref = 'market_insight:' || mi.id::text
+                        AND ap.created_at > NOW() - INTERVAL '48 hours'
+                    )
+                    ORDER BY mi.relevance_score DESC LIMIT 3
+                """)
+                for r in cur.fetchall():
+                    mid, title, impact, relevance, itype = r
+                    confidence = score_signal_confidence("market_insight", {
+                        "relevance_score": relevance, "action_type": "create_ticket",
+                        "severity": "high" if relevance >= 90 else "medium",
+                    })
+                    if confidence["confidence"] < 0.3:
+                        log.info("auto_actions.market_skip_low_confidence",
+                                 insight_id=mid, confidence=confidence["confidence"])
+                        continue
+                    if itype == "regulation":
+                        desc = f"Nowa regulacja: {title}. {impact}. Sugeruję sprawdzić wpływ na kontrakty."
+                        action_type = "send_email"
+                        params = {"subject": f"[Gilbertus] Regulacja: {title}", "body": desc,
+                                  "to": "sebastian@respect.energy", "source_ref": f"market_insight:{mid}"}
+                    elif itype == "price_change":
+                        desc = f"Zmiana cenowa: {title}. {impact}. Rozważ korektę pozycji."
+                        action_type = "create_ticket"
+                        params = {"title": f"Trading alert: {title}", "description": desc,
+                                  "source_ref": f"market_insight:{mid}"}
+                    else:
+                        desc = f"Market signal: {title} (relevance {relevance}). {impact}"
+                        action_type = "create_ticket"
+                        params = {"title": title, "description": desc,
+                                  "source_ref": f"market_insight:{mid}"}
 
-                aid = _propose_action(action_type, desc, params)
-                if aid:
-                    proposals.append({"source": "market", "insight_id": mid, "action_id": aid, "title": title})
+                    aid = _propose_action(action_type, desc, params)
+                    if aid:
+                        proposals.append({"source": "market", "insight_id": mid, "action_id": aid, "title": title})
+
+    except Exception as e:
+        log.error("auto_actions.market_trigger_failed", error=str(e))
 
     return proposals
 
@@ -88,40 +92,44 @@ def check_market_triggers() -> list[dict[str, Any]]:
 def check_competitor_triggers() -> list[dict[str, Any]]:
     """High-severity competitor signals ��� scenario proposals."""
     proposals = []
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT cs.id, c.name, cs.title, cs.description
-                FROM competitor_signals cs
-                JOIN competitors c ON c.id = cs.competitor_id
-                WHERE cs.severity = 'high'
-                AND cs.created_at > NOW() - INTERVAL '48 hours'
-                AND NOT EXISTS (
-                    SELECT 1 FROM scenarios s
-                    WHERE s.trigger_event = 'competitor_signal:' || cs.id::text
-                )
-                LIMIT 3
-            """)
-            for r in cur.fetchall():
-                sid, comp_name, title, description = r
-                confidence = score_signal_confidence("competitor_signal", {
-                    "severity": "high", "action_type": "create_ticket",
-                })
-                if confidence["confidence"] < 0.3:
-                    log.info("auto_actions.competitor_skip_low_confidence",
-                             signal_id=sid, confidence=confidence["confidence"])
-                    continue
-                from app.analysis.scenario_analyzer import create_scenario, analyze_scenario
-                scenario = create_scenario(
-                    title=f"[Auto] {comp_name}: {title[:60]}",
-                    description=f"Sygnał konkurencyjny: {description[:300]}",
-                    scenario_type="risk",
-                    trigger_event=f"competitor_signal:{sid}",
-                    created_by="auto_actions",
-                )
-                analyze_scenario(scenario["id"])
-                proposals.append({"source": "competitor", "signal_id": sid,
-                                  "scenario_id": scenario["id"], "competitor": comp_name})
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT cs.id, c.name, cs.title, cs.description
+                    FROM competitor_signals cs
+                    JOIN competitors c ON c.id = cs.competitor_id
+                    WHERE cs.severity = 'high'
+                    AND cs.created_at > NOW() - INTERVAL '48 hours'
+                    AND NOT EXISTS (
+                        SELECT 1 FROM scenarios s
+                        WHERE s.trigger_event = 'competitor_signal:' || cs.id::text
+                    )
+                    LIMIT 3
+                """)
+                for r in cur.fetchall():
+                    sid, comp_name, title, description = r
+                    confidence = score_signal_confidence("competitor_signal", {
+                        "severity": "high", "action_type": "create_ticket",
+                    })
+                    if confidence["confidence"] < 0.3:
+                        log.info("auto_actions.competitor_skip_low_confidence",
+                                 signal_id=sid, confidence=confidence["confidence"])
+                        continue
+                    from app.analysis.scenario_analyzer import create_scenario, analyze_scenario
+                    scenario = create_scenario(
+                        title=f"[Auto] {comp_name}: {title[:60]}",
+                        description=f"Sygnał konkurencyjny: {description[:300]}",
+                        scenario_type="risk",
+                        trigger_event=f"competitor_signal:{sid}",
+                        created_by="auto_actions",
+                    )
+                    analyze_scenario(scenario["id"])
+                    proposals.append({"source": "competitor", "signal_id": sid,
+                                      "scenario_id": scenario["id"], "competitor": comp_name})
+
+    except Exception as e:
+        log.error("auto_actions.competitor_trigger_failed", error=str(e))
 
     return proposals
 
@@ -129,32 +137,36 @@ def check_competitor_triggers() -> list[dict[str, Any]]:
 def check_goal_triggers() -> list[dict[str, Any]]:
     """At-risk goals → delegation proposals."""
     proposals = []
-    with get_pg_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT id, title, company, status, deadline
-                FROM strategic_goals
-                WHERE status IN ('at_risk', 'behind')
-                AND deadline IS NOT NULL AND deadline < NOW() + INTERVAL '30 days'
-            """)
-            for r in cur.fetchall():
-                gid, title, company, status, deadline = r
-                confidence = score_signal_confidence("goal_at_risk", {
-                    "severity": "high" if status == "behind" else "medium",
-                    "action_type": "create_ticket",
-                })
-                if confidence["confidence"] < 0.3:
-                    log.info("auto_actions.goal_skip_low_confidence",
-                             goal_id=gid, confidence=confidence["confidence"])
-                    continue
-                desc = f"Cel '{title}' ({company}) jest {status}. Deadline: {deadline}. Sugeruję delegację sprawdzenia statusu."
-                aid = _propose_action("create_ticket", desc, {
-                    "title": f"Goal at risk: {title}",
-                    "description": desc,
-                    "source_ref": f"goal:{gid}",
-                })
-                if aid:
-                    proposals.append({"source": "goal", "goal_id": gid, "action_id": aid, "title": title})
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT id, title, company, status, deadline
+                    FROM strategic_goals
+                    WHERE status IN ('at_risk', 'behind')
+                    AND deadline IS NOT NULL AND deadline < NOW() + INTERVAL '30 days'
+                """)
+                for r in cur.fetchall():
+                    gid, title, company, status, deadline = r
+                    confidence = score_signal_confidence("goal_at_risk", {
+                        "severity": "high" if status == "behind" else "medium",
+                        "action_type": "create_ticket",
+                    })
+                    if confidence["confidence"] < 0.3:
+                        log.info("auto_actions.goal_skip_low_confidence",
+                                 goal_id=gid, confidence=confidence["confidence"])
+                        continue
+                    desc = f"Cel '{title}' ({company}) jest {status}. Deadline: {deadline}. Sugeruję delegację sprawdzenia statusu."
+                    aid = _propose_action("create_ticket", desc, {
+                        "title": f"Goal at risk: {title}",
+                        "description": desc,
+                        "source_ref": f"goal:{gid}",
+                    })
+                    if aid:
+                        proposals.append({"source": "goal", "goal_id": gid, "action_id": aid, "title": title})
+
+    except Exception as e:
+        log.error("auto_actions.goal_trigger_failed", error=str(e))
 
     return proposals
 
