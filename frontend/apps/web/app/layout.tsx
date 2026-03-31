@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
 import { ErrorReporter } from '@/components/error-reporter';
+import { AppErrorBoundary } from '@/components/app-error-boundary';
 
 const inter = Inter({
   subsets: ['latin', 'latin-ext'],
@@ -25,9 +26,11 @@ export default function RootLayout({
         className={`${inter.variable} font-sans bg-[var(--bg)] text-[var(--text)]`}
         suppressHydrationWarning
       >
+        <ErrorReporter userId="sebastian" />
         <Providers>
-          <ErrorReporter userId="sebastian" />
-          {children}
+          <AppErrorBoundary>
+            {children}
+          </AppErrorBoundary>
         </Providers>
       </body>
     </html>
