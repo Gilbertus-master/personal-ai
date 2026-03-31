@@ -11,7 +11,7 @@ export async function GET(req: Request): Promise<Response> {
   const path = url.pathname;
 
   if (path.endsWith('/session')) {
-    return Response.json({}); // no session = not authenticated
+    return Response.json(null); // no session = not authenticated
   }
   if (path.endsWith('/csrf')) {
     return Response.json({ csrfToken: 'dev-stub' });
