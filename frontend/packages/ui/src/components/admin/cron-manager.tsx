@@ -133,7 +133,7 @@ export function CronManager({
               Kategorie
             </div>
             <div className="mt-2 flex flex-wrap gap-1.5">
-              {summary.categories.map((c) => (
+              {(summary.categories ?? []).map((c) => (
                 <span key={c.category} className={cn('rounded-full px-2 py-0.5 text-xs font-medium', categoryColor(c.category))}>
                   {c.category} ({c.jobs})
                 </span>
@@ -146,7 +146,7 @@ export function CronManager({
               Użytkownicy
             </div>
             <div className="mt-2 space-y-1">
-              {summary.by_user.map((u) => (
+              {(summary.by_user ?? []).map((u) => (
                 <div key={u.username} className="flex items-center justify-between text-sm">
                   <span className="font-mono text-[var(--text)]">{u.username}</span>
                   <span className="text-[var(--text-secondary)]">
