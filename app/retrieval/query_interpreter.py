@@ -334,4 +334,3 @@ def interpret_query(
             date_from=date_from,
             date_to=date_to,
         )
-    

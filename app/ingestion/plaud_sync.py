@@ -265,7 +265,7 @@ def sync_plaud(limit: int = 50, sync_all: bool = False) -> tuple[int, int, int]:
 
             transcript = extract_transcript(detail)
             is_pending = not transcript.strip()
-            
+
             if is_pending:
                 # Track pending transcripts to avoid re-fetching them repeatedly
                 try:
