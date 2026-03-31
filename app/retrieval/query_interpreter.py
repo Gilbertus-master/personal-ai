@@ -17,6 +17,7 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
 ANTHROPIC_FAST_MODEL = os.getenv("ANTHROPIC_FAST_MODEL", "claude-haiku-4-5")
 INTERPRETATION_CACHE_TTL = int(os.getenv("INTERPRETATION_CACHE_TTL", "300"))  # 5 min
+_PG_CACHE_TTL_SECONDS = int(os.getenv("INTERPRETATION_CACHE_PG_TTL", "900"))  # 15 min
 
 client = Anthropic(api_key=ANTHROPIC_API_KEY, timeout=30.0)
 
@@ -94,22 +95,78 @@ def _cache_key(
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
+def _pg_cache_get(key: str) -> InterpretedQuery | None:
+    """Check PG for cached interpretation result."""
+    try:
+        from app.db.postgres import get_pg_connection
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT result_json FROM interpretation_cache WHERE query_hash = %s AND expires_at > NOW()",
+                    (key,),
+                )
+                row = cur.fetchone()
+                if row:
+                    cur.execute(
+                        "UPDATE interpretation_cache SET hit_count = hit_count + 1 WHERE query_hash = %s",
+                        (key,),
+                    )
+                    conn.commit()
+                    return InterpretedQuery(**row[0])
+    except Exception as e:
+        print(f"[query_interpreter] PG cache get failed: {e}")
+    return None
+
+
+def _pg_cache_put(key: str, result: InterpretedQuery) -> None:
+    """Store interpretation result in PG cache."""
+    try:
+        from app.db.postgres import get_pg_connection
+        result_dict = result.model_dump()
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """INSERT INTO interpretation_cache (query_hash, result_json, expires_at)
+                    VALUES (%s, %s::jsonb, NOW() + INTERVAL '%s seconds')
+                    ON CONFLICT (query_hash) DO UPDATE
+                    SET result_json = EXCLUDED.result_json,
+                        expires_at = EXCLUDED.expires_at,
+                        created_at = NOW()""",
+                    (key, json.dumps(result_dict), _PG_CACHE_TTL_SECONDS),
+                )
+            conn.commit()
+    except Exception as e:
+        print(f"[query_interpreter] PG cache put failed: {e}")
+
+
 def _cache_get(key: str) -> InterpretedQuery | None:
+    # L1: in-memory cache (fast, per-worker)
     entry = _interp_cache.get(key)
-    if entry is None:
-        return None
-    ts, result = entry
-    if time.time() - ts > INTERPRETATION_CACHE_TTL:
+    if entry:
+        ts, result = entry
+        if time.time() - ts <= INTERPRETATION_CACHE_TTL:
+            return result
         _interp_cache.pop(key, None)
-        return None
-    return result
+
+    # L2: PG cache (shared across workers)
+    pg_result = _pg_cache_get(key)
+    if pg_result is not None:
+        _interp_cache[key] = (time.time(), pg_result)
+        print(f"[query_interpreter] PG cache HIT for: {key[:40]}")
+        return pg_result
+
+    return None
 
 
 def _cache_put(key: str, result: InterpretedQuery) -> None:
+    # L1: in-memory
     if len(_interp_cache) >= _CACHE_MAX_SIZE:
         oldest_key = min(_interp_cache, key=lambda k: _interp_cache[k][0])
         _interp_cache.pop(oldest_key, None)
     _interp_cache[key] = (time.time(), result)
+
+    # L2: PG (shared across workers)
+    _pg_cache_put(key, result)
 
 
 def build_fallback_interpretation(
