@@ -16,6 +16,7 @@ function AdminSidebarPlaceholder() {
         { label: 'Users', href: '/admin/users' },
         { label: 'Audit Log', href: '/admin/audit' },
         { label: 'Omnius Bridge', href: '/admin/omnius' },
+        { label: 'Autofixery', href: '/admin/autofixers' },
       ].map((item) => (
         <a
           key={item.href}
