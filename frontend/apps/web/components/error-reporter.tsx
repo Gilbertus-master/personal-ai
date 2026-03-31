@@ -82,7 +82,10 @@ export function ErrorReporter({ userId = "sebastian" }: { userId?: string }) {
         msg.includes("Warning:") ||
         msg.includes("Minified React error") ||
         msg.includes("hydration") ||
-        msg.includes("act()")
+        msg.includes("act()") ||
+        msg.includes("same key") ||
+        msg.includes("Non-unique keys") ||
+        msg.includes("Encountered two children")
       ) {
         return;
       }

@@ -43,8 +43,8 @@ export function SourcePanel({ sources }: SourcePanelProps) {
         style={{ maxHeight: expanded ? `${contentHeight}px` : '0px' }}
       >
         <div ref={contentRef} className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2">
-          {sources.map((source) => (
-            <SourceCard key={source.document_id} source={source} />
+          {sources.map((source, idx) => (
+            <SourceCard key={`${source.document_id}-${idx}`} source={source} />
           ))}
         </div>
       </div>
